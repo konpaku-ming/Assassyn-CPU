@@ -1,6 +1,0 @@
-<testsuites name="results">
-  <testsuite name="all" package="all">
-    <property name="random_seed" value="1764154478" />
-    <testcase name="test_tb" classname="tb" file="/home/tomorrow_arc1/CS/assassyn/MyCPU/workspace/driver/verilog/tb.py" lineno="12" time="0.004960298538208008" sim_time_ns="101000.001" ratio_time="20361677.875236914" />
-  </testsuite>
-</testsuites>
