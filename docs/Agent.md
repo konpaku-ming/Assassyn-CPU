@@ -177,7 +177,7 @@ if __name__ == "__main__":
 # 格式：apptainer exec --bind <宿主机代码目录> <镜像路径> python <脚本路径>
 
 # 示例（假设在 riscv_cpu 根目录下运行）：
-apptainer exec --bind $(pwd) /tmp/assassyn.sif python tests/test_fetch.py
+apptainer exec --bind $(pwd) /assassyn.sif python tests/test_fetch.py
 ```
 
 *   **`--bind $(pwd)`**: 极其重要！这将当前目录挂载到容器内，确保 Python 能找到 `src` 和 `tests` 模块。
