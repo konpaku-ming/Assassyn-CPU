@@ -5,7 +5,7 @@
 ## 1. 模块概述
 
 **MemoryAccess** 是流水线的访存响应阶段。
-由于 SRAM 的读/写请求已在 EXE 阶段发出，MEM 阶段的职责如下：
+由于 SRAM 的读/写请求已在 EX 阶段发出，MEM 阶段的职责如下：
 1.  **数据接收**：从 SRAM 寄存器端口读取原始数据。
 2.  **数据整形**：根据地址低位和指令类型（LB/LH/LW/LBU/LHU），对数据进行移位、截断和符号扩展。
 3.  **路由选择**：在“加工后的内存数据”和“EX 阶段传来的 ALU 结果”之间进行选择。
@@ -15,20 +15,20 @@
 
 ### 2.1 端口定义 (`__init__`)
 
-接收来自 EXE 阶段的控制信号包以及两条数据通道。
+接收来自 EX 阶段的控制信号包以及两条数据通道。
 
 ``` python
 class MemoryAccess(Module):
     def __init__(self):
         super().__init__(
             ports={
-                # 1. 控制通道：包含 is_load, mem_width, mem_unsigned, wb_ctrl(rd)
+                # 1. 控制通道：包含 is_load, mem_width, mem_unsigned, wb_ctrl(rd_addr)
                 'ctrl': Port(mem_ctrl_signals),
 
                 # 2. 统一数据通道：
                 # - Load/Store 指令：SRAM 地址 (用于切割数据)
                 # - ALU 指令：计算结果
-                # - JAL/JALR 指令：PC+4 (由 EXE 级 Mux 进来)
+                # - JAL/JALR 指令：PC+4 (由 EX 级 Mux 进来)
                 'alu_result': Port(Bits(32)) 
             }
         )
@@ -42,7 +42,7 @@ class MemoryAccess(Module):
 ```python
 @module.combinational
 def build(self, 
-          wb_module: Module,         # 下一级流水线
+          wb_module: Module,      # 下一级流水线 (writeback.py)
           sram_dout: Array,       # SRAM 的输出端口 (Ref)
           mem_bypass_reg: Array   # 全局 Bypass 寄存器 (数据)
           ):
@@ -139,11 +139,11 @@ def build(self,
     # 2. 驱动下一级 WB (Main Channel)
     # 剥离外层 mem_ctrl，只传 wb_ctrl
     wb_call = wb_module.async_called(
-        ctrl = ctrl.wb_ctrl,
+        ctrl = ctrl.rd_addr,
         wdata = final_data
     )
     
-    # [关键]：设置 FIFO 深度为 1 (刚性流水线特征)
+    # 设置 FIFO 深度为 1 (刚性流水线特征)
     wb_call.bind.set_fifo_depth(ctrl=1, wdata=1)
 
     # 3. 状态暴露
