@@ -132,7 +132,7 @@ class MockModule(Module):
 
 ### 第二步：编写单元测试
 在 `tests/` 下创建一个测试脚本。
-*   **Mock 上游**：创建一个 `Driver` 模块，构造特定的 `Record` 包并通过 `async_called` 发送给 DUT（被测模块）。
+*   **Mock 上游**：创建一个 `Driver` 模块，构造特定的 `Record` 包并通过 `async_called` 发送给 DUT（被测模块）。注意，模块的名字**必须是**`Driver`，一切格式保持与`tests/test_writeback.py` 中 `Driver` 一致。
 *   **Mock 下游**：创建一个 `Sink` 模块，接收 DUT 的输出。
 *   **Check 函数**：编写 Python 函数解析 `log()` 输出，验证逻辑是否符合预期。
 
@@ -142,7 +142,7 @@ class MockModule(Module):
 from src.execute import Execution
 from tests.common import run_test_module
 
-class ExDriver(Module):
+class Driver(Module):
     def build(self, dut):
         # 构造一个测试包 (ADD 指令)
         # 发送给 dut

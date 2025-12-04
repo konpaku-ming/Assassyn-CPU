@@ -14,12 +14,11 @@ from tests.common import run_test_module
 
 
 # ==============================================================================
-# 1. Driver 模块定义
+# 1. Driver 模块定义：前三行不能改，这是Assassyn的约定。
 # ==============================================================================
-class WBDriver(Module):
+class Driver(Module):
     def __init__(self):
         super().__init__(ports={})
-        self.name = "WBDriver"
 
     @module.combinational
     # [修改] build 函数返回 cnt，使其成为 Output Wire
@@ -39,9 +38,6 @@ class WBDriver(Module):
         # 1. 计数器：跟踪当前测试进度
         cnt = RegArray(UInt(32), 1)
         (cnt & self)[0] <= cnt[0] + UInt(32)(1)
-
-        # 心跳日志保留
-        log("[Driver Heartbeat] Cycle: {}", cnt[0])
         
         idx = cnt[0]
 
@@ -140,7 +136,7 @@ if __name__ == "__main__":
     with sys:
         reg_file = RegArray(Bits(32), 32)
         dut = WriteBack()
-        driver = WBDriver()
+        driver = Driver()
 
         # [关键] 获取 Driver 的返回值 (cnt)
         driver_cnt = driver.build(dut)
