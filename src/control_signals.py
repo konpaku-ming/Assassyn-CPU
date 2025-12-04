@@ -15,12 +15,12 @@ OP_SYSTEM   = Bits(7)(0b1110011) # ECALL, EBREAK
 
 # 立即数类型 (用于生成器选择切片逻辑)
 class ImmType:
-    R = Bits(6)(0b100000) # 无立即数
-    I = Bits(6)(0b010000)
-    S = Bits(6)(0b001000)
-    B = Bits(6)(0b000100)
-    U = Bits(6)(0b000010)
-    J = Bits(6)(0b000001)
+    R = Bits(6)(0b000001) # 无立即数
+    I = Bits(6)(0b000010)
+    S = Bits(6)(0b000100)
+    B = Bits(6)(0b001000)
+    U = Bits(6)(0b010000)
+    J = Bits(6)(0b100000)
     
 
 # 2. 执行阶段控制信号 (EX Control)
