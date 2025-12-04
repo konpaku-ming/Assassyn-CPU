@@ -101,19 +101,19 @@ rd_addr    = Bits(5)       # 目标寄存器索引，如果是0拒绝写入。
 
 # 访存域 (MemCtrl)
 mem_ctrl_signals = Record(
-    mem_opcode   = Bits(3)(0), # 内存操作，独热码 (0:None, 1:Load, 2:Store)
-    mem_width    = Bits(3)(0), # 访问宽度，独热码 (0:Byte, 1:Half, 2:Word)
+    mem_opcode   = Bits(3), # 内存操作，独热码 (0:None, 1:Load, 2:Store)
+    mem_width    = Bits(3), # 访问宽度，独热码 (0:Byte, 1:Half, 2:Word)
     mem_unsigned = Bits(1), # 是否无符号扩展 (LBU/LHU)
     rd_addr = Bits(5)       # 【嵌套】携带 WB 级信号
 )
 
 # 执行域 (ExCtrl)
 ex_ctrl_signals = Record(
-    alu_func = Bits(16)(0),   # ALU 功能码 (独热码)
-    rs1_sel  = Bits(3)(0),    # rs1结果来源，独热码 (0:RS1, 1:EX_MEM_Fwd, 2: MEM_WB_Fwd)
-    rs2_sel  = Bits(3)(0),    # rs2结果来源，独热码 (0:RS1, 1:EX_MEM_Fwd, 2: MEM_WB_Fwd)
-    op1_sel  = Bits(3)(0),    # 操作数1来源，独热码 (0:RS1, 1:PC, 2: Constant_0)
-    op2_sel  = Bits(3)(0),    # 操作数2来源，独热码 (0:RS2, 1:imm, 2: Constant_4)
+    alu_func = Bits(16),   # ALU 功能码 (独热码)
+    rs1_sel  = Bits(3),    # rs1结果来源，独热码 (0:RS1, 1:EX_MEM_Fwd, 2: MEM_WB_Fwd)
+    rs2_sel  = Bits(3),    # rs2结果来源，独热码 (0:RS1, 1:EX_MEM_Fwd, 2: MEM_WB_Fwd)
+    op1_sel  = Bits(3),    # 操作数1来源，独热码 (0:RS1, 1:PC, 2: Constant_0)
+    op2_sel  = Bits(3),    # 操作数2来源，独热码 (0:RS2, 1:imm, 2: Constant_4)
     is_branch = Bits(1),    # 是否跳转 (Branch 指令)
     is_jtype = Bits(1),     # 是否直接跳转 (JAL/JALR 指令)
     is_jalr  = Bits(1),     # 是否是 JALR 指令

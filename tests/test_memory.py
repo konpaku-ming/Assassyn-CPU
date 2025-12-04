@@ -5,8 +5,6 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from assassyn.frontend import *
-from assassyn.backend import elaborate
-from assassyn import utils
 
 # 导入你的设计
 from src.memory import MemoryAccess
@@ -23,59 +21,66 @@ class Driver(Module):
         super().__init__(ports={})
 
     @module.combinational
-    def build(self, dut: Module, wb_module: Module, sram_dout: Array, mem_bypass_reg: Array):
+    def build(
+        self, dut: Module, wb_module: Module, sram_dout: Array, mem_bypass_reg: Array
+    ):
         # --- 测试向量定义 ---
         # 格式: (mem_opcode, mem_width, mem_unsigned, rd_addr, alu_result, sram_data, expected_result)
         # mem_opcode: 0=NONE, 1=LOAD, 2=STORE
         # mem_width: 0=BYTE, 1=HALF, 2=WORD
         # mem_unsigned: 0=SIGNED, 1=UNSIGNED
-        
+
+        # 注意：mem_unsigned使用的是二进制编码而不是独热码
+        # 原因：mem_unsigned只有两个可能的值（SIGNED或UNSIGNED），使用1位二进制编码更高效
+        # 而mem_opcode和mem_width有多个可能的值，使用独热码便于选择逻辑的实现
+
         vectors = [
-            # Case 0: LB (加载字节，有符号) - 地址对齐
-            (1, 0, 0, 1, 0x10000000, 0x12345678, 0xFFFFFFF8),  # 0x78 符号扩展
-            
-            # Case 1: LH (加载半字，有符号) - 地址对齐
-            (1, 1, 0, 2, 0x10000000, 0x12345678, 0xFFFF5678),  # 0x5678 符号扩展
-            
+            # --- 基础加载测试 (修改数据以测试负数符号扩展) ---
+            # Case 0: LB (加载字节，有符号) - 地址对齐 (Offset 0)
+            # Input: ...F8 (1111_1000, 负数) -> 符号扩展 -> FFFFFFF8
+            (1, 0, 0, 1, 0x10000000, 0x123456F8, 0xFFFFFFF8),
+            # Case 1: LH (加载半字，有符号) - 地址对齐 (Offset 0)
+            # Input: ...F678 (1111_..., 负数) -> 符号扩展 -> FFFFF678
+            (1, 1, 0, 2, 0x10000000, 0x1234F678, 0xFFFFF678),
             # Case 2: LW (加载字) - 地址对齐
-            (1, 2, 0, 3, 0x10000000, 0x12345678, 0x12345678),  # 直接加载
-            
+            # Input: ... (正数) -> 直接加载
+            (1, 2, 0, 3, 0x10000000, 0x12345678, 0x12345678),
+            # --- 无符号扩展测试 ---
             # Case 3: LBU (加载字节，无符号) - 地址对齐
-            (1, 0, 1, 4, 0x10000000, 0x12345678, 0x00000078),  # 0x78 零扩展
-            
+            # Input: ...F8 (负数) -> 零扩展 -> 000000F8
+            (1, 0, 1, 4, 0x10000000, 0x123456F8, 0x000000F8),
             # Case 4: LHU (加载半字，无符号) - 地址对齐
-            (1, 1, 1, 5, 0x10000000, 0x12345678, 0x00005678),  # 0x5678 零扩展
-            
-            # Case 5: LB (加载字节，有符号) - 地址偏移1
-            (1, 0, 0, 6, 0x10000001, 0x12345678, 0xFFFFFF56),  # 0x56 符号扩展
-            
-            # Case 6: LB (加载字节，有符号) - 地址偏移2
-            (1, 0, 0, 7, 0x10000002, 0x12345678, 0xFFFFFF34),  # 0x34 符号扩展
-            
-            # Case 7: LB (加载字节，有符号) - 地址偏移3
-            (1, 0, 0, 8, 0x10000003, 0x12345678, 0xFFFFFF12),  # 0x12 符号扩展
-            
-            # Case 8: LH (加载半字，有符号) - 地址偏移2
-            (1, 1, 0, 9, 0x10000002, 0x12345678, 0x00001234),  # 0x1234 符号扩展
-            
-            # Case 9: 非加载指令 (ALU 运算) - 直接传递 ALU 结果
-            (0, 0, 0, 10, 0xABCDEF00, 0x12345678, 0xABCDEF00),  # 忽略内存数据
-            
-            # Case 10: 边界测试 - 最大负值
-            (1, 0, 0, 11, 0x10000000, 0x80FFFFFF, 0xFFFFFFFF),  # 0xFF 符号扩展
-            
-            # Case 11: 边界测试 - 最大正值
-            (1, 0, 1, 12, 0x10000000, 0x7F123456, 0x00000056),  # 0x56 零扩展
-            
-            # Case 12: 写 x0 (应该被忽略)
-            (1, 2, 0, 0, 0x10000000, 0xDEADBEEF, 0xDEADBEEF),  # rd=0
+            # Input: ...F678 (负数) -> 零扩展 -> 0000F678
+            (1, 1, 1, 5, 0x10000000, 0x1234F678, 0x0000F678),
+            # --- 偏移地址测试 (Little Endian: 低地址存低位) ---
+            # Case 5: LB (加载字节，有符号) - Offset 1 (取 [15:8])
+            # Input: 0x1234F678 -> Byte1 is F6 (负数) -> FFFFFFF6
+            (1, 0, 0, 6, 0x10000001, 0x1234F678, 0xFFFFFFF6),
+            # Case 6: LB (加载字节，有符号) - Offset 2 (取 [23:16])
+            # Input: 0x12F45678 -> Byte2 is F4 (负数) -> FFFFFFF4
+            (1, 0, 0, 7, 0x10000002, 0x12F45678, 0xFFFFFFF4),
+            # Case 7: LB (加载字节，有符号) - Offset 3 (取 [31:24])
+            # Input: 0xF2345678 -> Byte3 is F2 (负数) -> FFFFFFF2
+            (1, 0, 0, 8, 0x10000003, 0xF2345678, 0xFFFFFFF2),
+            # Case 8: LH (加载半字，有符号) - Offset 2 (取 [31:16])
+            # Input: 0xF2345678 -> Half1 is F234 (负数) -> FFFFF234
+            (1, 1, 0, 9, 0x10000002, 0xF2345678, 0xFFFFF234),
+            # --- 其他测试 ---
+            # Case 9: 非加载指令 (ALU 运算)
+            (0, 0, 0, 10, 0xABCDEF00, 0x00000000, 0xABCDEF00),
+            # Case 10: 边界测试 - 最大负值 (Byte 0 = FF)
+            (1, 0, 0, 11, 0x10000000, 0x000000FF, 0xFFFFFFFF),
+            # Case 11: 边界测试 - 正数零扩展
+            (1, 0, 1, 12, 0x10000000, 0x7F123456, 0x00000056),
+            # Case 12: 写 x0 (忽略)
+            (1, 2, 0, 0, 0x10000000, 0xDEADBEEF, 0xDEADBEEF),
         ]
 
         # --- 激励生成逻辑 ---
         # 1. 计数器：跟踪当前测试进度
         cnt = RegArray(UInt(32), 1)
         (cnt & self)[0] <= cnt[0] + UInt(32)(1)
-        
+
         idx = cnt[0]
 
         # 2. 组合逻辑 Mux：根据 idx 选择当前的测试向量
@@ -89,10 +94,28 @@ class Driver(Module):
         current_expected = Bits(32)(0)
 
         # 这里的循环展开会生成一棵 Mux 树
-        for i, (mem_opcode, mem_width, mem_unsigned, rd_addr, alu_result, sram_data, expected) in enumerate(vectors):
+        for i, (
+            mem_opcode,
+            mem_width,
+            mem_unsigned,
+            rd_addr,
+            alu_result,
+            sram_data,
+            expected,
+        ) in enumerate(vectors):
             is_match = idx == UInt(32)(i)
-            current_mem_opcode = is_match.select(Bits(3)(mem_opcode), current_mem_opcode)
-            
+
+            # 独热码构造：只有对应位为1，其他位为0
+            if mem_opcode == 0:  # NONE
+                opcode_onehot = Bits(3)(0b001)
+            elif mem_opcode == 1:  # LOAD
+                opcode_onehot = Bits(3)(0b010)
+            else:  # STORE
+                opcode_onehot = Bits(3)(0b100)
+            current_mem_opcode = is_match.select(
+                opcode_onehot, current_mem_opcode
+            )  # 独热码
+
             # 独热码构造：只有对应位为1，其他位为0
             if mem_width == 0:  # BYTE
                 width_onehot = Bits(3)(0b001)
@@ -100,20 +123,30 @@ class Driver(Module):
                 width_onehot = Bits(3)(0b010)
             else:  # WORD
                 width_onehot = Bits(3)(0b100)
-            current_mem_width = is_match.select(width_onehot, current_mem_width)  # 独热码
-            
-            current_mem_unsigned = is_match.select(Bits(1)(mem_unsigned), current_mem_unsigned)
+            current_mem_width = is_match.select(
+                width_onehot, current_mem_width
+            )  # 独热码
+
+            # 使用control_signals.py中定义的MemSign常量而不是直接使用0和1
+            # 这样可以提高代码的可读性和维护性
+            if mem_unsigned == 0:  # SIGNED
+                mem_sign_value = MemSign.SIGNED
+            else:  # UNSIGNED
+                mem_sign_value = MemSign.UNSIGNED
+            current_mem_unsigned = is_match.select(mem_sign_value, current_mem_unsigned)
             current_rd_addr = is_match.select(Bits(5)(rd_addr), current_rd_addr)
-            current_alu_result = is_match.select(Bits(32)(alu_result), current_alu_result)
+            current_alu_result = is_match.select(
+                Bits(32)(alu_result), current_alu_result
+            )
             current_sram_data = is_match.select(Bits(32)(sram_data), current_sram_data)
             current_expected = is_match.select(Bits(32)(expected), current_expected)
 
         # 3. 构建控制信号包
-        ctrl_pkt = Record(
-            mem_opcode = current_mem_opcode,
-            mem_width = current_mem_width,
-            mem_unsigned = current_mem_unsigned,
-            rd_addr = current_rd_addr
+        ctrl_pkt = mem_ctrl_signals.bundle(
+            mem_opcode=current_mem_opcode,
+            mem_width=current_mem_width,
+            mem_unsigned=current_mem_unsigned,
+            rd_addr=current_rd_addr,
         )
 
         # 4. 模拟 SRAM 输出数据
@@ -125,9 +158,17 @@ class Driver(Module):
 
         with Condition(valid_test):
             # 打印 Driver 发出的请求，方便对比调试
-            log("Driver: idx={} mem_op={} width={} unsigned={} rd=x{} addr=0x{:x} sram=0x{:x} expected=0x{:x}", 
-                idx, current_mem_opcode, current_mem_width, current_mem_unsigned, 
-                current_rd_addr, current_alu_result, current_sram_data, current_expected)
+            log(
+                "Driver: idx={} mem_op={} width={} unsigned={} rd=x{} addr=0x{:x} sram=0x{:x} expected=0x{:x}",
+                idx,
+                current_mem_opcode,
+                current_mem_width,
+                current_mem_unsigned,
+                current_rd_addr,
+                current_alu_result,
+                current_sram_data,
+                current_expected,
+            )
 
             # 建立连接 (async_called)
             call = dut.async_called(ctrl=ctrl_pkt, alu_result=current_alu_result)
@@ -144,20 +185,21 @@ def check(raw_output):
     print(">>> 开始验证日志...")
 
     # 预期发生的写入操作 (过滤掉 rd=0 的 case)
+    # 预期发生的写入操作 (注意：必须与上面的 vectors 严格对应)
     expected_writes = [
-        (1, 0xFFFFFFF8),  # Case 0: LB
-        (2, 0xFFFF5678),  # Case 1: LH
-        (3, 0x12345678),  # Case 2: LW
-        (4, 0x00000078),  # Case 3: LBU
-        (5, 0x00005678),  # Case 4: LHU
-        (6, 0xFFFFFF56),  # Case 5: LB offset 1
-        (7, 0xFFFFFF34),  # Case 6: LB offset 2
-        (8, 0xFFFFFF12),  # Case 7: LB offset 3
-        (9, 0x00001234),  # Case 8: LH offset 2
-        (10, 0xABCDEF00), # Case 9: 非加载指令
-        (11, 0xFFFFFFFF), # Case 10: 边界测试 - 最大负值
-        (12, 0x00000056), # Case 11: 边界测试 - 最大正值
-        # Case 12 (x0) 不应出现
+        (1, 0xFFFFFFF8),  # Case 0
+        (2, 0xFFFFF678),  # Case 1
+        (3, 0x12345678),  # Case 2
+        (4, 0x000000F8),  # Case 3
+        (5, 0x0000F678),  # Case 4
+        (6, 0xFFFFFFF6),  # Case 5
+        (7, 0xFFFFFFF4),  # Case 6
+        (8, 0xFFFFFFF2),  # Case 7
+        (9, 0xFFFFF234),  # Case 8
+        (10, 0xABCDEF00),  # Case 9
+        (11, 0xFFFFFFFF),  # Case 10
+        (12, 0x00000056),  # Case 11
+        # Case 12 (x0) 被忽略，不在此列表中
     ]
 
     # 实际捕捉到的写入操作
@@ -177,11 +219,11 @@ def check(raw_output):
                     rd = int(part[1:])
                 if part.startswith("0x"):
                     data = int(part, 16)
-            
+
             if rd is not None and data is not None:
                 captured_writes.append((rd, data))
                 print(f"  [捕获] WB: x{rd} <= 0x{data:08x}")
-        
+
         # 捕获旁路寄存器的数据更新
         if "MEM: Bypass" in line:
             # 示例行: "[100] MEM: Bypass <= 0x12345678"
@@ -212,8 +254,10 @@ def check(raw_output):
             assert False
 
     # 3. 旁路寄存器数据检查
-    if len(bypass_data) != len(expected_writes):
-        print(f"❌ 错误：预期旁路更新 {len(expected_writes)} 次，实际更新 {len(bypass_data)} 次")
+    if len(bypass_data) != len(expected_writes) + 1:
+        print(
+            f"❌ 错误：预期旁路更新 {len(expected_writes)} 次，实际更新 {len(bypass_data)} 次"
+        )
         assert False
 
     for i, (exp_rd, exp_data) in enumerate(expected_writes):
@@ -237,17 +281,19 @@ if __name__ == "__main__":
         dut = MemoryAccess()
         wb_module = WriteBack()
         driver = Driver()
-        
+
         # 创建 SRAM 输出端口和旁路寄存器
         sram_dout = RegArray(Bits(32), 1)
         mem_bypass_reg = RegArray(Bits(32), 1)
 
         # [关键] 获取 Driver 的返回值
-        driver_cnt, driver_rd, driver_expected = driver.build(dut, wb_module, sram_dout, mem_bypass_reg)
+        driver_cnt, driver_rd, driver_expected = driver.build(
+            dut, wb_module, sram_dout, mem_bypass_reg
+        )
 
         # 获取 DUT 的返回值
         mem_ctrl = dut.build(wb_module, sram_dout, mem_bypass_reg)
-        
+
         # 获取 WB 模块的返回值
         wb_rd = wb_module.build(reg_file)
 

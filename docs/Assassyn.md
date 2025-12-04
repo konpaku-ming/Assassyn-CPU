@@ -47,6 +47,7 @@
     )
     
     # 使用 Record 打包数据 (instructions.py - decode_logic)
+    # Record对象必须使用 bundle() 方法进行打包
     return deocder_signals.bundle(
         rs1=rs1, 
         rs1_valid=rs1_valid, 
