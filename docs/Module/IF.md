@@ -69,17 +69,17 @@ IF 阶段的逻辑核心是一个 **三级优先级多路选择器 (Priority Mux
 *   **触发条件**：`branch_target != 0`（来自 EX 级的 `branch` 信息）。
 *   **SRAM 行为**：`now_pc = branch_target`，使用 `now_pc` 驱动SRAM。
     *   为了让 ID 级在下一拍能拿到正确的跳转目标指令，我们必须在当前拍就改变 SRAM 地址。
-*   **PC 行为**：`next_pc = now_pc+4`。
+*   **PC 行为**：`next_pc = now_pc`。
 
 ### 3.2 状态 2：Stall (暂停)
 *   **触发条件**：`stall_if == 1`（通常来自 ID 级的 Load-Use 冒险）。
-*   **SRAM 行为**： 不写入，保持上一周期pc。
+*   **SRAM 行为**：直接用 `now_pc` 驱动 SRAM ，保持上一周期pc。
     *   ID 级因为 Stall 正在重试读取 SRAM 的输出。
 *   **PC 行为**：`next_pc = now_pc` (保持不变)。
 
 ### 3.3 状态 3：Normal (正常)
 *   **触发条件**：无 Flush 且无 Stall。
-*   **SRAM 行为**：直接用 `now_pc` 驱动 SRAM。
+*   **SRAM 行为**：直接用 `now_pc + 4` 驱动 SRAM。
 *   **PC 行为**：`next_PC = now_pc + 4`。
 
 ### 3.4 通用行为：写回
@@ -117,26 +117,7 @@ IF 阶段的逻辑核心是一个 **三级优先级多路选择器 (Priority Mux
     
     icache.build(we=0, re=1, addr=sram_addr, ...)
 
-    # --- 3. 驱动下游 Decoder (流控) ---
-    # 构造数据包
-    packet = decode_packet_t.bundle(
-        pc=current_pc,
-        # ... 其他信号
-        valid_inst=Bits(1)(1) # 默认有效
-    )
-    
-    # 决定是否发送
-    # 如果 Stall，不发送 (Assassyn 侧 valid=0)
-    # 如果 Flush，发送 NOP (Assassyn 侧 valid=1, 但包内业务 flag=0) 
-    # 或者直接都不发送，让 ID 级自己去处理气泡
-    
-    # 采用刚性流水线策略：
-    # Stall 时：什么都不做 (不调用 async_called)
-    # Flush 时：发送气泡 (NOP)
-    
-    with Condition(~stall_if):
-        # 只有不 Stall 时才推数据
-        # 如果 Flush，这里要把 packet 替换为 NOP 包
-        real_packet = flush_if.select(NOP_PACKET, packet)
-        decoder.async_called(packet=real_packet)
+    # --- 3. 驱动下游 Decoder (流控) --- 
+    # 如果 Flush，这里要把 pc 替换为 0
+    decoder.async_called(pc=final_next_pc)
 ```

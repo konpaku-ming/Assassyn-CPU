@@ -12,6 +12,7 @@ from src.execution import Execution
 from src.memory import MemoryAccess
 from src.control_signals import *
 from tests.common import run_test_module
+from tests.sram_init import create_initialized_sram
 
 
 # ==============================================================================
@@ -959,203 +960,8 @@ class Sink(Module):
         # 创建一个虚拟的SRAM用于测试
         sram_dout = RegArray(Bits(32), 1)
 
-        # 创建一个模拟的SRAM模块用于测试
-        class MockSRAM:
-            def __init__(self):
-                # 模拟真实的SRAM参数
-                self.width = 32
-                self.depth = 1024  # 1024个32位字的SRAM
-                self.addr_width = 10  # log2(1024)
-                self.data = RegArray(Bits(32), self.depth)  # 存储数据
-                self.dout = RegArray(Bits(32), 1)  # 输出数据寄存器
-                self.mem_width = MemWidth.WORD  # 默认访问宽度
-                self.mem_unsigned = MemSign.UNSIGNED  # 默认无符号扩展
-                
-                # 初始化一些测试数据
-                self.data[0x1000 >> 2] = Bits(32)(0x12345678)
-                self.data[0x1004 >> 2] = Bits(32)(0xABCDEF00)
-                self.data[0x1008 >> 2] = Bits(32)(0x11223344)
-
-            def set_mem_params(self, mem_width, mem_unsigned):
-                """设置内存访问参数"""
-                self.mem_width = mem_width
-                self.mem_unsigned = mem_unsigned
-
-            def build(self, we, wdata, addr, re):
-                # 记录SRAM操作 - EX阶段只输出地址
-                log("SRAM: EX阶段 - we={} re={} addr=0x{:x} wdata=0x{:x}", we, re, addr, wdata)
-
-                # 根据访问宽度确定对齐要求
-                if self.mem_width == MemWidth.WORD:
-                    # 字访问需要4字节对齐
-                    addr_aligned = addr[1:0] == Bits(2)(0)
-                    access_size = 4
-                elif self.mem_width == MemWidth.HALF:
-                    # 半字访问需要2字节对齐
-                    addr_aligned = addr[0:0] == Bits(1)(0)
-                    access_size = 2
-                else:  # MemWidth.BYTE
-                    # 字节访问不需要对齐
-                    addr_aligned = Bits(1)(1)
-                    access_size = 1
-
-                # 将地址转换为字地址和字节偏移
-                word_addr = addr >> 2
-                byte_offset = addr[1:0]
-
-                # 地址范围检查
-                addr_in_range = word_addr < self.depth
-
-                # 写操作 - 在MEM阶段执行
-                with Condition(we & addr_aligned & addr_in_range):
-                    if self.mem_width == MemWidth.WORD:
-                        # 字写操作
-                        self.data[word_addr] = wdata
-                        log(
-                            "SRAM: MEM阶段 - Write WORD addr=0x{:x} data=0x{:x}",
-                            word_addr << 2,
-                            wdata,
-                        )
-                    elif self.mem_width == MemWidth.HALF:
-                        # 半字写操作
-                        old_data = self.data[word_addr]
-                        if byte_offset == Bits(2)(0):
-                            # 写入低16位
-                            new_data = Bits(32)(
-                                (old_data & 0xFFFF0000) | (wdata & 0x0000FFFF)
-                            )
-                        else:
-                            # 写入高16位
-                            new_data = Bits(32)(
-                                (old_data & 0x0000FFFF) | ((wdata & 0x0000FFFF) << 16)
-                            )
-                        self.data[word_addr] = new_data
-                        log(
-                            "SRAM: MEM阶段 - Write HALF addr=0x{:x} data=0x{:x} (byte_offset={})",
-                            word_addr << 2,
-                            wdata,
-                            byte_offset,
-                        )
-                    else:  # MemWidth.BYTE
-                        # 字节写操作
-                        old_data = self.data[word_addr]
-                        if byte_offset == Bits(2)(0):
-                            # 写入字节0
-                            new_data = Bits(32)(
-                                (old_data & 0xFFFFFF00) | (wdata & 0x000000FF)
-                            )
-                        elif byte_offset == Bits(2)(1):
-                            # 写入字节1
-                            new_data = Bits(32)(
-                                (old_data & 0xFFFF00FF) | ((wdata & 0x000000FF) << 8)
-                            )
-                        elif byte_offset == Bits(2)(2):
-                            # 写入字节2
-                            new_data = Bits(32)(
-                                (old_data & 0xFF00FFFF) | ((wdata & 0x000000FF) << 16)
-                            )
-                        else:
-                            # 写入字节3
-                            new_data = Bits(32)(
-                                (old_data & 0x00FFFFFF) | ((wdata & 0x000000FF) << 24)
-                            )
-                        self.data[word_addr] = new_data
-                        log(
-                            "SRAM: MEM阶段 - Write BYTE addr=0x{:x} data=0x{:x} (byte_offset={})",
-                            word_addr << 2,
-                            wdata,
-                            byte_offset,
-                        )
-
-                # 读操作 - 在MEM阶段执行
-                with Condition(re & addr_aligned & addr_in_range):
-                    if self.mem_width == MemWidth.WORD:
-                        # 字读操作
-                        self.dout[0] = self.data[word_addr]
-                        sram_dout[0] = self.dout[0]  # 更新输出
-                        log(
-                            "SRAM: MEM阶段 - Read WORD addr=0x{:x} data=0x{:x}",
-                            word_addr << 2,
-                            self.data[word_addr],
-                        )
-                    elif self.mem_width == MemWidth.HALF:
-                        # 半字读操作
-                        word_data = self.data[word_addr]
-                        if byte_offset == Bits(2)(0):
-                            # 读取低16位
-                            half_data = word_data[15:0]
-                        else:
-                            # 读取高16位
-                            half_data = word_data[31:16]
-
-                        # 符号扩展处理
-                        if self.mem_unsigned == MemSign.UNSIGNED:
-                            # 无符号扩展
-                            self.dout[0] = Bits(32)(half_data)
-                        else:
-                            # 有符号扩展
-                            sign_bit = half_data[15:15]
-                            self.dout[0] = Bits(32)(
-                                (Bits(16)(sign_bit).repeat(16) << 16) | half_data
-                            )
-
-                        sram_dout[0] = self.dout[0]  # 更新输出
-                        log(
-                            "SRAM: MEM阶段 - Read HALF addr=0x{:x} data=0x{:x} (byte_offset={}, signed={})",
-                            word_addr << 2,
-                            self.dout[0],
-                            byte_offset,
-                            self.mem_unsigned == MemSign.SIGNED,
-                        )
-                    else:  # MemWidth.BYTE
-                        # 字节读操作
-                        word_data = self.data[word_addr]
-                        if byte_offset == Bits(2)(0):
-                            # 读取字节0
-                            byte_data = word_data[7:0]
-                        elif byte_offset == Bits(2)(1):
-                            # 读取字节1
-                            byte_data = word_data[15:8]
-                        elif byte_offset == Bits(2)(2):
-                            # 读取字节2
-                            byte_data = word_data[23:16]
-                        else:
-                            # 读取字节3
-                            byte_data = word_data[31:24]
-
-                        # 符号扩展处理
-                        if self.mem_unsigned == MemSign.UNSIGNED:
-                            # 无符号扩展
-                            self.dout[0] = Bits(32)(byte_data)
-                        else:
-                            # 有符号扩展
-                            sign_bit = byte_data[7:7]
-                            self.dout[0] = Bits(32)(
-                                (Bits(8)(sign_bit).repeat(24) << 8) | byte_data
-                            )
-
-                        sram_dout[0] = self.dout[0]  # 更新输出
-                        log(
-                            "SRAM: MEM阶段 - Read BYTE addr=0x{:x} data=0x{:x} (byte_offset={}, signed={})",
-                            word_addr << 2,
-                            self.dout[0],
-                            byte_offset,
-                            self.mem_unsigned == MemSign.SIGNED,
-                        )
-
-                # 地址未对齐警告
-                with Condition(we | re):
-                    with Condition(~addr_aligned):
-                        log(
-                            "SRAM: Warning - Unaligned access addr=0x{:x} (required {}-byte alignment)",
-                            addr,
-                            access_size,
-                        )
-
-                # 地址超出范围警告
-                with Condition(we | re):
-                    with Condition(~addr_in_range):
-                        log("SRAM: Warning - Out of range access addr=0x{:x}", addr)
+        # 使用sram_init模块创建真正的SRAM
+        sram = create_initialized_sram(width=32, depth=1024)
 
         # 创建旁路寄存器
         ex_mem_bypass = RegArray(Bits(32), 1)
@@ -1164,16 +970,13 @@ class Sink(Module):
         # 创建分支目标寄存器
         branch_target_reg = RegArray(Bits(32), 1)
 
-        # 创建模拟的SRAM
-        mock_sram = MockSRAM()
-
         # 调用DUT的build方法
         rd_addr, is_load = dut.build(
             mem_module=mem_module,
             ex_mem_bypass=ex_mem_bypass,
             mem_wb_bypass=mem_wb_bypass,
             branch_target_reg=branch_target_reg,
-            dcache=mock_sram,  # 使用模拟的SRAM
+            dcache=sram,  # 使用真正的SRAM
         )
 
         # 打印EX阶段传来的信号并检验

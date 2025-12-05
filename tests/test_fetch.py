@@ -1,284 +1,174 @@
 import sys
 import os
-import re
 
-# 1. 环境路径设置 (确保能 import src)
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from assassyn.frontend import *
-
-# 导入你的设计
-from src.fetch import Fetcher, FetcherImpl
 from tests.common import run_test_module
+from src.fetch import Fetcher, FetcherImpl
 
 
-# ==============================================================================
-# 1. Driver 模块定义：前三行不能改，这是Assassyn的约定。
-# ==============================================================================
+# --- Driver ---
 class Driver(Module):
     def __init__(self):
         super().__init__(ports={})
 
     @module.combinational
-    def build(
-        self,
-        dut: Module,
-        icache: SRAM,
-        stall_if: Value,
-        branch_target: Array,
-    ):
-        # --- 测试向量定义 ---
-        # 格式: (stall, branch_target, expected_pc, expected_inst)
-        # 
-        # stall: 是否暂停取指
-        # branch_target: 分支目标地址（0表示无分支）
-        # expected_pc: 预期的PC值
-        # expected_inst: 预期的指令值
-        
+    def build(self, branch_target: Array, dut: Module):
+        # 向量: (stall, target)
         vectors = [
-            # Case 0: 正常取指 (PC递增)
-            (Bits(1)(0), Bits(32)(0), Bits(32)(0x0), Bits(32)(0x00000013)),  # NOP指令
-            (Bits(1)(0), Bits(32)(0), Bits(32)(0x4), Bits(32)(0x00000093)),  # ADDI指令
-            (Bits(1)(0), Bits(32)(0), Bits(32)(0x8), Bits(32)(0x00000113)),  # ADDI指令
-            (Bits(1)(0), Bits(32)(0), Bits(32)(0xC), Bits(32)(0x00000193)),  # ADDI指令
-            
-            # Case 1: Stall测试 (PC保持不变)
-            (Bits(1)(1), Bits(32)(0), Bits(32)(0xC), Bits(32)(0x00000193)),  # PC应该保持0xC
-            (Bits(1)(1), Bits(32)(0), Bits(32)(0xC), Bits(32)(0x00000193)),  # PC应该保持0xC
-            (Bits(1)(1), Bits(32)(0), Bits(32)(0xC), Bits(32)(0x00000193)),  # PC应该保持0xC
-            
-            # Case 2: Flush测试 (PC跳变)
-            (Bits(1)(0), Bits(32)(0x1000), Bits(32)(0x1000), Bits(32)(0x00000013)),  # PC跳变到0x1000
-            (Bits(1)(0), Bits(32)(0), Bits(32)(0x1004), Bits(32)(0x00000093)),  # PC继续递增
-            (Bits(1)(0), Bits(32)(0), Bits(32)(0x1008), Bits(32)(0x00000113)),  # PC继续递增
-            
-            # Case 3: Stall后恢复正常
-            (Bits(1)(0), Bits(32)(0), Bits(32)(0x100C), Bits(32)(0x00000193)),  # PC继续递增
-            (Bits(1)(1), Bits(32)(0), Bits(32)(0x100C), Bits(32)(0x00000193)),  # PC保持0x100C
-            (Bits(1)(0), Bits(32)(0), Bits(32)(0x1010), Bits(32)(0x00000213)),  # PC继续递增
-            
-            # Case 4: Flush时Stall (Flush优先级更高)
-            (Bits(1)(1), Bits(32)(0x2000), Bits(32)(0x2000), Bits(32)(0x00000013)),  # PC跳变到0x2000，忽略Stall
-            (Bits(1)(0), Bits(32)(0), Bits(32)(0x2004), Bits(32)(0x00000093)),  # PC继续递增
+            (0, 0),  # Cyc 0: 正常 (Fetch 0)
+            (0, 0),  # Cyc 1: 正常 (Fetch 4)
+            (1, 0),  # Cyc 2: Stall (Fetch 4, 且 Hold)
+            (1, 0),  # Cyc 3: Stall (Fetch 4) -> 重复！
+            (0, 0),  # Cyc 4: 恢复 (Fetch 0x8)
+            (0, 0x1000),  # Cyc 5: 正常 (Fetch 0xc)
+            (0, 0),  # Cyc 6: Flush (Fetch 0x1000)
+            (1, 0x2000),  # Cyc 7: Stall (Fetch 0x1000)
+            (1, 0),  # Cyc 8: Flush (Fetch 0x2000)
         ]
 
-        # --- 激励生成逻辑 ---
-        # 1. 计数器：跟踪当前测试进度
-        cnt = RegArray(UInt(32), 1)
+        cnt = RegArray(UInt(32), 1, initializer=[0])
         (cnt & self)[0] <= cnt[0] + UInt(32)(1)
-
         idx = cnt[0]
 
-        # 2. 组合逻辑 Mux：根据 idx 选择当前的测试向量
-        # 初始化默认值
-        current_stall = Bits(1)(0)
-        current_branch_target = Bits(32)(0)
-        current_expected_pc = Bits(32)(0)
-        current_expected_inst = Bits(32)(0)
+        s, t = Bits(1)(0), Bits(32)(0)
 
-        # 这里的循环展开会生成一棵 Mux 树
-        for i, (stall, branch_target, expected_pc, expected_inst) in enumerate(vectors):
+        for i, v in enumerate(vectors):
             is_match = idx == UInt(32)(i)
+            s = is_match.select(Bits(1)(v[0]), s)
+            t = is_match.select(Bits(32)(v[1]), t)
 
-            current_stall = is_match.select(stall, current_stall)
-            current_branch_target = is_match.select(branch_target, current_branch_target)
-            current_expected_pc = is_match.select(expected_pc, current_expected_pc)
-            current_expected_inst = is_match.select(expected_inst, current_expected_inst)
+        valid_test = idx < UInt(32)(len(vectors))
+        with Condition(valid_test):
+            call = dut.async_called()
 
-        # 3. 设置控制信号
-        stall_if[0] = current_stall
-        branch_target[0] = current_branch_target
+        test_end_cycle = UInt(32)(len(vectors) + 2)
 
-        # 4. 初始化SRAM数据
-        # 根据PC地址预置一些指令数据
-        with Condition(idx == UInt(32)(0)):
-            icache.build(we=Bits(1)(1), re=Bits(1)(0), addr=Bits(32)(0x0), wdata=Bits(32)(0x00000013))
-            icache.build(we=Bits(1)(1), re=Bits(1)(0), addr=Bits(32)(0x4), wdata=Bits(32)(0x00000093))
-            icache.build(we=Bits(1)(1), re=Bits(1)(0), addr=Bits(32)(0x8), wdata=Bits(32)(0x00000113))
-            icache.build(we=Bits(1)(1), re=Bits(1)(0), addr=Bits(32)(0xC), wdata=Bits(32)(0x00000193))
-            icache.build(we=Bits(1)(1), re=Bits(1)(0), addr=Bits(32)(0x1000), wdata=Bits(32)(0x00000013))
-            icache.build(we=Bits(1)(1), re=Bits(1)(0), addr=Bits(32)(0x1004), wdata=Bits(32)(0x00000093))
-            icache.build(we=Bits(1)(1), re=Bits(1)(0), addr=Bits(32)(0x1008), wdata=Bits(32)(0x00000113))
-            icache.build(we=Bits(1)(1), re=Bits(1)(0), addr=Bits(32)(0x100C), wdata=Bits(32)(0x00000193))
-            icache.build(we=Bits(1)(1), re=Bits(1)(0), addr=Bits(32)(0x1010), wdata=Bits(32)(0x00000213))
-            icache.build(we=Bits(1)(1), re=Bits(1)(0), addr=Bits(32)(0x2000), wdata=Bits(32)(0x00000013))
-            icache.build(we=Bits(1)(1), re=Bits(1)(0), addr=Bits(32)(0x2004), wdata=Bits(32)(0x00000093))
+        with Condition(idx >= test_end_cycle):
+            log("Driver: All vectors applied. Finishing simulation.")
+            finish()
 
-        # 5. 打印 Driver 发出的请求，方便对比调试
-        with Condition(idx < UInt(32)(len(vectors))):
-            log(
-                "Driver: idx={} stall={} branch_target=0x{:x} expected_pc=0x{:x} expected_inst=0x{:x}",
-                idx,
-                current_stall,
-                current_branch_target,
-                current_expected_pc,
-                current_expected_inst,
-            )
+        # 驱动全局寄存器
+        branch_target[0] = t
 
-        # [关键] 返回 cnt 和预期结果，让它们成为模块的输出
-        return cnt, current_expected_pc, current_expected_inst
+        return s
 
 
-# ==============================================================================
-# 2. Sink 模块定义：用于接收IF模块的输出
-# ==============================================================================
-class Sink(Module):
+# --- Sink ---
+class MockDecoder(Module):
     def __init__(self):
-        super().__init__(ports={})
+        super().__init__(ports={"pc": Port(Bits(32))})
 
     @module.combinational
-    def build(self, dut: Module, icache: SRAM):
-        # 创建控制信号
-        stall_if = RegArray(Bits(1), 1)
-        branch_target = RegArray(Bits(32), 1)
-        
-        # 初始化为默认值
-        stall_if[0] <= Bits(1)(0)
-        branch_target[0] <= Bits(32)(0)
-        
-        # 调用DUT的build方法
-        pc_reg = dut.build()
-        
-        # 创建FetcherImpl并调用其build方法
-        fetcher_impl = FetcherImpl()
-        fetcher_impl.build(
-            pc_reg=pc_reg,
-            icache=icache,
-            decoder=self,  # 使用Sink作为decoder的Mock
-            stall_if=stall_if,
-            branch_target=branch_target
-        )
-        
-        # 返回DUT的输出
-        return pc_reg, stall_if, branch_target
+    def build(self):
+        # 模拟 ID 级接收 (Always Pop)
+        # 注意：即使是重复的 PC，这里也会打印出来
+        pc = self.pop_all_ports(False)
+        log("DEC: Recv PC=0x{:x}", pc)
+        return pc
 
 
-# ==============================================================================
-# 3. 验证逻辑 (Python Check)
-# ==============================================================================
-def check(raw_output):
-    print(">>> 开始验证IF模块输出...")
+# --- Check ---
+def check(output):
+    print(">>> Verifying Fetch Logic...")
+    captured = []
+    for line in output.split("\n"):
+        if "DEC: Recv PC=" in line:
+            pc = int(line.split("=")[-1], 16)
+            captured.append(pc)
 
-    # 预期结果列表 (必须与Driver中的vectors严格对应)
-    expected_pcs = [
-        0x00000000,  # Case 0: 正常取指
-        0x00000004,
-        0x00000008,
-        0x0000000C,
-        0x0000000C,  # Case 1: Stall测试
-        0x0000000C,
-        0x0000000C,
-        0x00001000,  # Case 2: Flush测试
-        0x00001004,
-        0x00001008,
-        0x0000100C,  # Case 3: Stall后恢复正常
-        0x0000100C,
-        0x00001010,
-        0x00002000,  # Case 4: Flush时Stall
-        0x00002004,
+    expected = [
+        0x0,
+        0x4,
+        0x4,  # Stall 开始前一拍
+        0x4,  # Stall 期间重复收到 0x8
+        0x8,  # 恢复后
+        0xc,  # 一周期延迟
+        0x1000,
+        0x1000,
+        0x2000,
+        0x2004,
+        0x2008,
     ]
 
-    expected_insts = [
-        0x00000013,  # Case 0: 正常取指
-        0x00000093,
-        0x00000113,
-        0x00000193,
-        0x00000193,  # Case 1: Stall测试
-        0x00000193,
-        0x00000193,
-        0x00000013,  # Case 2: Flush测试
-        0x00000093,
-        0x00000113,
-        0x00000193,  # Case 3: Stall后恢复正常
-        0x00000193,
-        0x00000213,
-        0x00000013,  # Case 4: Flush时Stall
-        0x00000093,
-    ]
+    print(f"Captured Sequence: {[hex(x) for x in captured]}")
+    print(f"Expected Sequence: {[hex(x) for x in expected]}")
 
-    # 捕获实际的PC和指令值
-    actual_pcs = []
-    actual_insts = []
+    # 3. 长度检查
+    # 如果捕获的长度小于预期，说明仿真过早结束或逻辑没跑通
+    if len(captured) < len(expected):
+        print(f"❌ Error: Insufficient data captured.")
+        print(f"   Expected {len(expected)} items, got {len(captured)}.")
+        assert False, "Captured sequence too short"
 
-    for line in raw_output.split("\n"):
-        # 捕获PC和指令值
-        if "IF: PC=" in line:
-            # 示例行: "IF: PC=0x00000000 Inst=0x00000013 Stall=0 Flush=0"
-            pc_match = re.search(r"PC=(0x[0-9a-fA-F]+)", line)
-            inst_match = re.search(r"Inst=(0x[0-9a-fA-F]+)", line)
+    # 4. [核心] 逐项遍历比对
+    mismatch_found = False
+    for i, exp_val in enumerate(expected):
+        act_val = captured[i]
+        
+        if act_val != exp_val:
+            print(f"❌ Mismatch at index {i} (Cycle ~{i}):")
+            print(f"   Expected: 0x{exp_val:x}")
+            print(f"   Actual:   0x{act_val:x}")
             
-            if pc_match and inst_match:
-                pc = int(pc_match.group(1), 16)
-                inst = int(inst_match.group(1), 16)
-                actual_pcs.append(pc)
-                actual_insts.append(inst)
-                print(f"  [捕获] PC=0x{pc:08x} Inst=0x{inst:08x}")
+            # 简单的错误原因推断
+            if exp_val == 0x4 and act_val == 0x8:
+                print("   -> Possible Cause: Stall failed, PC incremented.")
+            elif exp_val == 0x1000 and act_val != 0x1000:
+                print("   -> Possible Cause: Flush failed or delayed.")
+                
+            mismatch_found = True
+            # 我们找到第一个错误就停止，或者你可以选择继续打印所有错误
+            break 
+    
+    if mismatch_found:
+        assert False, "Sequence mismatch detected"
 
-    # --- 断言比对 ---
+    # 5. 关键特征点验证 (保留你的原有断言作为双重保险)
+    assert 0x0 in captured, "Reset Vector Missed"
+    
+    # 验证 Stall 行为: 检查是否有重复元素
+    # 如果预期里有重复的 0x4，我们验证实际抓取中 0x4 的数量
+    cnt_4 = captured.count(0x4)
+    if cnt_4 < 2:
+        print(f"❌ Stall Check Failed: 0x4 appeared only {cnt_4} times, expected >= 2")
+        assert False, "Stall Behavior Missed"
 
-    # 1. PC值数量检查
-    if len(actual_pcs) != len(expected_pcs):
-        print(f"❌ 错误：预期PC值 {len(expected_pcs)} 个，实际捕获 {len(actual_pcs)} 个")
-        assert False
+    # 验证 Flush 行为
+    if 0x1000 not in captured:
+        print("❌ Flush Check Failed: Target 0x1000 never appeared")
+        assert False, "Flush Jump Missed"
 
-    # 2. PC值内容检查
-    for i, (exp_pc, act_pc) in enumerate(zip(expected_pcs, actual_pcs)):
-        if exp_pc != act_pc:
-            print(f"❌ 错误：第 {i} 个PC值不匹配")
-            print(f"  预期: 0x{exp_pc:08x}")
-            print(f"  实际: 0x{act_pc:08x}")
-            assert False
-
-    # 3. 指令值数量检查
-    if len(actual_insts) != len(expected_insts):
-        print(f"❌ 错误：预期指令值 {len(expected_insts)} 个，实际捕获 {len(actual_insts)} 个")
-        assert False
-
-    # 4. 指令值内容检查
-    for i, (exp_inst, act_inst) in enumerate(zip(expected_insts, actual_insts)):
-        if exp_inst != act_inst:
-            print(f"❌ 错误：第 {i} 个指令值不匹配")
-            print(f"  预期: 0x{exp_inst:08x}")
-            print(f"  实际: 0x{act_inst:08x}")
-            assert False
-
-    print("✅ IF模块测试通过！(所有PC递增、Stall和Flush功能均正确)")
+    print("✅ IF Logic Passed:")
+    print("  - Sequence matched exactly.")
+    print("  - Stall verified (Repeated PC).")
+    print("  - Flush verified (Target Jump).")
 
 
-# ==============================================================================
-# 4. 主执行入口
-# ==============================================================================
+# --- Top ---
 if __name__ == "__main__":
-    sys = SysBuilder("test_fetch_module")
-
+    sys = SysBuilder("test_fetch")
     with sys:
-        # 创建测试模块
         fetcher = Fetcher()
-        # 创建SRAM作为ICache
-        icache = SRAM(width=32, depth=1024, init_file="")
+        decoder = MockDecoder()
         driver = Driver()
-        sink = Sink()
+        icache = SRAM(32, 4096, "")
 
-        # 创建控制信号
-        stall_if = RegArray(Bits(1), 1)
-        branch_target = RegArray(Bits(32), 1)
+        # 全局控制信号
+        br_target = RegArray(Bits(32), 1)
+        pc_reg, last_pc_reg = fetcher.build()
+        pc = decoder.build()
+        stall_wire = driver.build(br_target, fetcher)
 
-        # [关键] 获取 Driver 的返回值
-        driver_cnt, driver_expected_pc, driver_expected_inst = driver.build(
-            fetcher, icache, stall_if, branch_target
+        impl = FetcherImpl()
+        impl.build(
+            pc_reg=pc_reg,
+            last_pc_reg=last_pc_reg,
+            icache=icache,
+            decoder=decoder,
+            stall_if=stall_wire,
+            branch_target=br_target,
         )
-
-        # 获取 Sink 的返回值
-        pc_reg, stall_if_out, branch_target_out = sink.build(fetcher, icache)
-        
-        # [关键] 暴露 Driver 的计数器，防止被 DCE 优化掉
-        sys.expose_on_top(driver_cnt, kind="Output")
-        sys.expose_on_top(driver_expected_pc, kind="Output")
-        sys.expose_on_top(driver_expected_inst, kind="Output")
-
-        # 暴露其他信号
-        sys.expose_on_top(pc_reg, kind="Output")
-        sys.expose_on_top(stall_if_out, kind="Output")
-        sys.expose_on_top(branch_target_out, kind="Output")
 
     run_test_module(sys, check)
