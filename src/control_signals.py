@@ -40,6 +40,17 @@ class ALUOp:
     # 占位/直通/特殊用途
     NOP    = Bits(16)(0b1000000000000000)
 
+class BranchType:
+    NO_BRANCH = Bits(16)(0b0000000000000001)
+    BEQ       = Bits(16)(0b0000000000000010)
+    BNE       = Bits(16)(0b0000000000000100)
+    BLT       = Bits(16)(0b0000000000001000)
+    BGE       = Bits(16)(0b0000000000010000)
+    BLTU      = Bits(16)(0b0000000000100000)
+    BGEU      = Bits(16)(0b0000000001000000)
+    JAL       = Bits(16)(0b0000000010000000)
+    JALR      = Bits(16)(0b0000000100000000)
+
 class Rs1Sel:
     RS1        = Bits(3)(0b001)
     EX_MEM_BYPASS = Bits(3)(0b010)
@@ -109,14 +120,12 @@ mem_ctrl_signals = Record(
 
 # 执行域 (ExCtrl)
 ex_ctrl_signals = Record(
-    alu_func = Bits(16),   # ALU 功能码 (独热码)
-    rs1_sel  = Bits(3),    # rs1结果来源，独热码 (0:RS1, 1:EX_MEM_Fwd, 2: MEM_WB_Fwd)
-    rs2_sel  = Bits(3),    # rs2结果来源，独热码 (0:RS1, 1:EX_MEM_Fwd, 2: MEM_WB_Fwd)
-    op1_sel  = Bits(3),    # 操作数1来源，独热码 (0:RS1, 1:PC, 2: Constant_0)
-    op2_sel  = Bits(3),    # 操作数2来源，独热码 (0:RS2, 1:imm, 2: Constant_4)
-    is_branch = Bits(1),    # 是否跳转 (Branch 指令)
-    is_jtype = Bits(1),     # 是否直接跳转 (JAL/JALR 指令)
-    is_jalr  = Bits(1),     # 是否是 JALR 指令
+    alu_func = Bits(16),   # ALU 功能码，使用 Bits(16) 静态定义 (ADD:Bits(16)(0b0000000000000001), SUB:Bits(16)(0b0000000000000010), ...)
+    rs1_sel  = Bits(3),    # rs1结果来源，使用 Bits(3) 静态定义 (RS1:Bits(3)(0b001), EX_MEM_BYPASS:Bits(3)(0b010), MEM_WB_BYPASS:Bits(3)(0b100))
+    rs2_sel  = Bits(3),    # rs2结果来源，使用 Bits(3) 静态定义 (RS2:Bits(3)(0b001), EX_MEM_BYPASS:Bits(3)(0b010), MEM_WB_BYPASS:Bits(3)(0b100))
+    op1_sel  = Bits(3),    # 操作数1来源，使用 Bits(3) 静态定义 (RS1:Bits(3)(0b001), PC:Bits(3)(0b010), ZERO:Bits(3)(0b100))
+    op2_sel  = Bits(3),    # 操作数2来源，使用 Bits(3) 静态定义 (RS2:Bits(3)(0b001), IMM:Bits(3)(0b010), CONST_4:Bits(3)(0b100))
+    branch_type=Bits(16), # Branch 指令功能码，使用 Bits(16) 静态定义
     next_pc_addr = Bits(32),  # 预测结果：下一条指令的地址
     mem_ctrl = mem_ctrl_signals  # 【嵌套】携带 MEM 级信号
 )

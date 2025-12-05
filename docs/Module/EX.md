@@ -16,14 +16,16 @@ EX 阶段的控制信号包定义如下：
 ```python
 ex_ctrl_signals = Record(
     alu_func  = Bits(16),   # ALU 功能码 (独热码)
-    # 操作数来源选择 (混合了语义选择与旁路选择)
+
+    rs1_sel   = Bits(3),     # rs1 数据来源选择 (旁路选择)
+    rs2_sel   = Bits(3),     # rs2 数据来源选择 (旁路选择)
+    
+    # 操作数来源选择 (语义选择)
     # 0: 来自级间寄存器的 RS 数据
     # 1: 来自级间寄存器的 PC/Imm
     # 2: 常数 0 - op1_sel 用于 LUI等 / 常数 4 - op2_sel 用于 JAL/JALR Link
-    # 3: 来自 MEM 阶段的旁路数据 (EX-MEM Bypass)
-    # 4: 来自 WB 阶段的旁路数据 (MEM-WB Bypass)
-    op1_sel   = Bits(5),    
-    op2_sel   = Bits(5),    
+    op1_sel   = Bits(3),    
+    op2_sel   = Bits(3),    
     
     is_branch = Bits(1),      # 是否是 Branch 指令
     is_jtype = Bits(1),       # 是否是直接跳转指令
@@ -55,7 +57,7 @@ class Execution(Module):
                 # 源寄存器 1 数据 (来自 RegFile)
                 'rs1_data': Port(Bits(32)),
                 
-                # 源寄存器 2 数据 (来自 RegFile, 用于 ALU 或 Store)
+                # 源寄存器 2 数据 (来自 RegFile)
                 'rs2_data': Port(Bits(32)),
                 
                 # 立即数 (在 ID 级已完成符号扩展)
@@ -119,7 +121,7 @@ def build(self,
 
     # --- 操作数 1 选择 ---
     alu_op1 = ctrl.op1_sel.select1hot(
-        real_rs1,            # 0
+        real_rs1,       # 0
         pc,             # 1 (AUIPC/JAL/Branch)
         Bits(32)(0)     # 2 (LUI Link)
     )
@@ -171,12 +173,12 @@ def build(self,
 
 首先明确主ALU与专用PC加法器在不同指令下的分工，这是 ID 阶段生成控制信号的依据。
 
-| 指令类型 | **PC Adder (输入: PC, Mux)** | **Main ALU (输入: Mux, Mux)** | **说明** |
-| :--- | :--- | :--- | :--- |
-| **Branch** | 计算 **Target** (`PC + Imm`) | 计算 **Compare** (`rs1` vs `rs2`) | 并行计算目标与条件 |
-| **JAL** | 计算 **Target** (`PC + Imm`)   | 计算 **Link** (`PC + 4`)| 并行计算向后传递结果与PC值 |
-| **JALR** |  计算 **Target** (`rs1 + Imm`)| 计算 **Link** (`PC + 4`)| 并行计算向后传递结果与PC值 |
-| **其他** | (Idle / Dont Care) | 计算 **Result** | 常规操作 |
+| 指令类型   | **PC Adder (输入: PC, Mux)**  | **Main ALU (输入: Mux, Mux)**     | **说明**                   |
+| :--------- | :---------------------------- | :-------------------------------- | :------------------------- |
+| **Branch** | 计算 **Target** (`PC + Imm`)  | 计算 **Compare** (`rs1` vs `rs2`) | 并行计算目标与条件         |
+| **JAL**    | 计算 **Target** (`PC + Imm`)  | 计算 **Link** (`PC + 4`)          | 并行计算向后传递结果与PC值 |
+| **JALR**   | 计算 **Target** (`rs1 + Imm`) | 计算 **Link** (`PC + 4`)          | 并行计算向后传递结果与PC值 |
+| **其他**   | (Idle / Dont Care)            | 计算 **Result**                   | 常规操作                   |
 
 ### 3.5.2 相关控制信号
 
@@ -192,7 +194,7 @@ def build(self,
   # 1. 使用专用加法器计算跳转地址，对于 JALR，基址是 rs1；对于 JAL/Branch，基址是 PC
     
   target_base = ctrl.is_jalr.select(
-        pc,      # 0: Branch / JAL
+        pc,          # 0: Branch / JAL
         real_rs1     # 1: JALR
   )
     
@@ -204,15 +206,14 @@ def build(self,
 
   # 3. 根据指令类型决定最终的下一 PC 地址
   final_next_pc = ctrl.is_branch.select(
-    ctrl.
         is_taken.select(
-            pc + Bits(32)(4),  # Not Taken
             calc_target        # Taken
+            pc + Bits(32)(4),  # Not Taken
         ), next_pc_addr
   )
 
   # 4. 写入分支目标寄存器，供 IF 级使用
-  branch_miss= final_next_pc != ctrl.next_pc_addr
+  branch_miss = final_next_pc != ctrl.next_pc_addr
   branch_target_reg[0] = branch_miss.select(
       Bits(32)(0),    # 不跳转，写 0 表示顺序执行
       final_next_pc   # 跳转，写入目标地址
