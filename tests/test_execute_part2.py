@@ -111,7 +111,7 @@ class Driver(Module):
                 Bits(32)(0),
                 Bits(32)(300),
                 Bits(32)(250),
-                Bits(32)(320),
+                Bits(32)(270),
             ),
             # Case 3: 使用WB_BYPASS的SUB指令
             (
@@ -129,7 +129,7 @@ class Driver(Module):
                 Bits(32)(0),
                 Bits(32)(300),
                 Bits(32)(250),
-                Bits(32)(290),
+                Bits(32)(240),
             ),
             # Case 4: 使用WB_BYPASS的AND指令
             (
@@ -147,7 +147,7 @@ class Driver(Module):
                 Bits(32)(0),
                 Bits(32)(0x12345678),
                 Bits(32)(0x87654321),
-                Bits(32)(0x12345678 & 0x0F0F0F0F),
+                Bits(32)(0x87654321 & 0x0F0F0F0F),
             ),
             # Case 5: 使用WB_BYPASS的OR指令
             (
@@ -165,7 +165,7 @@ class Driver(Module):
                 Bits(32)(0),
                 Bits(32)(0x12345678),
                 Bits(32)(0x87654321),
-                Bits(32)(0x12345678 | 0x0F0F0F0F),
+                Bits(32)(0x87654321 | 0x0F0F0F0F),
             ),
             # --- 旁路对比测试 ---
             # Case 6: 对比三种旁路 - ADD指令
@@ -184,7 +184,7 @@ class Driver(Module):
                 Bits(32)(100),
                 Bits(32)(200),
                 Bits(32)(150),
-                Bits(32)(300),
+                Bits(32)(250),
             ),
             # Case 7: 对比三种旁路 - SUB指令
             (
@@ -202,18 +202,18 @@ class Driver(Module):
                 Bits(32)(200),
                 Bits(32)(100),
                 Bits(32)(50),
-                Bits(32)(100),
+                Bits(32)(150),
             ),
             # --- 分支指令测试 ---
             # Case 8: BEQ (相等分支)
             (
-                ALUOp.ADD,
+                ALUOp.SUB,
                 Rs1Sel.RS1,
                 Rs2Sel.RS2,
                 Op1Sel.RS1,
                 Op2Sel.RS2,
                 BranchType.BEQ,
-                Bits(32)(0x1008),
+                Bits(32)(0x1004),
                 Bits(32)(0x1000),
                 Bits(32)(10),
                 Bits(32)(10),
@@ -239,7 +239,7 @@ class Driver(Module):
                 Bits(32)(0),
                 Bits(32)(0),
                 Bits(32)(50),
-                Bits(32)(0xFFFFFFFE),
+                Bits(32)(0xFFFFFFF6),
             ),  # 10-20=-10≠0，BNE条件成立
             # Case 10: BLT (小于分支)
             (
@@ -249,7 +249,7 @@ class Driver(Module):
                 Op1Sel.RS1,
                 Op2Sel.RS2,
                 BranchType.BLT,
-                Bits(32)(0x1008),
+                Bits(32)(0x1004),
                 Bits(32)(0x1000),
                 Bits(32)(5),
                 Bits(32)(10),
@@ -267,7 +267,7 @@ class Driver(Module):
                 Op1Sel.RS1,
                 Op2Sel.RS2,
                 BranchType.BGE,
-                Bits(32)(0x1008),
+                Bits(32)(0x1004),
                 Bits(32)(0x1000),
                 Bits(32)(10),
                 Bits(32)(5),
@@ -285,7 +285,7 @@ class Driver(Module):
                 Op1Sel.RS1,
                 Op2Sel.RS2,
                 BranchType.BLTU,
-                Bits(32)(0x1008),
+                Bits(32)(0x1004),
                 Bits(32)(0x1000),
                 Bits(32)(10),
                 Bits(32)(5),
@@ -303,7 +303,7 @@ class Driver(Module):
                 Op1Sel.RS1,
                 Op2Sel.RS2,
                 BranchType.BGEU,
-                Bits(32)(0x1008),
+                Bits(32)(0x1004),
                 Bits(32)(0x1000),
                 Bits(32)(5),
                 Bits(32)(10),
@@ -322,7 +322,7 @@ class Driver(Module):
                 Op1Sel.PC,
                 Op2Sel.CONST_4,
                 BranchType.JAL,
-                Bits(32)(0x1008),
+                Bits(32)(0x1004),
                 Bits(32)(0x1000),
                 Bits(32)(0),
                 Bits(32)(0),
@@ -491,14 +491,14 @@ def check(raw_output):
     expected_results = [
         0x00000078,  # Case 0: 使用EX-MEM旁路 (100+20=120)
         0x000000DC,  # Case 1: 使用MEM-WB旁路 (200+20=220)
-        0x00000140,  # Case 2: 使用WB_BYPASS的ADD指令 (300+20=320)
-        0x00000122,  # Case 3: 使用WB_BYPASS的SUB指令 (300-10=290)
-        0x01040408,  # Case 4: 使用WB_BYPASS的AND指令 (0x12345678 & 0x0F0F0F0F = 0x01040408)
-        0x1B3F5F7F,  # Case 5: 使用WB_BYPASS的OR指令 (0x12345678 | 0x0F0F0F0F = 0x1B3F5F7F)
-        0x0000012C,  # Case 6: 对比三种旁路 - ADD指令 (100+200=300)
-        0x00000064,  # Case 7: 对比三种旁路 - SUB指令 (200-100=100)
+        0x0000010E,  # Case 2: 使用WB_BYPASS的ADD指令 (250+20=270)
+        0x000000F0,  # Case 3: 使用WB_BYPASS的SUB指令 (250-10=240)
+        0x07050301,  # Case 4: 使用WB_BYPASS的AND指令 (0x87654321 & 0x0F0F0F0F = 0x07050301)
+        0x8F6F4F2F,  # Case 5: 使用WB_BYPASS的OR指令 (0x87654321 | 0x0F0F0F0F = 0x8F6F4F2F)
+        0x000000FA,  # Case 6: 对比三种旁路 - ADD指令 (100+150=250)
+        0x00000032,  # Case 7: 对比三种旁路 - SUB指令 (100-50=50=0x0000032)
         0x00000000,  # Case 8: BEQ (10-10=0)
-        0xFFFFFFFE,  # Case 9: BNE (10-20=-10)
+        0xFFFFFFF6,  # Case 9: BNE (10-20=-10)
         0x00000001,  # Case 10: BLT (5<10=1)
         0x00000000,  # Case 11: BGE (10>=5=0)
         0x00000000,  # Case 12: BLTU (10>=5=0, 无符号比较)

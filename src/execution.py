@@ -196,14 +196,7 @@ class Execution(Module):
         # 对于 BLTU: alu_result[0] == 1
         # 对于 BGEU: alu_result[0] == 0
         is_taken = Bits(1)(0)
-        is_branch = (
-            (ctrl.branch_type == BranchType.BEQ)
-            | (ctrl.branch_type == BranchType.BNE)
-            | (ctrl.branch_type == BranchType.BLT)
-            | (ctrl.branch_type == BranchType.BGE)
-            | (ctrl.branch_type == BranchType.BLTU)
-            | (ctrl.branch_type == BranchType.BGEU)
-        )
+        is_branch = ctrl.branch_type != BranchType.NO_BRANCH
 
         # 输出分支类型日志
         with Condition(ctrl.branch_type == BranchType.BEQ):
@@ -248,7 +241,7 @@ class Execution(Module):
             | is_taken_ge
             | is_taken_ltu
             | is_taken_geu
-        ) & is_branch
+        )
 
         final_next_pc = flush_if.select(
             Bits(32)(0),
