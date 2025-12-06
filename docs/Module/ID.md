@@ -13,11 +13,12 @@ ID 模块是流水线的**控制中心**。它的核心职责是将从取指阶�
 
 *   **Decoder (Module)**：
     *   **职责**：物理切片 (Slicing) + 真值表查表 (Look-up) + 向 Hazard Unit 提供信息。
-    *   **产出**：`raw_alu_func`, `raw_op_sel`, `raw_imm`, `rs_idx` 等。
+    *   **产出**：`alu_func`, `op_sel`, `imm`, `rs1_idx` 等。
   
 *   **DecoderImpl (Downstream)**：
     *   **职责**：Hazard Unit 调用 + NOP Mux + 发送。
     *   **输入**：接收 Decoder 产出 + Hazard Unit 反馈。
+    *   **输出**：将所有控制信息打包并发送给 EX 级，所有数据透传至 EX 级。
 
 ## 2. 数据结构：控制信号包 (Control Packets)
 
