@@ -10,10 +10,6 @@ class Decoder(Module):
 
     @module.combinational
     def build(self, icache_dout: Array, reg_file: Array):
-        """
-        Decoder Shell: 负责静态译码和资源读取。
-        返回: pre_decode_packet (给 Impl) 以及 冒险检测所需的原始信号 (给 HazardUnit)
-        """
 
         # 1. 获取基础输入
         pc_val = self.pc.pop()
@@ -28,9 +24,7 @@ class Decoder(Module):
         rs2 = inst[20:24]
         bit30 = inst[30:30]
 
-        # ======================================================================
-        # 3. 立即数并行生成 (优化版：使用 Select)
-        # ======================================================================
+        # 3. 立即数并行生成
         sign = inst[31:31]
 
         # 辅助函数：生成填充位
@@ -69,9 +63,7 @@ class Decoder(Module):
             ImmType.J: imm_j,
         }
 
-        # ======================================================================
         # 4. 查表译码 (Signal Accumulation Loop)
-        # ======================================================================
 
         # 初始化累加器
         acc_alu_func = Bits(16)(0)
@@ -98,11 +90,10 @@ class Decoder(Module):
                 t_b30,
                 t_imm_type,
                 t_alu,
-                t_op1,
-                t_op2,
-                t_tgt_base,
                 t_rs1_use,
                 t_rs2_use,
+                t_op1,
+                t_op2,
                 t_mem_op,
                 t_mem_wid,
                 t_mem_sgn,
@@ -122,26 +113,20 @@ class Decoder(Module):
             # --- B. 信号累加 (Mux Logic) ---
             # 使用 select 实现 OR 逻辑
             acc_alu_func |= match.select(t_alu, 0)
+            acc_rs1_used |= match.select(Bits(1)(t_rs1_use), 0)
+            acc_rs2_used |= match.select(Bits(1)(t_rs2_use), 0)
             acc_op1_sel |= match.select(t_op1, 0)
             acc_op2_sel |= match.select(t_op2, 0)
-            acc_tgt_sel |= match.select(t_tgt_base, 0)
-            acc_br_type |= match.select(t_br, 0)
-
             acc_mem_op |= match.select(t_mem_op, 0)
             acc_mem_wid |= match.select(t_mem_wid, 0)
             acc_mem_uns |= match.select(Bits(1)(t_mem_sgn), 0)
-
             acc_wb_en |= match.select(Bits(1)(t_wb), 0)
-            acc_rs1_used |= match.select(Bits(1)(t_rs1_use), 0)
-            acc_rs2_used |= match.select(Bits(1)(t_rs2_use), 0)
-
+            acc_br_type |= match.select(t_br, 0)
             # 立即数选择
             current_imm_wire = imm_map[t_imm_type]
             acc_imm |= match.select(current_imm_wire, 0)
 
-        # ======================================================================
         # 5. 读取寄存器堆 & 打包
-        # ======================================================================
         raw_rs1_data = reg_file[rs1]
         raw_rs2_data = reg_file[rs2]
 
@@ -189,40 +174,6 @@ class DecoderImpl(Downstream):
         rs2_sel: Bits(4),
         stall_req: Bits(1),
     ):
-
-        # ======================================================================
-        # 1. 调用 Hazard Unit (决策层)
-        # ======================================================================
-        # 传入 ID 级需求和流水线状态，获取决策信号
-        rs1_sel, rs2_sel, stall_req = hazard_unit.build(
-            rs1_idx=pre.rs1_idx,
-            rs2_idx=pre.rs2_idx,
-            rs1_used=pre.rs1_used,
-            rs2_used=pre.rs2_used,
-            ex_rd=ex_rd,
-            ex_is_load=ex_is_load,
-            mem_rd=mem_ctrl.rd_addr,  # 从 Record 中提取
-            wb_rd=wb_rd,
-        )
-
-        # ======================================================================
-        # 2. 数据修补 (Data Repair - ID Stage)
-        # ======================================================================
-        # 这一步至关重要。如果 DHU 判定需要使用 WB 旁路，说明 RegFile 读出的是旧值。
-        # 我们必须在数据进入 FIFO 之前，用 wb_fwd_data 替换它。
-
-        # 判断是否选中 WB_BYPASS
-        use_wb_fix_1 = rs1_sel == Rs1Sel.WB_BYPASS
-        use_wb_fix_2 = rs2_sel == Rs2Sel.WB_BYPASS
-
-        # Mux: 如果需要修补则用 WB 数据，否则用 Decoder 读出的原始数据
-        final_rs1 = use_wb_fix_1.select(wb_fwd_data, pre.rs1_data)
-        final_rs2 = use_wb_fix_2.select(wb_fwd_data, pre.rs2_data)
-
-        # ======================================================================
-        # 3. 控制包组装 (Packet Assembly)
-        # ======================================================================
-        # 将静态信号与动态决策合并
 
         real_ctrl = ex_ctrl_signals.bundle(
             # --- 静态部分 (透传) ---
