@@ -21,16 +21,18 @@ class Fetcher(Module):
             ports={}, # Fetcher 是起点，通常不需要被别人 async_called
             no_arbiter=True
         )
-        self.name = 'F'
+        self.name = "F"
 
     @module.combinational
     def build(self):
         # 1. PC 寄存器
         # 初始化为 0 (Reset Vector)
         pc_reg = RegArray(Bits(32), 1, initializer=[0])
-        
+        # 记录上一个周期的PC，用于在 Stall 时稳住输入（Assassyn不允许"不输入"）
+        last_pc_reg = RegArray(Bits(32), 1, initializer=[0])
+
         # 暴露寄存器引用供 Impl 使用
-        return pc_reg
+        return pc_reg, last_pc_reg
 ```
 
 ### 2.2 FetcherImpl (Downstream) —— 逻辑实现者
@@ -39,85 +41,69 @@ class Fetcher(Module):
 
 ```python
 class FetcherImpl(Downstream):
-    @downstream.combinational
-    def build(self,
-        # --- 资源引用 ---
-        pc_reg: Array,        # 引用 Fetcher 的 PC
-        icache: SRAM,         # 引用 ICache
-        decoder: Module,      # 下一级模块 (用于发送指令)
+    def __init__(self):
+        super().__init__()
+        self.name = "F1"
 
+    @downstream.combinational
+    def build(
+        self,
+        # --- 资源引用 ---
+        pc_reg: Array,  # 引用 Fetcher 的 PC
+        last_pc_reg: Array,  # 引用 Fetcher 的 Last PC
+        icache: SRAM,  # 引用 ICache
+        decoder: Module,  # 下一级模块 (用于发送指令)
         # --- 反馈控制信号 (来自 DataHazardUnit/ControlHazardUnit) ---
-        stall_if: Value,      # 暂停取指 (保持当前 PC)
-        branch_target: Array, # 不为0时，根据目标地址冲刷流水线
+        stall_if: Bits(1),  # 暂停取指 (保持当前 PC)
+        branch_target: Array,  # 不为0时，根据目标地址冲刷流水线
     ):
-    pass # 实现见下文
+    # 实现见下文
 ```
 
----
 
 ## 3. 内部逻辑实现
 
-IF 阶段的逻辑核心是一个 **三级优先级多路选择器 (Priority Mux Tree)**。
+IF 阶段的逻辑核心是一个 **多路选择器**，根据 Stall 和 Flush 信号选择不同的 PC 值。
 
-**优先级**：**Flush (最高)** > **Stall** > **Normal (最低)**
+### 3.0 通用行为：PC 选择
 
-### 3.0 通用行为：取出当前 PC_reg 中值
-
-`now_pc = pc_reg[0]`
-
-### 3.1 状态 1：Flush (冲刷/跳转)
-*   **触发条件**：`branch_target != 0`（来自 EX 级的 `branch` 信息）。
-*   **SRAM 行为**：`now_pc = branch_target`，使用 `now_pc` 驱动SRAM。
-    *   为了让 ID 级在下一拍能拿到正确的跳转目标指令，我们必须在当前拍就改变 SRAM 地址。
-*   **PC 行为**：`next_pc = now_pc`。
-
-### 3.2 状态 2：Stall (暂停)
-*   **触发条件**：`stall_if == 1`（通常来自 ID 级的 Load-Use 冒险）。
-*   **SRAM 行为**：直接用 `now_pc` 驱动 SRAM ，保持上一周期pc。
-    *   ID 级因为 Stall 正在重试读取 SRAM 的输出。
-*   **PC 行为**：`next_pc = now_pc` (保持不变)。
-
-### 3.3 状态 3：Normal (正常)
-*   **触发条件**：无 Flush 且无 Stall。
-*   **SRAM 行为**：直接用 `now_pc + 4` 驱动 SRAM。
-*   **PC 行为**：`next_PC = now_pc + 4`。
-
-### 3.4 通用行为：写回
-
-`next_pc` 计算完成后，写回 `pc_reg[0]`。
-
----
-
-## 4. 逻辑代码映射
-
+首先根据 stall_if 信号选择当前 PC 值：
 ```python
-    # 读取当前 PC
-    current_pc = pc_reg[0]
-    
-    # --- 1. 计算 Next PC (时序逻辑输入) ---
-    # 默认：PC + 4
-    pc_next_normal = current_pc + 4
-    
-    # 处理 Stall：保持原值
-    pc_next_stall = stall_if.select(current_pc, pc_next_normal)
-    
-    # 处理 Flush：跳转目标 (优先级最高，覆盖 Stall)
-    final_next_pc = flush_if.select(target_pc, pc_next_stall)
-    
-    # 更新 PC 寄存器
-    pc_reg[0] <= final_next_pc
+current_pc = stall_if.select(last_pc_reg[0], pc_reg[0])
+```
 
-    # --- 2. 驱动 SRAM (组合逻辑输出) ---
-    # 决定给 SRAM 喂什么地址
-    # 如果 Flush，为了让下一拍 ID 能拿到新指令，必须立刻喂 Target
-    # 如果 Stall，必须喂 Current 稳住输出
-    # 如果 Normal，喂 Current (读取当前指令)
-    # 综上：只有 Flush 时喂 Target，否则喂 Current
-    sram_addr = flush_if.select(target_pc, current_pc)
-    
-    icache.build(we=0, re=1, addr=sram_addr, ...)
+然后根据 branch_target 判断是否需要 Flush：
+```python
+flush_if = branch_target[0] != Bits(32)(0)
+target_pc = branch_target[0]
+final_current_pc = flush_if.select(target_pc, current_pc)
+```
 
-    # --- 3. 驱动下游 Decoder (流控) --- 
-    # 如果 Flush，这里要把 pc 替换为 0
-    decoder.async_called(pc=final_next_pc)
+### 3.1 SRAM 驱动逻辑
+
+SRAM 地址由 final_current_pc 右移 2 位得到（字节地址转换为字地址）：
+```python
+sram_addr = (final_current_pc) >> UInt(32)(2)
+icache.build(we=Bits(1)(0), re=Bits(1)(1), addr=sram_addr, wdata=Bits(32)(0))
+```
+
+### 3.2 PC 更新逻辑
+
+下一周期的 PC 值为当前 PC 加 4：
+```python
+final_next_pc = final_current_pc + UInt(32)(4)
+```
+
+更新寄存器：
+```python
+pc_reg[0] <= final_next_pc
+last_pc_reg[0] <= final_current_pc
+```
+
+### 3.3 下游驱动
+
+向 Decoder 发送当前 PC 值：
+```python
+call = decoder.async_called(pc=final_current_pc)
+call.bind.set_fifo_depth(pc=1)
 ```
