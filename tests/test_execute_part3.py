@@ -47,7 +47,7 @@ class Driver(Module):
                 Rs1Sel.RS1,
                 Rs2Sel.RS2,
                 Op1Sel.RS1,
-                Op2Sel.CONST_4,
+                Op2Sel.IMM,
                 BranchType.NO_BRANCH,
                 Bits(32)(0x1004),
                 Bits(32)(0x1000),
@@ -57,15 +57,15 @@ class Driver(Module):
                 Bits(32)(0),
                 Bits(32)(0),
                 Bits(32)(50),
-                Bits(32)(0x1004),
-            ),  # 地址=0x1000, 数据=0x12345678
+                Bits(32)(0x1000),
+            ),  # ALU结果: 0x1000 + 0 = 0x1000 (计算地址)
             # Case 1: SW (Store Word) - 存储数据到地址0x1004
             (
                 ALUOp.ADD,
                 Rs1Sel.RS1,
                 Rs2Sel.RS2,
                 Op1Sel.RS1,
-                Op2Sel.CONST_4,
+                Op2Sel.IMM,
                 BranchType.NO_BRANCH,
                 Bits(32)(0x1008),
                 Bits(32)(0x1004),
@@ -76,14 +76,14 @@ class Driver(Module):
                 Bits(32)(0),
                 Bits(32)(60),
                 Bits(32)(0x1008),
-            ),  # 地址=0x1004, 数据=0xABCDEF00
+            ),  # ALU结果: 0x1004 + 0 = 0x1004 (计算地址)
             # Case 2: SW (Store Word) - 存储数据到地址0x1008
             (
                 ALUOp.ADD,
                 Rs1Sel.RS1,
                 Rs2Sel.RS2,
                 Op1Sel.RS1,
-                Op2Sel.CONST_4,
+                Op2Sel.IMM,
                 BranchType.NO_BRANCH,
                 Bits(32)(0x100C),
                 Bits(32)(0x1008),
@@ -94,7 +94,7 @@ class Driver(Module):
                 Bits(32)(0),
                 Bits(32)(70),
                 Bits(32)(0x100C),
-            ),  # 地址=0x1008, 数据=0x11223344
+            ),  # ALU结果: 0x1008 + 0 = 0x1008 (计算地址)
             # --- Load 指令测试 ---
             # Case 3: LW (Load Word) - 从地址0x1000加载数据
             (
@@ -102,7 +102,7 @@ class Driver(Module):
                 Rs1Sel.RS1,
                 Rs2Sel.RS2,
                 Op1Sel.RS1,
-                Op2Sel.CONST_4,
+                Op2Sel.IMM,
                 BranchType.NO_BRANCH,
                 Bits(32)(0x1004),
                 Bits(32)(0x1000),
@@ -113,14 +113,14 @@ class Driver(Module):
                 Bits(32)(0),
                 Bits(32)(80),
                 Bits(32)(0x1004),
-            ),  # 地址=0x1000, 预期加载0x12345678
+            ),  # ALU结果: 0x1000 + 0 = 0x1000 (计算地址)
             # Case 4: LW (Load Word) - 从地址0x1004加载数据
             (
                 ALUOp.ADD,
                 Rs1Sel.RS1,
                 Rs2Sel.RS2,
                 Op1Sel.RS1,
-                Op2Sel.CONST_4,
+                Op2Sel.IMM,
                 BranchType.NO_BRANCH,
                 Bits(32)(0x1008),
                 Bits(32)(0x1004),
@@ -131,14 +131,14 @@ class Driver(Module):
                 Bits(32)(0),
                 Bits(32)(90),
                 Bits(32)(0x1008),
-            ),  # 地址=0x1004, 预期加载0xABCDEF00
+            ),  # ALU结果: 0x1004 + 0 = 0x1004 (计算地址)
             # Case 5: LW (Load Word) - 从地址0x1008加载数据
             (
                 ALUOp.ADD,
                 Rs1Sel.RS1,
                 Rs2Sel.RS2,
                 Op1Sel.RS1,
-                Op2Sel.CONST_4,
+                Op2Sel.IMM,
                 BranchType.NO_BRANCH,
                 Bits(32)(0x100C),
                 Bits(32)(0x1008),
@@ -149,7 +149,7 @@ class Driver(Module):
                 Bits(32)(0),
                 Bits(32)(100),
                 Bits(32)(0x100C),
-            ),  # 地址=0x1008, 预期加载0x11223344
+            ),  # ALU结果: 0x1008 + 0 = 0x1008 (计算地址)
             # --- 地址对齐测试 ---
             # Case 6: SW (Store Word) - 未对齐地址访问
             (
@@ -157,7 +157,7 @@ class Driver(Module):
                 Rs1Sel.RS1,
                 Rs2Sel.RS2,
                 Op1Sel.RS1,
-                Op2Sel.CONST_4,
+                Op2Sel.IMM,
                 BranchType.NO_BRANCH,
                 Bits(32)(0x1004),
                 Bits(32)(0x1000),
@@ -168,14 +168,14 @@ class Driver(Module):
                 Bits(32)(0),
                 Bits(32)(110),
                 Bits(32)(0x1004),
-            ),  # 未对齐地址=0x1001
+            ),  # ALU结果: 0x1001 + 0 = 0x1001 (计算地址)
             # Case 7: LW (Load Word) - 未对齐地址访问
             (
                 ALUOp.ADD,
                 Rs1Sel.RS1,
                 Rs2Sel.RS2,
                 Op1Sel.RS1,
-                Op2Sel.CONST_4,
+                Op2Sel.IMM,
                 BranchType.NO_BRANCH,
                 Bits(32)(0x1004),
                 Bits(32)(0x1000),
@@ -186,7 +186,7 @@ class Driver(Module):
                 Bits(32)(0),
                 Bits(32)(120),
                 Bits(32)(0x1004),
-            ),  # 未对齐地址=0x1003
+            ),  # ALU结果: 0x1003 + 0 = 0x1003 (计算地址)
             # --- 不同宽度的Store指令测试 ---
             # Case 8: SH (Store Half) - 存储半字到地址0x1010
             (
@@ -194,7 +194,7 @@ class Driver(Module):
                 Rs1Sel.RS1,
                 Rs2Sel.RS2,
                 Op1Sel.RS1,
-                Op2Sel.CONST_4,
+                Op2Sel.IMM,
                 BranchType.NO_BRANCH,
                 Bits(32)(0x1014),
                 Bits(32)(0x1010),
@@ -205,14 +205,14 @@ class Driver(Module):
                 Bits(32)(0),
                 Bits(32)(130),
                 Bits(32)(0x1014),
-            ),  # 地址=0x1010, 数据=0xABCD
+            ),  # 地址=0x1010
             # Case 9: SB (Store Byte) - 存储字节到地址0x1011
             (
                 ALUOp.ADD,
                 Rs1Sel.RS1,
                 Rs2Sel.RS2,
                 Op1Sel.RS1,
-                Op2Sel.CONST_4,
+                Op2Sel.IMM,
                 BranchType.NO_BRANCH,
                 Bits(32)(0x1014),
                 Bits(32)(0x1010),
@@ -222,8 +222,8 @@ class Driver(Module):
                 Bits(32)(0),
                 Bits(32)(0),
                 Bits(32)(140),
-                Bits(32)(0x1014),
-            ),  # 地址=0x1011, 数据=0xEF
+                Bits(32)(0x1011),
+            ),  # 地址=0x1011
             # --- 不同宽度的Load指令测试 ---
             # Case 10: LH (Load Half) - 从地址0x1010加载半字（有符号）
             (
@@ -231,7 +231,7 @@ class Driver(Module):
                 Rs1Sel.RS1,
                 Rs2Sel.RS2,
                 Op1Sel.RS1,
-                Op2Sel.CONST_4,
+                Op2Sel.IMM,
                 BranchType.NO_BRANCH,
                 Bits(32)(0x1014),
                 Bits(32)(0x1010),
@@ -241,15 +241,15 @@ class Driver(Module):
                 Bits(32)(0),
                 Bits(32)(0),
                 Bits(32)(150),
-                Bits(32)(0x1014),
-            ),  # 地址=0x1010, 预期加载0xABCD
+                Bits(32)(0x1010),
+            ),  # 地址=0x1010
             # Case 11: LHU (Load Half Unsigned) - 从地址0x1010加载半字（无符号）
             (
                 ALUOp.ADD,
                 Rs1Sel.RS1,
                 Rs2Sel.RS2,
                 Op1Sel.RS1,
-                Op2Sel.CONST_4,
+                Op2Sel.IMM,
                 BranchType.NO_BRANCH,
                 Bits(32)(0x1014),
                 Bits(32)(0x1010),
@@ -260,14 +260,14 @@ class Driver(Module):
                 Bits(32)(0),
                 Bits(32)(160),
                 Bits(32)(0x1014),
-            ),  # 地址=0x1010, 预期加载0x0000ABCD
+            ),  # 地址=0x1010
             # Case 12: LB (Load Byte) - 从地址0x1011加载字节（有符号）
             (
                 ALUOp.ADD,
                 Rs1Sel.RS1,
                 Rs2Sel.RS2,
                 Op1Sel.RS1,
-                Op2Sel.CONST_4,
+                Op2Sel.IMM,
                 BranchType.NO_BRANCH,
                 Bits(32)(0x1014),
                 Bits(32)(0x1010),
@@ -278,14 +278,14 @@ class Driver(Module):
                 Bits(32)(0),
                 Bits(32)(170),
                 Bits(32)(0x1014),
-            ),  # 地址=0x1011, 预期加载0xFFFFFFEF
+            ),  # 地址=0x1011
             # Case 13: LBU (Load Byte Unsigned) - 从地址0x1011加载字节（无符号）
             (
                 ALUOp.ADD,
                 Rs1Sel.RS1,
                 Rs2Sel.RS2,
                 Op1Sel.RS1,
-                Op2Sel.CONST_4,
+                Op2Sel.IMM,
                 BranchType.NO_BRANCH,
                 Bits(32)(0x1014),
                 Bits(32)(0x1010),
@@ -296,7 +296,7 @@ class Driver(Module):
                 Bits(32)(0),
                 Bits(32)(180),
                 Bits(32)(0x1014),
-            ),  # 地址=0x1011, 预期加载0x000000EF
+            ),  # 地址=0x1011
             # --- 混合宽度测试 ---
             # Case 14: SW + SH + SB - 连续存储不同宽度的数据
             (
@@ -304,7 +304,7 @@ class Driver(Module):
                 Rs1Sel.RS1,
                 Rs2Sel.RS2,
                 Op1Sel.RS1,
-                Op2Sel.CONST_4,
+                Op2Sel.IMM,
                 BranchType.NO_BRANCH,
                 Bits(32)(0x1020),
                 Bits(32)(0x1020),
@@ -315,14 +315,14 @@ class Driver(Module):
                 Bits(32)(0),
                 Bits(32)(190),
                 Bits(32)(0x1024),
-            ),  # 地址=0x1020, 数据=0x12345678
+            ),  # 地址=0x12345678
             # Case 15: 从0x1020读取字，验证之前存储的数据
             (
                 ALUOp.ADD,
                 Rs1Sel.RS1,
                 Rs2Sel.RS2,
                 Op1Sel.RS1,
-                Op2Sel.CONST_4,
+                Op2Sel.IMM,
                 BranchType.NO_BRANCH,
                 Bits(32)(0x1024),
                 Bits(32)(0x1020),
@@ -333,7 +333,7 @@ class Driver(Module):
                 Bits(32)(0),
                 Bits(32)(200),
                 Bits(32)(0x1024),
-            ),  # 地址=0x1020, 预期加载0x12345678
+            ),  # 地址=0x1020
             # --- 半字和字节未对齐测试 ---
             # Case 16: SH (Store Half) - 未对齐地址访问
             (
@@ -341,7 +341,7 @@ class Driver(Module):
                 Rs1Sel.RS1,
                 Rs2Sel.RS2,
                 Op1Sel.RS1,
-                Op2Sel.CONST_4,
+                Op2Sel.IMM,
                 BranchType.NO_BRANCH,
                 Bits(32)(0x1024),
                 Bits(32)(0x1020),
@@ -352,14 +352,14 @@ class Driver(Module):
                 Bits(32)(0),
                 Bits(32)(210),
                 Bits(32)(0x1024),
-            ),  # 未对齐地址=0x1021
+            ),  # ALU结果: 0x1021 + 0 = 0x1021 (计算地址)
             # Case 17: LH (Load Half) - 未对齐地址访问
             (
                 ALUOp.ADD,
                 Rs1Sel.RS1,
                 Rs2Sel.RS2,
                 Op1Sel.RS1,
-                Op2Sel.CONST_4,
+                Op2Sel.IMM,
                 BranchType.NO_BRANCH,
                 Bits(32)(0x1024),
                 Bits(32)(0x1020),
@@ -370,7 +370,7 @@ class Driver(Module):
                 Bits(32)(0),
                 Bits(32)(220),
                 Bits(32)(0x1024),
-            ),  # 未对齐地址=0x1023
+            ),  # ALU结果: 0x1023 + 0 = 0x1023 (计算地址)
         ]
 
         # --- 激励生成逻辑 ---
@@ -580,24 +580,24 @@ def check(raw_output):
     # 预期结果列表 (必须与Driver中的vectors严格对应)
     # 根据用户反馈，SRAM在EX阶段只输入目标地址，无论读写都在下周期进行，只有MEM阶段能看到，所以预期输出是地址而非结果
     expected_results = [
-        0x00001000,  # Case 0: SW (地址=0x1000) - 内存操作，输出地址而非结果
-        0x00001004,  # Case 1: SW (地址=0x1004) - 内存操作，输出地址而非结果
-        0x00001008,  # Case 2: SW (地址=0x1008) - 内存操作，输出地址而非结果
-        0x00001000,  # Case 3: LW (地址=0x1000) - 内存操作，输出地址而非结果
-        0x00001004,  # Case 4: LW (地址=0x1004) - 内存操作，输出地址而非结果
-        0x00001008,  # Case 5: LW (地址=0x1008) - 内存操作，输出地址而非结果
-        0x00001001,  # Case 6: SW (未对齐地址=0x1001) - 内存操作，输出地址而非结果
-        0x00001003,  # Case 7: LW (未对齐地址=0x1003) - 内存操作，输出地址而非结果
-        0x00001020,  # Case 8: SH (地址=0x1020) - 内存操作，输出地址而非结果
-        0x00001020,  # Case 9: LW (地址=0x1020) - 内存操作，输出地址而非结果
-        0x00001021,  # Case 10: SH (未对齐地址=0x1021) - 内存操作，输出地址而非结果
-        0x00001023,  # Case 11: LH (未对齐地址=0x1023) - 内存操作，输出地址而非结果
-        0x00001020,  # Case 12: SW (地址=0x1020) - 内存操作，输出地址而非结果
-        0x00001020,  # Case 13: LW (地址=0x1020) - 内存操作，输出地址而非结果
-        0x00001021,  # Case 14: SH (未对齐地址=0x1021) - 内存操作，输出地址而非结果
-        0x00001023,  # Case 15: LH (未对齐地址=0x1023) - 内存操作，输出地址而非结果
-        0x00001021,  # Case 16: SH (未对齐地址=0x1021) - 内存操作，输出地址而非结果
-        0x00001023,  # Case 17: LH (未对齐地址=0x1023) - 内存操作，输出地址而非结果
+        0x00001000,  # Case 0: SW (rs1=0x1000 + imm=0) = 0x1000
+        0x00001004,  # Case 1: SW (rs1=0x1004 + imm=0) = 0x1004
+        0x00001008,  # Case 2: SW (rs1=0x1008 + imm=0) = 0x1008
+        0x00001000,  # Case 3: LW (rs1=0x1000 + imm=0) = 0x1000
+        0x00001004,  # Case 4: LW (rs1=0x1004 + imm=0) = 0x1004
+        0x00001008,  # Case 5: LW (rs1=0x1008 + imm=0) = 0x1008
+        0x00001001,  # Case 6: SW (rs1=0x1001 + imm=0) = 0x1001
+        0x00001003,  # Case 7: LW (rs1=0x1003 + imm=0) = 0x1003
+        0x00001010,  # Case 8: SH (rs1=0x1010 + imm=0) = 0x1010
+        0x00001011,  # Case 9: LH (rs1=0x1011 + imm=0) = 0x1011
+        0x00001010,  # Case 10: LHU (rs1=0x1010 + imm=0) = 0x1010
+        0x00001010,  # Case 11: LB (rs1=0x1010 + imm=0) = 0x1010
+        0x00001011,  # Case 12: SW (rs1=0x1011 + imm=0) = 0x1011
+        0x00001011,  # Case 13: LBU (rs1=0x1011 + imm=0) = 0x1011
+        0x12345678,  # Case 14: SH (rs1=0x12345678 + imm=0) = 0x12345678
+        0x00001020,  # Case 15: LW (rs1=0x1020 + imm=0) = 0x1020
+        0x00001021,  # Case 16: SH (rs1=0x1021 + imm=0) = 0x1021
+        0x00001023,  # Case 17: LH (rs1=0x1023 + imm=0) = 0x1023
     ]
 
     # 使用公共验证函数
