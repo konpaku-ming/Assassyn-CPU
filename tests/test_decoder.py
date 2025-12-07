@@ -13,6 +13,7 @@ from assassyn import utils
 from src.decoder import Decoder, DecoderImpl
 from src.control_signals import *
 from tests.common import run_test_module
+from tests.test_mocks import *
 
 
 # ==============================================================================
@@ -28,7 +29,6 @@ class Driver(Module):
         dut: Module,
         icache_dout: Array,
         reg_file: Array,
-        executor: Module,
         rs1_sel: Bits(4),
         rs2_sel: Bits(4),
         stall_if: Bits(1),
@@ -291,9 +291,9 @@ class Driver(Module):
         
         # 根据rs1_sel和rs2_sel设置相应的寄存器值
         # 这里我们假设rs1_sel和rs2_sel是寄存器索引
-        if current_rs1_sel < 32:
+        if current_rs1_sel < UInt(32)(32):
             reg_file[current_rs1_sel] = current_rs1_data
-        if current_rs2_sel < 32:
+        if current_rs2_sel < UInt(32)(32):
             reg_file[current_rs2_sel] = current_rs2_data
 
         # 设置其他信号
@@ -947,41 +947,12 @@ if __name__ == "__main__":
         dut = Decoder()
         dut_impl = DecoderImpl()
         driver = Driver()
+        executor = MockExecutor()
 
         # 创建必要的辅助模块和数据结构
         icache_dout = RegArray(Bits(32), 1)
         reg_file = RegArray(Bits(32), 32)  # 32个寄存器
         
-        # 创建Mock执行单元模块
-        class MockExecutor(Module):
-            def __init__(self):
-                super().__init__(
-                    ports={
-                        "ctrl": Port(ex_ctrl_signals),
-                        "pc": Port(Bits(32)),
-                        "rs1_data": Port(Bits(32)),
-                        "rs2_data": Port(Bits(32)),
-                        "imm": Port(Bits(32)),
-                    }
-                )
-                self.name = "MockExecutor"
-            
-            @module.combinational
-            def build(self):
-                # 弹出所有端口数据
-                ctrl = self.ctrl.pop()
-                pc = self.pc.pop()
-                rs1_data = self.rs1_data.pop()
-                rs2_data = self.rs2_data.pop()
-                imm = self.imm.pop()
-                
-                # 记录输入数据
-                log("MockExecutor: alu_func=0x{:x} op1_sel=0x{:x} op2_sel=0x{:x} imm=0x{:x}",
-                    ctrl.alu_func, ctrl.op1_sel, ctrl.op2_sel, imm)
-                
-                # 不需要实际执行，仅用于测试连接
-        
-        executor = MockExecutor()
         rs1_sel = Bits(4)(0)
         rs2_sel = Bits(4)(0)
         stall_if = Bits(1)(0)
@@ -992,7 +963,6 @@ if __name__ == "__main__":
             dut,
             icache_dout,
             reg_file,
-            executor,
             rs1_sel,
             rs2_sel,
             stall_if,
@@ -1011,10 +981,5 @@ if __name__ == "__main__":
             stall_if,
             branch_target_reg,
         )
-        
-        # 添加日志输出，显示测试模块连接信息
-        log("Test Setup: Driver -> Decoder -> DecoderImpl -> MockExecutor 连接完成")
-        log("Test Setup: 测试向量数量: 30")
-        log("Test Setup: 开始执行Decoder测试...")
 
     run_test_module(sys, check)

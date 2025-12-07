@@ -78,6 +78,38 @@ class MockFeedback(Module):
         log("Target=0x{:x} Bypass=0x{:x}", tgt, byp)
 
 
+class MockExecutor(Module):
+    def __init__(self):
+        super().__init__(
+            ports={
+                "ctrl": Port(ex_ctrl_signals),
+                "pc": Port(Bits(32)),
+                "rs1_data": Port(Bits(32)),
+                "rs2_data": Port(Bits(32)),
+                "imm": Port(Bits(32)),
+            }
+        )
+        self.name = "MockExecutor"
+
+    @module.combinational
+    def build(self):
+        # 弹出所有端口数据
+        ctrl = self.ctrl.pop()
+        pc = self.pc.pop()
+        rs1_data = self.rs1_data.pop()
+        rs2_data = self.rs2_data.pop()
+        imm = self.imm.pop()
+
+        # 记录输入数据
+        log(
+            "MockExecutor: alu_func=0x{:x} op1_sel=0x{:x} op2_sel=0x{:x} imm=0x{:x}",
+            ctrl.alu_func,
+            ctrl.op1_sel,
+            ctrl.op2_sel,
+            imm,
+        )
+
+
 # ==============================================================================
 # 公共验证函数
 # ==============================================================================
