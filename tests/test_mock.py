@@ -2,6 +2,7 @@ import sys
 import os
 import re
 
+# 1. 环境路径设置 (确保能 import src)
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from assassyn.frontend import *
@@ -12,17 +13,14 @@ from src.control_signals import *
 # ==============================================================================
 
 
-# [修改 1] 去掉 (Module) 继承
+# MockSRAM类：模拟SRAM（静态随机存取存储器）的行为
+# 用于测试内存读写操作，包括对齐检查
 class MockSRAM:
     def __init__(self):
-        # [修改 2] 去掉 super().__init__，因为它不是 Module 了
-        # self.dout = ... 可以保留，它会被归属到调用者 (EX) 名下
+        # 定义数据输出端口
         self.dout = RegArray(Bits(32), 1)
 
-    # [修改 3] 去掉装饰器 (因为它不是 Module 的入口了)
-    # @module.combinational  <-- 删掉
     def build(self, we, re, addr, wdata):
-
         # 打印基本信息
         with Condition(we):
             log("SRAM: EX阶段 - WRITE addr=0x{:x} wdata=0x{:x}", addr, wdata)
@@ -41,6 +39,8 @@ class MockSRAM:
                 log("SRAM: Warning - Unaligned READ addr=0x{:x}", addr)
 
 
+# MockMEM类：模拟内存访问阶段（MEM Stage）的行为
+# 用于测试内存相关指令的执行
 class MockMEM(Module):
     def __init__(self):
         # 定义与 MEM 模块一致的输入端口
@@ -62,6 +62,8 @@ class MockMEM(Module):
         )
 
 
+# MockFeedback类：模拟反馈机制的行为
+# 用于测试分支目标寄存器和旁路数据的更新
 class MockFeedback(Module):
     def __init__(self):
         super().__init__(ports={})
@@ -78,6 +80,8 @@ class MockFeedback(Module):
         log("Target=0x{:x} Bypass=0x{:x}", tgt, byp)
 
 
+# MockExecutor类：模拟执行单元（Executor）的行为
+# 用于测试指令执行阶段的各种控制信号和数据流
 class MockExecutor(Module):
     def __init__(self):
         super().__init__(
@@ -102,11 +106,49 @@ class MockExecutor(Module):
 
         # 记录输入数据
         log(
-            "MockExecutor: alu_func=0x{:x} op1_sel=0x{:x} op2_sel=0x{:x} imm=0x{:x}",
+            "MockExecutor: alu_func=0x{:x} op1_sel=0x{:x} op2_sel=0x{:x} imm=0x{:x} rs1_data=0x{:x} rs2_data=0x{:x} pc=0x{:x}",
             ctrl.alu_func,
             ctrl.op1_sel,
             ctrl.op2_sel,
             imm,
+            rs1_data,
+            rs2_data,
+            pc,
+        )
+
+
+class MockSinkDecoder(Module):
+
+    def __init__(self):
+        super().__init__(ports={})
+        self.name = "MockExec2"
+
+    @module.combinational
+    def build(self, pre, rs1, rs2, acc_rs1_used, acc_rs2_used):
+
+        # 从 pre 中提取 mem_ctrl 子结构
+        mem_ctrl = pre.mem_ctrl
+        
+        # 记录完整的 pre_decode_t 信息
+        log(
+            "MockSinkDecoder: alu_func=0x{:x} op1_sel=0x{:x} op2_sel=0x{:x} branch_type=0x{:x} next_pc_addr=0x{:x} mem_ctrl=[mem_opcode=0x{:x} mem_width=0x{:x} mem_unsigned=0x{:x} rd_addr=0x{:x}] pc=0x{:x} rs1_data=0x{:x} rs2_data=0x{:x} imm=0x{:x} rs1=0x{:x} rs2=0x{:x} rs1_used={} rs2_used={}",
+            pre.alu_func,
+            pre.op1_sel,
+            pre.op2_sel,
+            pre.branch_type,
+            pre.next_pc_addr,
+            mem_ctrl.mem_opcode,
+            mem_ctrl.mem_width,
+            mem_ctrl.mem_unsigned,
+            mem_ctrl.rd_addr,
+            pre.pc,
+            pre.rs1_data,
+            pre.rs2_data,
+            pre.imm,
+            rs1,
+            rs2,
+            acc_rs1_used,
+            acc_rs2_used,
         )
 
 
@@ -224,9 +266,6 @@ def check_branch_operations(raw_output, exp_types, exp_taken, exp_targets):
             except IndexError:
                 pass
 
-    # --- 比对逻辑 (保持不变) ---
-    # ...
-
     # 调试打印
     if len(cap_types) != len(exp_types):
         print(f"❌ 数量不匹配: 预期 {len(exp_types)}, 实际 {len(cap_types)}")
@@ -237,8 +276,6 @@ def check_branch_operations(raw_output, exp_types, exp_taken, exp_targets):
             print(f"  预期: {exp}")
             print(f"  实际: {act}")
             assert False
-
-    # ... (同理比对 taken 和 targets) ...
 
     print("✅ 分支逻辑验证通过！")
 
@@ -267,7 +304,6 @@ def check_branch_target_reg(raw_output, exp_types, exp_taken, exp_targets):
                 # 转换为 int
                 val = int(val_str, 16)
                 captured_targets.append(val)
-                # print(f"  [Debug] Parsed Target: 0x{val:x}") # 调试用
             except Exception as e:
                 print(f"⚠️ Parse Warning: {line} -> {e}")
                 pass

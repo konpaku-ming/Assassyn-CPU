@@ -11,7 +11,7 @@ from assassyn.frontend import *
 from src.execution import Execution
 from src.control_signals import *
 from tests.common import run_test_module
-from tests.test_mocks import (
+from tests.test_mock import (
     MockSRAM,
     MockMEM,
     MockFeedback,
