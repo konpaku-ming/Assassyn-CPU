@@ -146,6 +146,44 @@ class MockDataHazardUnit(Module):
         return stall_if, rs1_sel, rs2_sel
 
 
+class MockDecoderShell(Downstream):
+    def __init__(self):
+        super().__init__()
+        self.name = "ID_Shell_Mock"
+
+    @downstream.combinational
+    def build(
+        self,
+        pre_pkt: Record,
+        rs1_addr: Bits(5),
+        rs2_addr: Bits(5),
+        rs1_used: Bits(1),
+        rs2_used: Bits(1),
+    ):
+        mem_ctrl_t = mem_ctrl_signals.view(pre_pkt.mem_ctrl)
+
+        log(
+            "Output of the Decoder: alu_func=0x{:x} op1_sel=0x{:x} op2_sel=0x{:x} branch_type=0x{:x} next_pc_addr=0x{:x} mem_opcode=0x{:x} mem_width=0x{:x} mem_unsigned=0x{:x} rd_addr=0x{:x} pc=0x{:x} rs1_data=0x{:x} rs2_data=0x{:x} imm=0x{:x} rs1=0x{:x} rs2=0x{:x} rs1_used={} rs2_used={}",
+            pre_pkt.alu_func,
+            pre_pkt.op1_sel,
+            pre_pkt.op2_sel,
+            pre_pkt.branch_type,
+            pre_pkt.next_pc_addr,
+            mem_ctrl_t.mem_opcode,
+            mem_ctrl_t.mem_width,
+            mem_ctrl_t.mem_unsigned,
+            mem_ctrl_t.rd_addr,
+            pre_pkt.pc,
+            pre_pkt.rs1_data,
+            pre_pkt.rs2_data,
+            pre_pkt.imm,
+            rs1_addr,
+            rs2_addr,
+            rs1_used,
+            rs2_used,
+        )
+
+
 # ==============================================================================
 # 公共验证函数
 # ==============================================================================
