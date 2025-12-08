@@ -117,39 +117,33 @@ class MockExecutor(Module):
         )
 
 
-class MockSinkDecoder(Module):
-
+# 用于模仿DHU的电路，从async_call到输出延迟一个周期
+class MockDataHazardUnit(Module):
     def __init__(self):
-        super().__init__(ports={})
-        self.name = "MockExec2"
+        super().__init__(
+            ports={
+                "stall_if": Port(Bits(1)),
+                "rs1_sel": Port(Bits(4)),
+                "rs2_sel": Port(Bits(4)),
+            }
+        )
+        self.name = "MockDHU"
 
     @module.combinational
-    def build(self, pre, rs1, rs2, acc_rs1_used, acc_rs2_used):
+    def build(self):
+        # 弹出所有端口数据
+        stall_if, rs1_sel, rs2_sel = self.pop_all_ports(False)
 
-        # 从 pre 中提取 mem_ctrl 子结构
-        mem_ctrl = pre.mem_ctrl
-        
-        # 记录完整的 pre_decode_t 信息
+        # 记录输入数据
         log(
-            "MockSinkDecoder: alu_func=0x{:x} op1_sel=0x{:x} op2_sel=0x{:x} branch_type=0x{:x} next_pc_addr=0x{:x} mem_ctrl=[mem_opcode=0x{:x} mem_width=0x{:x} mem_unsigned=0x{:x} rd_addr=0x{:x}] pc=0x{:x} rs1_data=0x{:x} rs2_data=0x{:x} imm=0x{:x} rs1=0x{:x} rs2=0x{:x} rs1_used={} rs2_used={}",
-            pre.alu_func,
-            pre.op1_sel,
-            pre.op2_sel,
-            pre.branch_type,
-            pre.next_pc_addr,
-            mem_ctrl.mem_opcode,
-            mem_ctrl.mem_width,
-            mem_ctrl.mem_unsigned,
-            mem_ctrl.rd_addr,
-            pre.pc,
-            pre.rs1_data,
-            pre.rs2_data,
-            pre.imm,
-            rs1,
-            rs2,
-            acc_rs1_used,
-            acc_rs2_used,
+            "MockDHU: stall_if={} rs1_sel=0x{:x} rs2_sel=0x{:x}",
+            stall_if,
+            rs1_sel,
+            rs2_sel,
         )
+
+        # 返回输出引脚联络至 DecoderImpl 等被测试模块
+        return stall_if, rs1_sel, rs2_sel
 
 
 # ==============================================================================

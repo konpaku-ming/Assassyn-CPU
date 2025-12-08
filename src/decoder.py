@@ -3,6 +3,11 @@ from .control_signals import *
 from .instruction_table import rv32i_table
 
 
+# 辅助函数：生成填充位
+def get_pad(width, hex_mask, sign):
+    return sign.select(Bits(width)(hex_mask), Bits(width)(0))
+
+
 class Decoder(Module):
     def __init__(self):
         super().__init__(ports={"pc": Port(Bits(32))})
@@ -27,19 +32,15 @@ class Decoder(Module):
         # 3. 立即数并行生成
         sign = inst[31:31]
 
-        # 辅助函数：生成填充位
-        def get_pad(width, hex_mask):
-            return sign.select(Bits(width)(hex_mask), Bits(width)(0))
-
         # I-Type: [31]*20 | [31:20]
-        pad_20 = get_pad(20, 0xFFFFF)
+        pad_20 = get_pad(20, 0xFFFFF, sign)
         imm_i = concat(pad_20, inst[20:31])
 
         # S-Type: [31]*20 | [31:25] | [11:7]
         imm_s = concat(pad_20, inst[25:31], inst[7:11])
 
         # B-Type: [31]*19 | [31] | [7] | [30:25] | [11:8] | 0
-        pad_19 = get_pad(19, 0x7FFFF)
+        pad_19 = get_pad(19, 0x7FFFF, sign)
         imm_b = concat(
             pad_19, inst[31:31], inst[7:7], inst[25:30], inst[8:11], Bits(1)(0)
         )
@@ -48,20 +49,10 @@ class Decoder(Module):
         imm_u = concat(inst[12:31], Bits(12)(0))
 
         # J-Type: [31]*11 | [31] | [19:12] | [20] | [30:21] | 0
-        pad_11 = get_pad(11, 0x7FF)
+        pad_11 = get_pad(11, 0x7FF, sign)
         imm_j = concat(
             pad_11, inst[31:31], inst[12:19], inst[20:20], inst[21:30], Bits(1)(0)
         )
-
-        # 立即数映射表
-        imm_map = {
-            ImmType.R: Bits(32)(0),
-            ImmType.I: imm_i,
-            ImmType.S: imm_s,
-            ImmType.B: imm_b,
-            ImmType.U: imm_u,
-            ImmType.J: imm_j,
-        }
 
         # 4. 查表译码 (Signal Accumulation Loop)
 
@@ -69,6 +60,7 @@ class Decoder(Module):
         acc_alu_func = Bits(16)(0)
         acc_op1_sel = Bits(3)(0)
         acc_op2_sel = Bits(3)(0)
+        acc_imm = Bits(32)(0)
         acc_br_type = Bits(16)(0)
 
         acc_mem_op = Bits(3)(0)
@@ -79,11 +71,11 @@ class Decoder(Module):
         acc_rs1_used = Bits(1)(0)
         acc_rs2_used = Bits(1)(0)
 
-        acc_imm = Bits(32)(0)
+        match_if = Bits(1)(0)
 
         for entry in rv32i_table:
             (
-                mn,
+                _,
                 t_op,
                 t_f3,
                 t_b30,
@@ -103,11 +95,9 @@ class Decoder(Module):
             # --- A. 匹配逻辑 ---
             match_if = opcode == t_op
 
-            if t_f3 is not None:
-                match_if &= funct3 == Bits(3)(t_f3)
+            match_if &= funct3 == Bits(3)(t_f3)
 
-            if t_b30 is not None:
-                match_if &= bit30 == Bits(1)(t_b30)
+            match_if &= bit30 == Bits(1)(t_b30)
 
             # --- B. 信号累加 (Mux Logic) ---
             # 使用 select 实现 OR 逻辑
@@ -121,9 +111,15 @@ class Decoder(Module):
             acc_mem_uns |= match_if.select(t_mem_sgn, Bits(1)(0))
             acc_wb_en |= match_if.select(Bits(1)(t_wb), Bits(1)(0))
             acc_br_type |= match_if.select(t_br, Bits(16)(0))
-            # 立即数选择
-            current_imm_wire = imm_map[t_imm_type]
-            acc_imm |= match_if.select(current_imm_wire, Bits(32)(0))
+            imm = t_imm_type.select1hot(
+                Bits(32)(0),
+                imm_i,
+                imm_s,
+                imm_b,
+                imm_u,
+                imm_j,
+            )
+            acc_imm |= match_if.select(imm, Bits(32)(0))
 
         # 5. 读取寄存器堆 & 打包
         raw_rs1_data = reg_file[rs1]
@@ -149,20 +145,8 @@ class Decoder(Module):
             mem_ctrl=mem_ctrl_t,
             imm=acc_imm,
             pc=pc_val,
-            # 传递原始数据 (Impl 负责修补)
             rs1_data=raw_rs1_data,
             rs2_data=raw_rs2_data,
-        )
-
-        # 添加日志输出
-        log(
-            "ID_Shell: pc=0x{:x} instruction=0x{:x} alu_func=0x{:x} op1_sel=0x{:x} op2_sel=0x{:x} imm=0x{:x}",
-            pc_val,
-            inst,
-            acc_alu_func,
-            acc_op1_sel,
-            acc_op2_sel,
-            acc_imm,
         )
 
         # 返回: 预解码包, 冒险检测需要的原始信号

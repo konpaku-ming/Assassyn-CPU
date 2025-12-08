@@ -11,7 +11,6 @@ from assassyn.frontend import *
 from src.decoder import Decoder
 from src.control_signals import *
 from tests.common import run_test_module
-from tests.test_mock import MockSinkDecoder
 
 
 # ==============================================================================
@@ -178,30 +177,12 @@ class Driver(Module):
         # 设置icache_dout和reg_file的值
         icache_dout[0] = current_instruction
 
-        # 初始化寄存器文件
-        for i in range(32):
-            reg_file[i] = Bits(32)(0)
-
-        # 根据rs1_sel和rs2_sel设置相应的寄存器值
-        if current_rs1_sel < UInt(32)(32):
-            reg_file[current_rs1_sel] = current_rs1_data
-        if current_rs2_sel < UInt(32)(32):
-            reg_file[current_rs2_sel] = current_rs2_data
-
         # 设置其他信号
-        rs1_sel = current_rs1_sel
-        rs2_sel = current_rs2_sel
-        stall_if = current_stall_if
         branch_target_reg[0] = current_branch_target
 
         # 设置Decoder的PC输入
-        dut.pc = current_pc
-
-        # 只有当 idx 在向量范围内时才发送 (valid)
-        valid_test = idx < UInt(32)(len(vectors))
-
-        with Condition(~valid_test):
-            finish()
+        call = dut.async_called(pc=current_pc)
+        call.bind.set_fifo_depth(pc=1)
 
         log(
             "Driver: idx={} pc=0x{:x} instruction=0x{:x} rs1_data=0x{:x} rs2_data=0x{:x}",
@@ -211,8 +192,6 @@ class Driver(Module):
             current_rs1_data,
             current_rs2_data,
         )
-
-        return cnt
 
 
 # ==============================================================================
@@ -353,21 +332,51 @@ def check(raw_output):
             pc_match = int(decoder_info["pc"], 16) == int(driver_info["pc"], 16)
 
             # 验证寄存器数据
-            rs1_data_match = int(decoder_info["rs1_data"], 16) == int(driver_info["rs1_data"], 16)
-            rs2_data_match = int(decoder_info["rs2_data"], 16) == int(driver_info["rs2_data"], 16)
+            rs1_data_match = int(decoder_info["rs1_data"], 16) == int(
+                driver_info["rs1_data"], 16
+            )
+            rs2_data_match = int(decoder_info["rs2_data"], 16) == int(
+                driver_info["rs2_data"], 16
+            )
 
             # 验证寄存器编号
-            rs1_match = int(decoder_info["rs1"], 16) == int(driver_info["rs1_sel"], 16) if driver_info["rs1_sel"] else True
-            rs2_match = int(decoder_info["rs2"], 16) == int(driver_info["rs2_sel"], 16) if driver_info["rs2_sel"] else True
+            rs1_match = (
+                int(decoder_info["rs1"], 16) == int(driver_info["rs1_sel"], 16)
+                if driver_info["rs1_sel"]
+                else True
+            )
+            rs2_match = (
+                int(decoder_info["rs2"], 16) == int(driver_info["rs2_sel"], 16)
+                if driver_info["rs2_sel"]
+                else True
+            )
 
             # 验证寄存器使用标志
-            rs1_used_match = decoder_info["rs1_used"] == "True" if int(driver_info["rs1_sel"], 16) != 0 else decoder_info["rs1_used"] == "False"
-            rs2_used_match = decoder_info["rs2_used"] == "True" if int(driver_info["rs2_sel"], 16) != 0 else decoder_info["rs2_used"] == "False"
+            rs1_used_match = (
+                decoder_info["rs1_used"] == "True"
+                if int(driver_info["rs1_sel"], 16) != 0
+                else decoder_info["rs1_used"] == "False"
+            )
+            rs2_used_match = (
+                decoder_info["rs2_used"] == "True"
+                if int(driver_info["rs2_sel"], 16) != 0
+                else decoder_info["rs2_used"] == "False"
+            )
 
             # 整体验证
-            test_result["passed"] = (alu_match and op1_match and op2_match and imm_match and
-                                    pc_match and rs1_data_match and rs2_data_match and
-                                    rs1_match and rs2_match and rs1_used_match and rs2_used_match)
+            test_result["passed"] = (
+                alu_match
+                and op1_match
+                and op2_match
+                and imm_match
+                and pc_match
+                and rs1_data_match
+                and rs2_data_match
+                and rs1_match
+                and rs2_match
+                and rs1_used_match
+                and rs2_used_match
+            )
 
             if test_result["passed"]:
                 success_count += 1
@@ -376,27 +385,49 @@ def check(raw_output):
                 print(f"❌ 测试向量 {idx}: {expected_signals['name']} 指令解码失败")
                 # 打印详细的不匹配信息
                 if not alu_match:
-                    print(f"  - alu_func不匹配: 预期 0x{expected_signals['alu_func']:x}, 实际 0x{int(decoder_info['alu_func'], 16):x}")
+                    print(
+                        f"  - alu_func不匹配: 预期 0x{expected_signals['alu_func']:x}, 实际 0x{int(decoder_info['alu_func'], 16):x}"
+                    )
                 if not op1_match:
-                    print(f"  - op1_sel不匹配: 预期 0x{expected_signals['op1_sel']:x}, 实际 0x{int(decoder_info['op1_sel'], 16):x}")
+                    print(
+                        f"  - op1_sel不匹配: 预期 0x{expected_signals['op1_sel']:x}, 实际 0x{int(decoder_info['op1_sel'], 16):x}"
+                    )
                 if not op2_match:
-                    print(f"  - op2_sel不匹配: 预期 0x{expected_signals['op2_sel']:x}, 实际 0x{int(decoder_info['op2_sel'], 16):x}")
+                    print(
+                        f"  - op2_sel不匹配: 预期 0x{expected_signals['op2_sel']:x}, 实际 0x{int(decoder_info['op2_sel'], 16):x}"
+                    )
                 if not imm_match:
-                    print(f"  - imm不匹配: 预期 0x{expected_signals['imm']:x}, 实际 0x{int(decoder_info['imm'], 16):x}")
+                    print(
+                        f"  - imm不匹配: 预期 0x{expected_signals['imm']:x}, 实际 0x{int(decoder_info['imm'], 16):x}"
+                    )
                 if not pc_match:
-                    print(f"  - pc不匹配: 预期 {driver_info['pc']}, 实际 {decoder_info['pc']}")
+                    print(
+                        f"  - pc不匹配: 预期 {driver_info['pc']}, 实际 {decoder_info['pc']}"
+                    )
                 if not rs1_data_match:
-                    print(f"  - rs1_data不匹配: 预期 {driver_info['rs1_data']}, 实际 {decoder_info['rs1_data']}")
+                    print(
+                        f"  - rs1_data不匹配: 预期 {driver_info['rs1_data']}, 实际 {decoder_info['rs1_data']}"
+                    )
                 if not rs2_data_match:
-                    print(f"  - rs2_data不匹配: 预期 {driver_info['rs2_data']}, 实际 {decoder_info['rs2_data']}")
+                    print(
+                        f"  - rs2_data不匹配: 预期 {driver_info['rs2_data']}, 实际 {decoder_info['rs2_data']}"
+                    )
                 if not rs1_match:
-                    print(f"  - rs1不匹配: 预期 {driver_info['rs1_sel']}, 实际 {decoder_info['rs1']}")
+                    print(
+                        f"  - rs1不匹配: 预期 {driver_info['rs1_sel']}, 实际 {decoder_info['rs1']}"
+                    )
                 if not rs2_match:
-                    print(f"  - rs2不匹配: 预期 {driver_info['rs2_sel']}, 实际 {decoder_info['rs2']}")
+                    print(
+                        f"  - rs2不匹配: 预期 {driver_info['rs2_sel']}, 实际 {decoder_info['rs2']}"
+                    )
                 if not rs1_used_match:
-                    print(f"  - rs1_used不匹配: 预期 {'True' if int(driver_info['rs1_sel'], 16) != 0 else 'False'}, 实际 {decoder_info['rs1_used']}")
+                    print(
+                        f"  - rs1_used不匹配: 预期 {'True' if int(driver_info['rs1_sel'], 16) != 0 else 'False'}, 实际 {decoder_info['rs1_used']}"
+                    )
                 if not rs2_used_match:
-                    print(f"  - rs2_used不匹配: 预期 {'True' if int(driver_info['rs2_sel'], 16) != 0 else 'False'}, 实际 {decoder_info['rs2_used']}")
+                    print(
+                        f"  - rs2_used不匹配: 预期 {'True' if int(driver_info['rs2_sel'], 16) != 0 else 'False'}, 实际 {decoder_info['rs2_used']}"
+                    )
         else:
             print(f"❌ 测试向量 {idx}: 未找到Decoder输出")
 
@@ -625,18 +656,6 @@ def generate_test_report(test_results):
 # 3. 主执行入口
 # ==============================================================================
 if __name__ == "__main__":
-    print("=" * 60)
-    print("MyCPU Decoder模块测试")
-    print("=" * 60)
-    print("测试说明：")
-    print("1. 本测试验证Decoder模块是否能正确解码RISC-V指令")
-    print("2. 测试覆盖R-Type、I-Type、S-Type、B-Type、U-Type和J-Type指令")
-    print("3. 验证控制信号(ALU功能码、操作数选择、立即数)的正确性")
-    print("4. 在apptainer容器中运行测试:")
-    print("   - source setup.sh")
-    print("   - cd MyCPU")
-    print("   - python tests/test_decoder.py")
-    print("=" * 60)
 
     sys = SysBuilder("test_decoder_module")
 
@@ -644,7 +663,6 @@ if __name__ == "__main__":
         # 创建测试模块
         dut = Decoder()
         driver = Driver()
-        executor = MockSinkDecoder()
 
         # 创建必要的辅助模块和数据结构
         icache_dout = RegArray(Bits(32), 1)
@@ -667,15 +685,8 @@ if __name__ == "__main__":
         )
 
         # 构建Decoder
-        pre_pkt, rs1, rs2, rs1_used, rs2_used = dut.build(icache_dout, reg_file)
-
-        # 连接Decoder输出到MockSinkDecoder
-        executor.build(
-            pre_pkt,
-            rs1,
-            rs2,
-            rs1_used,
-            rs2_used,
+        pre_pkt, rs1, rs2, rs1_used, rs2_used = dut.build(
+            icache_dout, reg_file
         )
 
     run_test_module(sys, check)
