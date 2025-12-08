@@ -95,9 +95,11 @@ class Decoder(Module):
             # --- A. 匹配逻辑 ---
             match_if = opcode == t_op
 
-            match_if &= funct3 == Bits(3)(t_f3)
-
-            match_if &= bit30 == Bits(1)(t_b30)
+            if t_f3 is not None:
+                match_if &= funct3 == Bits(3)(t_f3)
+                
+            if t_b30 is not None:
+                match_if &= bit30 == Bits(1)(t_b30)
 
             # --- B. 信号累加 (Mux Logic) ---
             # 使用 select 实现 OR 逻辑

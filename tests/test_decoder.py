@@ -35,9 +35,9 @@ class Driver(Module):
             (Bits(32)(0x002081B3), Bits(32)(0x1000)),  # 0: ADD x3, x1, x2
             (Bits(32)(0x00508193), Bits(32)(0x1004)),  # 1: ADDI x3, x1, 5
             (Bits(32)(0x0040A183), Bits(32)(0x1008)),  # 2: LW x3, 4(x1)
-            (Bits(32)(0x0080A423), Bits(32)(0x100C)),  # 3: SW x2, 8(x1)
+            (Bits(32)(0x0020A223), Bits(32)(0x100C)),  # 3: SW x2, 4(x1)
             (Bits(32)(0x00208463), Bits(32)(0x1010)),  # 4: BEQ x1, x2, 8
-            (Bits(32)(0x0FE001EF), Bits(32)(0x1014)),  # 5: JAL x3, 0x100
+            (Bits(32)(0x100001EF), Bits(32)(0x1014)),  # 5: JAL x3, 0x100
             (Bits(32)(0x123451B7), Bits(32)(0x1018)),  # 6: LUI x3, 0x12345
         ]
 
@@ -57,7 +57,7 @@ class Driver(Module):
 
         # 2. 发送测试向量 (Cycle 2+)
         vec_idx = idx - UInt(32)(2)
-        valid_test = (idx >= UInt(32)(2)) & (vec_idx < UInt(32)(len(vectors)))
+        valid_test = (idx >= UInt(32)(2)) & (vec_idx < UInt(32)(len(vectors) + 1))
 
         curr_inst = Bits(32)(0)
         curr_pc = Bits(32)(0)
@@ -170,7 +170,7 @@ def check(raw_output):
             "pc": 0x100C,
             "rs1_data": 0x10,
             "rs2_data": 0x20,
-            "imm": 8,
+            "imm": 4,
         },
         # Case 4: BEQ x1, x2, 8 (PC=1010)
         {
