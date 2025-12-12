@@ -206,7 +206,6 @@ make test-fetch
 - 格式：Markdown
 - 语言：中文（主）+ 英文（辅）
 - 版本控制：Git
-- 许可证：MIT
 
 ## 统计数据
 
