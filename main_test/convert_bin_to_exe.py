@@ -2,8 +2,8 @@
 """
 Binary to Assassyn SRAM Initialization File Converter
 
-This script converts raw binary files (data.bin, text.bin) to the format
-expected by Assassyn SRAM initialization (.exe files).
+This script converts raw binary files (accumulate_data.bin, accumulate_text.bin) 
+to the format expected by Assassyn SRAM initialization (.exe files).
 
 The Assassyn SRAM initialization file format is a text file where each line
 contains a hexadecimal value representing one memory word (32-bit).
@@ -12,8 +12,8 @@ Usage:
     python3 convert_bin_to_exe.py
     
 This will:
-1. Read data.bin and convert it to workload_mem.exe (for main_memory)
-2. Read text.bin and convert it to workload_ins.exe (for icache)
+1. Read accumulate_data.bin and convert it to workload_mem.exe (for main_memory)
+2. Read accumulate_text.bin and convert it to workload_ins.exe (for icache)
 """
 
 import struct

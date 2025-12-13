@@ -129,9 +129,12 @@ def test_file_formats():
     data_file = os.path.join(workspace_dir, 'workload_mem.exe')
     results.append(test_file_format(data_file, -1))  # -1 表示可以是任意行数
     
-    # 测试指令内存初始化文件（accumulate 应该是 22 行）
+    # 测试指令内存初始化文件
+    # 注意：22 是 accumulate 程序的指令数量
+    # 如果使用其他测试程序，这个数字会不同，可以设为 -1 跳过数量检查
     ins_file = os.path.join(workspace_dir, 'workload_ins.exe')
-    results.append(test_file_format(ins_file, 22))
+    expected_ins_count = 22  # accumulate 程序的指令数量
+    results.append(test_file_format(ins_file, expected_ins_count))
     
     # 测试偏移量初始化文件（应该是 1 行）
     init_file = os.path.join(workspace_dir, 'workload.init')
