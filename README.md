@@ -206,7 +206,20 @@ make help
 ### 构建和运行 CPU
 
 ```bash
-# 运行主程序（构建完整 CPU）
+# 方法 1：使用便捷脚本（推荐，自动检查环境和依赖）
+python run_cpu.py
+
+# 方法 2：使用模块运行方式（推荐）
+python -m src.main
+
+# 方法 3：使用 Makefile（推荐）
+make build
+
+# 方法 4：使用平台特定脚本
+./run_cpu.sh        # Linux/macOS
+run_cpu.bat         # Windows
+
+# 方法 5：直接运行脚本（兼容方式）
 python src/main.py
 
 # 这将：
@@ -234,6 +247,25 @@ python src/main.py
 3. **测试驱动**（`tests/` 目录）
    - 使用 `common.py` 中的 `run_test_module` 函数
    - 每个测试包含：测试向量（输入）、DUT 构建、输出验证
+
+### 运行脚本说明
+
+项目提供了多个便捷的运行脚本：
+
+1. **`run_cpu.py`** (推荐) - 跨平台 Python 脚本
+   - 自动检查 Python 版本
+   - 检测虚拟环境状态
+   - 验证依赖包安装
+   - 提供友好的错误信息
+
+2. **`run_cpu.sh`** - Linux/macOS Shell 脚本
+   - 彩色输出
+   - 自动激活虚拟环境
+   - 错误时自动退出
+
+3. **`run_cpu.bat`** - Windows 批处理脚本
+   - Windows 原生支持
+   - 自动激活虚拟环境
 
 ### 添加新指令
 
@@ -298,7 +330,22 @@ def test_example():
 
 ## 常见问题
 
-### 1. 导入错误：`ModuleNotFoundError: No module named 'assassyn'`
+### 1. 相对导入错误：`ImportError: attempted relative import with no known parent package`
+
+**原因**: 当使用 `python src/main.py` 直接运行时，Python 将其视为脚本而非包模块。
+
+**解决方案**:
+```bash
+# 方案 1：使用模块运行方式（推荐）
+python -m src.main
+
+# 方案 2：使用 Makefile
+make build
+
+# 注意：新版本的 main.py 已经兼容两种运行方式
+```
+
+### 2. 导入错误：`ModuleNotFoundError: No module named 'assassyn'`
 
 **解决方案**:
 ```bash

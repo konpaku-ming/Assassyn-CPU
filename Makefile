@@ -81,7 +81,7 @@ typecheck:
 
 # Build and run
 build:
-	python src/main.py
+	python -m src.main
 
 run: build
 

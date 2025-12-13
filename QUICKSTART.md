@@ -84,11 +84,21 @@ make test-memory    # 存储器访问测试
 ### 构建完整 CPU
 
 ```bash
-# 构建 RV32I CPU 系统
-python src/main.py
+# 方法 1：使用便捷脚本（推荐，自动检查环境）
+python run_cpu.py
 
-# 或使用 Makefile
+# 方法 2：使用模块运行方式（推荐）
+python -m src.main
+
+# 方法 3：使用 Makefile（推荐）
 make build
+
+# 方法 4：使用平台特定脚本
+./run_cpu.sh        # Linux/macOS
+run_cpu.bat         # Windows
+
+# 方法 5：直接运行脚本（兼容方式）
+python src/main.py
 ```
 
 ### 学习 Assassyn 语言
