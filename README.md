@@ -206,13 +206,20 @@ make help
 ### 构建和运行 CPU
 
 ```bash
-# 运行主程序（构建完整 CPU）- 推荐方式
+# 方法 1：使用便捷脚本（推荐，自动检查环境和依赖）
+python run_cpu.py
+
+# 方法 2：使用模块运行方式（推荐）
 python -m src.main
 
-# 或使用 Makefile（推荐）
+# 方法 3：使用 Makefile（推荐）
 make build
 
-# 也可以直接运行脚本（兼容方式）
+# 方法 4：使用平台特定脚本
+./run_cpu.sh        # Linux/macOS
+run_cpu.bat         # Windows
+
+# 方法 5：直接运行脚本（兼容方式）
 python src/main.py
 
 # 这将：
@@ -240,6 +247,25 @@ python src/main.py
 3. **测试驱动**（`tests/` 目录）
    - 使用 `common.py` 中的 `run_test_module` 函数
    - 每个测试包含：测试向量（输入）、DUT 构建、输出验证
+
+### 运行脚本说明
+
+项目提供了多个便捷的运行脚本：
+
+1. **`run_cpu.py`** (推荐) - 跨平台 Python 脚本
+   - 自动检查 Python 版本
+   - 检测虚拟环境状态
+   - 验证依赖包安装
+   - 提供友好的错误信息
+
+2. **`run_cpu.sh`** - Linux/macOS Shell 脚本
+   - 彩色输出
+   - 自动激活虚拟环境
+   - 错误时自动退出
+
+3. **`run_cpu.bat`** - Windows 批处理脚本
+   - Windows 原生支持
+   - 自动激活虚拟环境
 
 ### 添加新指令
 
