@@ -17,24 +17,29 @@ echo -e "${BLUE}===================================${NC}"
 echo ""
 
 # 检查虚拟环境
-if [[ -z "$VIRTUAL_ENV" ]]; then
+if [[ -z "$VIRTUAL_ENV" ]] && [[ -z "$CONDA_DEFAULT_ENV" ]]; then
     echo -e "${YELLOW}⚠️  警告: 未检测到虚拟环境${NC}"
     echo -e "${YELLOW}   建议先激活虚拟环境: source .venv/bin/activate${NC}"
     echo ""
     
-    # 检查是否存在虚拟环境
+    # 检查是否存在 venv 虚拟环境
     if [[ -d ".venv" ]]; then
-        echo -e "${BLUE}💡 提示: 发现虚拟环境，尝试激活...${NC}"
+        echo -e "${BLUE}💡 提示: 发现 .venv 虚拟环境，尝试激活...${NC}"
         source .venv/bin/activate || {
             echo -e "${RED}❌ 激活虚拟环境失败${NC}"
+            echo -e "${YELLOW}   如果您使用 conda 或其他虚拟环境管理工具，请手动激活${NC}"
             exit 1
         }
         echo -e "${GREEN}✓ 虚拟环境已激活${NC}"
         echo ""
     else
         echo -e "${YELLOW}   继续使用系统 Python 环境...${NC}"
+        echo -e "${YELLOW}   如果您使用 conda、pipenv 或 poetry，请手动激活环境${NC}"
         echo ""
     fi
+elif [[ -n "$CONDA_DEFAULT_ENV" ]]; then
+    echo -e "${GREEN}✓ Conda 环境已激活: $CONDA_DEFAULT_ENV${NC}"
+    echo ""
 fi
 
 # 检查 Python 版本

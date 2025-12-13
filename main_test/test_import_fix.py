@@ -74,20 +74,37 @@ def test_import_logic():
     import ast
     
     with open("src/main.py", "r", encoding="utf-8") as f:
-        tree = ast.parse(f.read())
+        content = f.read()
+        tree = ast.parse(content)
     
-    # 检查是否有 try-except 导入逻辑
-    has_try_except = False
+    # 检查是否有条件导入逻辑（try-except 或 if __package__）
+    has_conditional_import = False
+    
+    # 方法 1: 检查 try-except
     for node in ast.walk(tree):
         if isinstance(node, ast.Try):
             for handler in node.handlers:
                 if handler.type:
                     if isinstance(handler.type, ast.Name) and handler.type.id == "ImportError":
-                        has_try_except = True
+                        has_conditional_import = True
                         break
     
-    assert has_try_except, "main.py 缺少 try-except 导入逻辑"
-    print("✓ main.py 包含 try-except 导入逻辑")
+    # 方法 2: 检查 if __package__
+    if not has_conditional_import:
+        for node in ast.walk(tree):
+            if isinstance(node, ast.If):
+                test = node.test
+                if isinstance(test, ast.Name) and test.id == "__package__":
+                    has_conditional_import = True
+                    break
+    
+    # 方法 3: 简单字符串检查作为备选
+    if not has_conditional_import:
+        if "if __package__:" in content or "except ImportError:" in content:
+            has_conditional_import = True
+    
+    assert has_conditional_import, "main.py 缺少条件导入逻辑"
+    print("✓ main.py 包含条件导入逻辑（支持多种运行方式）")
 
 
 def test_run_scripts_exist():
@@ -162,43 +179,50 @@ def main():
     print("ImportError 修复验证测试")
     print("=" * 60)
     
-    # 切换到项目根目录
-    project_root = Path(__file__).parent.parent
-    os.chdir(project_root)
+    # 保存原始工作目录
+    original_dir = os.getcwd()
     
-    tests = [
-        test_package_structure,
-        test_module_can_be_imported,
-        test_main_syntax,
-        test_import_logic,
-        test_run_scripts_exist,
-        test_makefile_updated,
-        test_documentation_updated,
-    ]
-    
-    passed = 0
-    failed = 0
-    
-    for test in tests:
-        try:
-            test()
-            passed += 1
-        except Exception as e:
-            print(f"\n✗ 测试失败: {e}")
-            import traceback
-            traceback.print_exc()
-            failed += 1
-    
-    print("\n" + "=" * 60)
-    print(f"测试结果: {passed} 通过, {failed} 失败")
-    print("=" * 60)
-    
-    if failed == 0:
-        print("\n🎉 所有测试通过！ImportError 修复验证成功！")
-        return 0
-    else:
-        print(f"\n❌ {failed} 个测试失败")
-        return 1
+    try:
+        # 切换到项目根目录
+        project_root = Path(__file__).parent.parent
+        os.chdir(project_root)
+        
+        tests = [
+            test_package_structure,
+            test_module_can_be_imported,
+            test_main_syntax,
+            test_import_logic,
+            test_run_scripts_exist,
+            test_makefile_updated,
+            test_documentation_updated,
+        ]
+        
+        passed = 0
+        failed = 0
+        
+        for test in tests:
+            try:
+                test()
+                passed += 1
+            except Exception as e:
+                print(f"\n✗ 测试失败: {e}")
+                import traceback
+                traceback.print_exc()
+                failed += 1
+        
+        print("\n" + "=" * 60)
+        print(f"测试结果: {passed} 通过, {failed} 失败")
+        print("=" * 60)
+        
+        if failed == 0:
+            print("\n🎉 所有测试通过！ImportError 修复验证成功！")
+            return 0
+        else:
+            print(f"\n❌ {failed} 个测试失败")
+            return 1
+    finally:
+        # 恢复原始工作目录
+        os.chdir(original_dir)
 
 
 if __name__ == "__main__":

@@ -12,8 +12,8 @@ from assassyn import utils
 # 支持两种运行方式：
 # 1. python -m src.main (推荐，使用相对导入)
 # 2. python src/main.py (直接运行，使用绝对导入)
-try:
-    # 尝试相对导入（当作为包运行时）
+if __package__:
+    # 作为包运行时使用相对导入
     from .control_signals import *
     from .fetch import Fetcher, FetcherImpl
     from .decoder import Decoder, DecoderImpl
@@ -21,8 +21,8 @@ try:
     from .execution import Execution
     from .memory import MemoryAccess
     from .writeback import WriteBack
-except ImportError:
-    # 回退到绝对导入（当直接运行时）
+else:
+    # 作为脚本运行时使用绝对导入
     from src.control_signals import *
     from src.fetch import Fetcher, FetcherImpl
     from src.decoder import Decoder, DecoderImpl

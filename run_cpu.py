@@ -75,26 +75,36 @@ def check_dependencies():
     """检查依赖包"""
     print_info("检查依赖包...")
     
-    # 检查关键依赖
-    dependencies = {
+    # 必需依赖
+    required_dependencies = {
         "assassyn": "Assassyn HDL 框架",
-        "pytest": "pytest 测试框架 (可选)",
     }
     
-    missing = []
-    for module, description in dependencies.items():
+    # 可选依赖
+    optional_dependencies = {
+        "pytest": "pytest 测试框架",
+    }
+    
+    missing_required = []
+    
+    # 检查必需依赖
+    for module, description in required_dependencies.items():
         try:
             __import__(module)
-            if module == "assassyn":
-                print_success(f"{description}已安装")
+            print_success(f"{description}已安装")
         except ImportError:
-            if module == "assassyn":
-                print_error(f"未找到 {description}")
-                missing.append(module)
-            else:
-                print_warning(f"未找到 {description}")
+            print_error(f"未找到 {description}")
+            missing_required.append(module)
     
-    if missing:
+    # 检查可选依赖（仅警告）
+    for module, description in optional_dependencies.items():
+        try:
+            __import__(module)
+            print_success(f"{description}已安装")
+        except ImportError:
+            print_warning(f"未找到 {description}（可选）")
+    
+    if missing_required:
         print()
         print_error("缺少必要依赖！")
         print()
@@ -127,12 +137,11 @@ def build_cpu():
     print()
     
     try:
-        # 使用 -m 运行模块
+        # 使用 -m 运行模块，实时显示输出
         result = subprocess.run(
             [sys.executable, "-m", "src.main"],
             check=True,
-            text=True,
-            capture_output=False
+            text=True
         )
         
         print()
