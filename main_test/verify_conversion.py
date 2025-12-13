@@ -30,6 +30,8 @@ def verify_conversion(bin_file, exe_file, name):
         
         # Apply same padding logic as conversion script
         # This ensures verification matches conversion behavior
+        # Note: This logic is intentionally duplicated from convert_bin_to_exe.py
+        # to keep this verification script self-contained and independently runnable
         if len(bin_data) % 4 != 0:
             padding = 4 - (len(bin_data) % 4)
             bin_data += b'\x00' * padding

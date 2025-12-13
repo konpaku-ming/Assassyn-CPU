@@ -423,7 +423,7 @@ Key Files:
 
 ---
 
-**Report Generated**: 2024-12-13  
+**Report Generated**: 2025-12-13  
 **CPU Architecture**: RV32I 5-stage pipeline  
 **HDL**: Assassyn  
 **Tool Version**: Python 3.10+
