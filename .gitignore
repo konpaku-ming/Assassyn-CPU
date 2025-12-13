@@ -58,6 +58,9 @@ dmypy.json
 *.bin
 *.out
 
+# Except for main_test example files
+!main_test/*.bin
+
 # Rust build artifacts (from Assassyn backend)
 target/
 Cargo.lock
