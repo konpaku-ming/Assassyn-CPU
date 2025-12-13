@@ -104,8 +104,8 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     workspace_dir = os.path.join(os.path.dirname(script_dir), '.workspace')
     
-    data_bin = os.path.join(script_dir, 'data.bin')
-    text_bin = os.path.join(script_dir, 'text.bin')
+    data_bin = os.path.join(script_dir, 'accumulate_data.bin')
+    text_bin = os.path.join(script_dir, 'accumulate_text.bin')
     data_exe = os.path.join(workspace_dir, 'workload_mem.exe')
     text_exe = os.path.join(workspace_dir, 'workload_ins.exe')
     
@@ -127,14 +127,14 @@ def main():
     success1 = verify_conversion(
         data_bin,
         data_exe,
-        "Data Memory (data.bin → workload_mem.exe)"
+        "Data Memory (accumulate_data.bin → workload_mem.exe)"
     )
     print()
     
     success2 = verify_conversion(
         text_bin,
         text_exe,
-        "Instruction Memory (text.bin → workload_ins.exe)"
+        "Instruction Memory (accumulate_text.bin → workload_ins.exe)"
     )
     print()
     

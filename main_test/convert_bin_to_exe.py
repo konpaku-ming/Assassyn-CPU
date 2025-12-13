@@ -2,8 +2,8 @@
 """
 Binary to Assassyn SRAM Initialization File Converter
 
-This script converts raw binary files (data.bin, text.bin) to the format
-expected by Assassyn SRAM initialization (.exe files).
+This script converts raw binary files (accumulate_data.bin, accumulate_text.bin) 
+to the format expected by Assassyn SRAM initialization (.exe files).
 
 The Assassyn SRAM initialization file format is a text file where each line
 contains a hexadecimal value representing one memory word (32-bit).
@@ -12,8 +12,8 @@ Usage:
     python3 convert_bin_to_exe.py
     
 This will:
-1. Read data.bin and convert it to workload_mem.exe (for main_memory)
-2. Read text.bin and convert it to workload_ins.exe (for icache)
+1. Read accumulate_data.bin and convert it to workload_mem.exe (for main_memory)
+2. Read accumulate_text.bin and convert it to workload_ins.exe (for icache)
 """
 
 import struct
@@ -95,8 +95,8 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     workspace_dir = os.path.join(os.path.dirname(script_dir), '.workspace')
     
-    data_bin = os.path.join(script_dir, 'data.bin')
-    text_bin = os.path.join(script_dir, 'text.bin')
+    data_bin = os.path.join(script_dir, 'accumulate_data.bin')
+    text_bin = os.path.join(script_dir, 'accumulate_text.bin')
     
     # Create workspace directory if it doesn't exist
     os.makedirs(workspace_dir, exist_ok=True)
@@ -106,19 +106,19 @@ def main():
     data_exe = os.path.join(workspace_dir, 'workload_mem.exe')
     text_exe = os.path.join(workspace_dir, 'workload_ins.exe')
     
-    # Convert data.bin to workload_mem.exe
+    # Convert accumulate_data.bin to workload_mem.exe
     success1 = convert_binary_to_exe(
         data_bin, 
         data_exe, 
-        "Data Memory (data.bin → workload_mem.exe)"
+        "Data Memory (accumulate_data.bin → workload_mem.exe)"
     )
     print()
     
-    # Convert text.bin to workload_ins.exe
+    # Convert accumulate_text.bin to workload_ins.exe
     success2 = convert_binary_to_exe(
         text_bin, 
         text_exe, 
-        "Instruction Memory (text.bin → workload_ins.exe)"
+        "Instruction Memory (accumulate_text.bin → workload_ins.exe)"
     )
     print()
     
