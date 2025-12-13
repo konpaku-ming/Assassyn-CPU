@@ -66,6 +66,20 @@ python3 convert_bin_to_exe.py
 python3 verify_conversion.py
 ```
 
+### test_initialization.py
+全面测试初始化系统的完整性。
+
+**用法**:
+```bash
+python3 test_initialization.py
+```
+
+**测试项目**:
+- ✅ 目录结构验证
+- ✅ 文件格式验证
+- ✅ 指令内容验证
+- ✅ CPU 配置验证
+
 ---
 
 ## ⚡ 快速开始
@@ -81,7 +95,12 @@ python3 convert_bin_to_exe.py
 python3 verify_conversion.py
 ```
 
-### 3️⃣ 运行 CPU 仿真
+### 3️⃣ 全面测试（推荐）
+```bash
+python3 test_initialization.py
+```
+
+### 4️⃣ 运行 CPU 仿真
 ```bash
 cd ..
 python src/main.py
@@ -102,7 +121,8 @@ main_test/
 ├── accumulate_text.bin          # 测试程序指令段
 │
 ├── convert_bin_to_exe.py        # 转换工具
-└── verify_conversion.py         # 验证工具
+├── verify_conversion.py         # 验证工具
+└── test_initialization.py       # 全面测试工具
 ```
 
 生成的文件（在 `.workspace/`）:
