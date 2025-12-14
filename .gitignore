@@ -1,0 +1,4 @@
+*.log
+workspace/
+*/__pycache__
+*/.workspace/
