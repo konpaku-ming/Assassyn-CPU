@@ -98,7 +98,7 @@ def build_cpu(depth_log=16):
         # 栈顶地址 = (1 << depth_log) * 4 (字地址转字节地址)
         stack_top = (1 << depth_log) << 2  # depth_log=16 -> 0x40000
         reg_init = [0] * 32
-        reg_init[2] = stack_top  # x2 (sp) = 栈顶
+        reg_init[REGISTER_X2_SP] = stack_top  # x2 (sp) = 栈顶
         reg_file = RegArray(Bits(32), 32, initializer=reg_init)
 
         # 全局状态寄存器

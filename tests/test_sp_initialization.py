@@ -14,6 +14,7 @@ from assassyn.frontend import *
 from assassyn.backend import elaborate, config
 from assassyn import utils
 from tests.common import run_test_module
+from src.control_signals import REGISTER_X2_SP
 
 
 def test_sp_initialization_default():
@@ -32,7 +33,7 @@ def test_sp_initialization_default():
         # 初始化寄存器堆（与 main.py 中的逻辑一致）
         stack_top = (1 << depth_log) << 2
         reg_init = [0] * 32
-        reg_init[2] = stack_top  # x2 (sp) = 栈顶
+        reg_init[REGISTER_X2_SP] = stack_top  # x2 (sp) = 栈顶
         reg_file = RegArray(Bits(32), 32, initializer=reg_init)
         
         # 暴露寄存器堆以便检查
@@ -72,7 +73,7 @@ def test_sp_initialization_custom_depth():
         # 初始化寄存器堆（与 main.py 中的逻辑一致）
         stack_top = (1 << depth_log) << 2
         reg_init = [0] * 32
-        reg_init[2] = stack_top  # x2 (sp) = 栈顶
+        reg_init[REGISTER_X2_SP] = stack_top  # x2 (sp) = 栈顶
         reg_file = RegArray(Bits(32), 32, initializer=reg_init)
         
         # 暴露寄存器堆以便检查
@@ -106,7 +107,7 @@ def test_register_zero_stays_zero():
         # 初始化寄存器堆
         stack_top = (1 << depth_log) << 2
         reg_init = [0] * 32
-        reg_init[2] = stack_top  # x2 (sp) = 栈顶
+        reg_init[REGISTER_X2_SP] = stack_top  # x2 (sp) = 栈顶
         reg_file = RegArray(Bits(32), 32, initializer=reg_init)
         
         # 暴露寄存器堆以便检查

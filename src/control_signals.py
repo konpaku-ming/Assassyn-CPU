@@ -1,5 +1,12 @@
 from assassyn.frontend import Bits, Record
 
+# 0. RISC-V 寄存器常量
+# 寄存器索引
+REGISTER_X0_ZERO = 0  # x0: 硬连线为 0
+REGISTER_X1_RA = 1    # x1: 返回地址
+REGISTER_X2_SP = 2    # x2: 栈指针
+REGISTER_X8_S0 = 8    # x8/s0: 帧指针
+
 # 1. 基础物理常量
 # 指令 Opcode (7-bit)
 OP_R_TYPE = Bits(7)(0b0110011)  # ADD, SUB...
