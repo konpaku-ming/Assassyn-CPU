@@ -94,7 +94,12 @@ def build_cpu(depth_log=16):
         )
 
         # 寄存器堆
-        reg_file = RegArray(Bits(32), 32)
+        # 初始化：x0 永远为 0，x2 (sp) 初始化为栈顶地址
+        # 栈顶地址 = (1 << depth_log) * 4 (字地址转字节地址)
+        stack_top = (1 << depth_log) << 2  # depth_log=16 -> 0x40000
+        reg_init = [0] * 32
+        reg_init[2] = stack_top  # x2 (sp) = 栈顶
+        reg_file = RegArray(Bits(32), 32, initializer=reg_init)
 
         # 全局状态寄存器
         branch_target_reg = RegArray(Bits(32), 1)
