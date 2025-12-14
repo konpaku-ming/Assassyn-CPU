@@ -1,5 +1,6 @@
 import os
 import shutil
+import struct
 
 from assassyn.frontend import *
 from assassyn.backend import elaborate, config
@@ -17,6 +18,85 @@ from writeback import WriteBack
 # 全局工作区路径
 current_path = os.path.dirname(os.path.abspath(__file__))
 workspace = os.path.join(current_path, ".workspace")
+
+
+def bin_to_hex_words(input_path, output_path, word_size=4):
+    """
+    Convert binary file to hex text format (one word per line) for SRAM initialization.
+    
+    Args:
+        input_path: Path to input binary file
+        output_path: Path to output hex text file
+        word_size: Number of bytes per word (default: 4 for 32-bit)
+    """
+    with open(input_path, 'rb') as f:
+        data = f.read()
+    
+    # Pad to word_size boundary
+    if len(data) % word_size != 0:
+        padding = word_size - (len(data) % word_size)
+        data += b'\x00' * padding
+    
+    # Convert to words (little-endian)
+    words = []
+    for i in range(0, len(data), word_size):
+        word_bytes = data[i:i+word_size]
+        # Unpack as little-endian unsigned 32-bit integer
+        word_value = struct.unpack('<I', word_bytes)[0]
+        words.append(word_value)
+    
+    # Write to output file (one hex word per line, 8 hex digits)
+    with open(output_path, 'w') as f:
+        for word in words:
+            f.write(f'{word:08x}\n')
+    
+    print(f"  -> Converted {os.path.basename(input_path)} -> {os.path.basename(output_path)}")
+    print(f"     (Input: {len(data)} bytes, Output: {len(words)} words)")
+
+
+def prepare_workload_files(case_name):
+    """
+    Convert binary files from main_test/ to hex format in workloads/
+    
+    Args:
+        case_name: Name of the test case (e.g., "my0to100")
+    """
+    # Get project root directory
+    current_file_path = os.path.abspath(__file__)
+    src_dir = os.path.dirname(current_file_path)
+    project_root = os.path.dirname(src_dir)
+    
+    # Define paths
+    main_test_dir = os.path.join(project_root, "main_test")
+    workloads_dir = os.path.join(project_root, "workloads")
+    
+    # Create workloads directory if it doesn't exist
+    os.makedirs(workloads_dir, exist_ok=True)
+    
+    # Source binary files
+    text_bin = os.path.join(main_test_dir, f"{case_name}_text.bin")
+    data_bin = os.path.join(main_test_dir, f"{case_name}_data.bin")
+    
+    # Target hex files
+    exe_file = os.path.join(workloads_dir, f"{case_name}.exe")
+    data_file = os.path.join(workloads_dir, f"{case_name}.data")
+    
+    print(f"[*] Preparing workload files for: {case_name}")
+    
+    # Convert instruction binary to .exe
+    if os.path.exists(text_bin):
+        bin_to_hex_words(text_bin, exe_file)
+    else:
+        raise FileNotFoundError(f"Instruction binary not found: {text_bin}")
+    
+    # Convert data binary to .data
+    if os.path.exists(data_bin):
+        bin_to_hex_words(data_bin, data_file)
+    else:
+        # Create empty data file if no data segment
+        with open(data_file, 'w') as f:
+            pass
+        print(f"  -> No data binary found, created empty: {os.path.basename(data_file)}")
 
 
 # 复制文件进入当前目录下指定路径（沙盒）
@@ -106,7 +186,12 @@ def build_cpu(depth_log=16):
         icache.name = "icache"
 
         # 寄存器堆
-        reg_file = RegArray(Bits(32), 32)
+        # Initialize register file with stack pointer (x2/sp) set to a valid stack base
+        # Stack grows downward from 0x10000 (top of 64K word address space)
+        # x2 = sp (stack pointer) = 0x10000 * 4 = 0x40000 (byte address)
+        reg_init = [0] * 32
+        reg_init[2] = 0x40000  # Set sp (x2) to stack base at 256KB
+        reg_file = RegArray(Bits(32), 32, initializer=reg_init)
 
         # 全局状态寄存器
         branch_target_reg = RegArray(Bits(32), 1)
@@ -203,8 +288,11 @@ def build_cpu(depth_log=16):
 # ==============================================================================
 
 if __name__ == "__main__":
+    # 准备工作负载文件 (从 main_test/ 的二进制文件转换到 workloads/)
+    prepare_workload_files("my0to100")
+    
     # 构建 CPU 模块
-    load_test_case("0to100")
+    load_test_case("my0to100")
     sys_builder = build_cpu(depth_log=16)
     print(f"🚀 Compiling system: {sys_builder.name}...")
 
