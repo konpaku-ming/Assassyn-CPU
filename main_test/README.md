@@ -4,24 +4,53 @@
 
 ## 文件清单
 
-- `my0to100_text.bin` - 指令段二进制文件（输入）
-- `my0to100_data.bin` - 数据段二进制文件（输入）
-- `generate_workloads.py` - 生成工具脚本
+### 输入文件（二进制格式）
+- `my0to100_text.bin` / `my0to100_data.bin` - 0到100累加程序
+- `multiply_text.bin` / `multiply_data.bin` - 乘法测试程序
+- `vvadd_text.bin` / `vvadd_data.bin` - 向量加法测试程序
+
+### 工具脚本
+- `generate_workloads.py` - 工作负载生成工具
+- `generate_all_workloads.sh` - 批量生成脚本
+
+### 文档
 - `INITIALIZATION_REPORT.md` - 完整的初始化报告和 SP 问题解决方案
 - `README.md` - 本文件（快速参考）
 
 ## 快速开始
 
-### 生成初始化文件
+### 生成所有工作负载（推荐）
 
 ```bash
 cd main_test
-python3 generate_workloads.py
+bash generate_all_workloads.sh
 ```
 
-这将生成：
-- `my0to100.exe` - 用于 icache 初始化
-- `my0to100.data` - 用于 dcache 初始化
+这将一次性生成所有工作负载文件到 `../workloads/` 目录：
+- `my0to100.exe` / `my0to100.data` - 0到100累加程序
+- `multiply.exe` / `multiply.data` - 乘法测试程序
+- `vvadd.exe` / `vvadd.data` - 向量加法测试程序
+
+### 生成单个工作负载
+
+```bash
+# 生成 my0to100 工作负载（默认）
+python3 generate_workloads.py
+
+# 生成 multiply 工作负载
+python3 generate_workloads.py \
+    --text-in multiply_text.bin \
+    --data-in multiply_data.bin \
+    --text-out ../workloads/multiply.exe \
+    --data-out ../workloads/multiply.data
+
+# 生成 vvadd 工作负载
+python3 generate_workloads.py \
+    --text-in vvadd_text.bin \
+    --data-in vvadd_data.bin \
+    --text-out ../workloads/vvadd.exe \
+    --data-out ../workloads/vvadd.data
+```
 
 ### 输出格式
 
@@ -69,21 +98,16 @@ _start:
 
 ## 集成到 main.py
 
-生成的文件需要放在 `workloads` 目录下（或 `main.py` 指定的位置）：
+生成的文件会自动放在 `workloads` 目录下，可以直接在 `src/main.py` 中加载：
 
-```bash
-# 如果 workloads 目录不存在，创建它
-mkdir -p ../workloads
-
-# 复制生成的文件
-cp my0to100.exe ../workloads/
-cp my0to100.data ../workloads/
-```
-
-然后在 `src/main.py` 中加载：
 ```python
-load_test_case("my0to100")  # 不含 .exe/.data 后缀
+# 在 src/main.py 中选择要运行的测试用例
+load_test_case("my0to100")   # 0到100累加程序
+load_test_case("multiply")   # 乘法测试程序
+load_test_case("vvadd")      # 向量加法测试程序
 ```
+
+注意：加载测试用例时不需要包含 `.exe` 或 `.data` 后缀。
 
 ## 验证
 
@@ -93,7 +117,10 @@ cd ../src
 python3 main.py
 ```
 
-期望结果：累加 0 到 100 的结果为 **5050** (0x13BA)。
+期望结果（取决于加载的测试用例）：
+- **my0to100**: 累加 0 到 100 的结果为 **5050** (0x13BA)
+- **multiply**: 执行乘法运算测试
+- **vvadd**: 执行向量加法运算测试
 
 ## 更多信息
 
