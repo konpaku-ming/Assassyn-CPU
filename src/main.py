@@ -1,8 +1,6 @@
 import os
-import sys
+import shutil
 
-# 路径 Hack (确保能找到 Assassyn 和 src)
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from assassyn.frontend import *
 from assassyn.backend import elaborate, config
@@ -19,7 +17,68 @@ from .writeback import WriteBack
 
 # 全局工作区路径
 current_path = os.path.dirname(os.path.abspath(__file__))
-workspace = f"{current_path}/../workloads/"
+workspace = os.path.join(current_path, ".workspace")
+
+
+# 复制文件进入当前目录下指定路径（沙盒）
+def load_test_case(case_name, source_subdir="workloads"):
+    # =========================================================
+    # 1. 路径计算 (使用绝对路径解决 Apptainer/挂载问题)
+    # =========================================================
+
+    # 获取当前脚本 (src/main.py) 的绝对路径
+    current_file_path = os.path.abspath(__file__)
+    # 获取 src 目录
+    src_dir = os.path.dirname(current_file_path)
+    # 获取项目根目录 (假设 src 的上一级是项目根目录)
+    project_root = os.path.dirname(src_dir)
+
+    # 构造源文件目录: .../MyCPU/workloads
+    source_dir = os.path.join(project_root, source_subdir)
+
+    # 构造沙盒目录: .../MyCPU/src/workspace
+    workspace_dir = os.path.join(src_dir, ".workspace")
+
+    print(f"[*] Source Dir: {source_dir}")
+    print(f"[*] Workspace : {workspace_dir}")
+
+    # =========================================================
+    # 2. 环境清理 (沙盒重置)
+    # =========================================================
+    if os.path.exists(workspace_dir):
+        shutil.rmtree(workspace_dir)  # 暴力删除旧目录
+    os.makedirs(workspace_dir)  # 重建空目录
+
+    # =========================================================
+    # 3. 文件搬运 (Copy & Rename)
+    # =========================================================
+
+    # 定义源文件名 (假设源文件叫 0to100.exe 和 0to100.data)
+    src_exe = os.path.join(source_dir, f"{case_name}.exe")
+    src_data = os.path.join(source_dir, f"{case_name}.data")
+
+    # 定义目标文件名 (硬件写死的固定名字)
+    # 根据你之前的 build_cpu 代码，硬件找的是 workload_ins.exe 和 workload_mem.exe
+    dst_ins = os.path.join(workspace_dir, "workload_ins.exe")
+    dst_mem = os.path.join(workspace_dir, "workload_mem.exe")
+
+    # --- 复制指令文件 (.exe) -> icache ---
+    if os.path.exists(src_exe):
+        shutil.copy(src_exe, dst_ins)
+        print(f"  -> Copied Instruction: {case_name}.exe ==> workload_ins.exe")
+    else:
+        # 如果找不到源文件，抛出错误（因为指令文件是必须的）
+        raise FileNotFoundError(f"Test case not found: {src_exe}")
+
+    # --- 复制数据文件 (.data) -> dcache ---
+    if os.path.exists(src_data):
+        shutil.copy(src_data, dst_mem)
+        print(f"  -> Copied Memory Data: {case_name}.data ==> workload_mem.exe")
+    else:
+        # 如果没有数据文件（有些简单测试不需要），创建一个空文件防止报错
+        with open(dst_mem, "w") as f:
+            pass
+        print(f"  -> No .data found, created empty: workload_mem.exe")
 
 
 class Driver(Module):
@@ -35,13 +94,22 @@ def build_cpu(depth_log=16):
     sys_name = "rv32i_cpu"
     sys = SysBuilder(sys_name)
 
+    data_path = os.path.join(workspace, "workload_mem.exe")
+    ins_path = os.path.join(workspace, "workload_ins.exe")
+    print(f"[*] Data Path: {data_path}")
+    print(f"[*] Ins Path: {ins_path}")
+
     with sys:
         # 1. 物理资源初始化
-        main_memory = SRAM(
-            width=32, depth=1 << depth_log, init_file=f"{workspace}/workload_mem.exe"
+        dcache = SRAM(
+            width=32,
+            depth=1 << depth_log,
+            init_file=f"{data_path}",
         )
         icache = SRAM(
-            width=32, depth=1 << depth_log, init_file=f"{workspace}/workload_ins.exe"
+            width=32,
+            depth=1 << depth_log,
+            init_file=f"{ins_path}",
         )
 
         # 寄存器堆
@@ -67,7 +135,7 @@ def build_cpu(depth_log=16):
 
         driver = Driver()
 
-        # 3. 逆序构建 (Reverse Build)
+        # 3. 逆序构建
 
         # --- Step A: WB 阶段 ---
         wb_rd = writeback.build(
@@ -78,7 +146,7 @@ def build_cpu(depth_log=16):
         # --- Step B: MEM 阶段 ---
         mem_rd = memory_unit.build(
             wb_module=writeback,
-            sram_dout=main_memory.dout,
+            sram_dout=dcache.dout,
             mem_bypass_reg=mem_bypass_reg,
         )
 
@@ -89,7 +157,7 @@ def build_cpu(depth_log=16):
             mem_wb_bypass=mem_bypass_reg,
             wb_bypass=wb_bypass_reg,
             branch_target_reg=branch_target_reg,
-            dcache=main_memory,
+            dcache=dcache,
         )
 
         # --- Step D: ID 阶段 (Shell) ---
@@ -111,7 +179,7 @@ def build_cpu(depth_log=16):
         )
 
         # --- Step F: ID 阶段 (Core) ---
-        stall_if = decoder_impl.build(
+        decoder_impl.build(
             pre=pre_pkt,
             executor=executor,
             rs1_sel=rs1_sel,
@@ -121,10 +189,11 @@ def build_cpu(depth_log=16):
         )
 
         # --- Step G: IF 阶段 ---
-        pc_reg = fetcher.build()
+        pc_reg, last_pc_reg = fetcher.build()
         fetcher_impl.build(
             pc_reg=pc_reg,
-            icache=main_memory,
+            last_pc_reg=last_pc_reg,
+            icache=icache,
             decoder=decoder,
             stall_if=stall_if,
             branch_target=branch_target_reg,
@@ -132,15 +201,6 @@ def build_cpu(depth_log=16):
 
         # --- Step H: 辅助驱动 ---
         driver.build(fetcher=fetcher)
-
-    # 5. 生成仿真器
-    print(f"Building System: {sys_name}")
-    conf = config(
-        verilog=False,  # 单元测试通常不需要 Verilog，集成测试可以开
-        sim_threshold=1000000,
-        idle_threshold=500000,
-        fifo_depth=1,
-    )
 
     return sys
 
@@ -151,11 +211,11 @@ def build_cpu(depth_log=16):
 
 if __name__ == "__main__":
     # 构建 CPU 模块
+    load_test_case("0to100")
     sys_builder = build_cpu(depth_log=16)
     print(f"🚀 Compiling system: {sys_builder.name}...")
 
     # 配置
-    print(sys_builder)
     cfg = config(verilog=False, sim_threshold=600000, idle_threshold=600000)
 
     # 生成源码

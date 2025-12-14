@@ -1,7 +1,6 @@
 from assassyn.frontend import *
 from .control_signals import *
 
-
 class Fetcher(Module):
     def __init__(self):
         super().__init__(
