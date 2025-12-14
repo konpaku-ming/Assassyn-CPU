@@ -4,26 +4,33 @@ Test script to verify dcache/icache initialization
 """
 import os
 import sys
+import shutil
 
 # Add parent directory to path to import from src
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-def convert_bin_to_hex(bin_path, hex_path):
-    """
-    将二进制文件转换为 hex 文本格式
-    每行一个 32 位字 (8 个十六进制字符, 小写, 无 0x 前缀)
-    """
-    with open(bin_path, 'rb') as f_in, open(hex_path, 'w') as f_out:
-        while True:
-            chunk = f_in.read(4)
-            if not chunk:
-                break
-            
-            if len(chunk) < 4:
-                chunk = chunk + b'\x00' * (4 - len(chunk))
-            
-            word = int.from_bytes(chunk, byteorder='little')
-            f_out.write(f"{word:08x}\n")
+# Import the conversion function from main.py
+try:
+    from main import convert_bin_to_hex
+except ImportError:
+    # Fallback implementation if import fails
+    def convert_bin_to_hex(bin_path, hex_path):
+        """
+        将二进制文件转换为 hex 文本格式
+        Convert binary file to hex text format
+        """
+        WORD_SIZE = 4
+        with open(bin_path, 'rb') as f_in, open(hex_path, 'w') as f_out:
+            while True:
+                chunk = f_in.read(WORD_SIZE)
+                if not chunk:
+                    break
+                
+                if len(chunk) < WORD_SIZE:
+                    chunk = chunk + b'\x00' * (WORD_SIZE - len(chunk))
+                
+                word = int.from_bytes(chunk, byteorder='little')
+                f_out.write(f"{word:08x}\n")
 
 def test_conversion():
     """Test the binary to hex conversion"""
@@ -79,7 +86,6 @@ def test_conversion():
     workload_data = os.path.join(workspace, 'workload.data')
     
     print("\n3. Creating workload files...")
-    import shutil
     shutil.copy(text_hex, workload_exe)
     shutil.copy(data_hex, workload_data)
     print(f"   ✅ Created {os.path.basename(workload_exe)}")
@@ -127,15 +133,24 @@ def test_conversion():
     print(f"   ✅ SP will be initialized to: 0x{STACK_TOP:08X}")
     
     # Decode first instruction
-    first_instr = int(hex_lines[0], 16)
-    opcode = first_instr & 0x7F
-    rd = (first_instr >> 7) & 0x1F
-    rs1 = (first_instr >> 15) & 0x1F
-    imm = (first_instr >> 20) & 0xFFF
-    if imm & 0x800:
-        imm = imm - 0x1000
+    # RISC-V instruction format constants
+    OPCODE_MASK = 0x7F
+    REG_MASK = 0x1F
+    IMM_MASK = 0xFFF
+    IMM_SIGN_BIT = 0x800
+    IMM_SIGN_EXTEND = 0x1000
+    OPCODE_IMM = 0x13  # I-type instructions (ADDI, etc.)
+    SP_REG = 2  # x2 = sp
     
-    if opcode == 0x13 and rd == 2 and rs1 == 2:  # ADDI sp, sp, imm
+    first_instr = int(hex_lines[0], 16)
+    opcode = first_instr & OPCODE_MASK
+    rd = (first_instr >> 7) & REG_MASK
+    rs1 = (first_instr >> 15) & REG_MASK
+    imm = (first_instr >> 20) & IMM_MASK
+    if imm & IMM_SIGN_BIT:
+        imm = imm - IMM_SIGN_EXTEND
+    
+    if opcode == OPCODE_IMM and rd == SP_REG and rs1 == SP_REG:  # ADDI sp, sp, imm
         print(f"   First instruction: ADDI sp, sp, {imm}")
         print(f"   After execution: SP = 0x{STACK_TOP:08X} + {imm} = 0x{STACK_TOP + imm:08X}")
         if imm < 0:

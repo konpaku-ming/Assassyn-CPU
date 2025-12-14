@@ -22,24 +22,30 @@ workspace = os.path.join(current_path, ".workspace")
 def convert_bin_to_hex(bin_path, hex_path):
     """
     将二进制文件转换为 hex 文本格式
-    每行一个 32 位字 (8 个十六进制字符, 小写, 无 0x 前缀)
+    Convert binary file to hex text format
     
-    参数:
-        bin_path: 输入的二进制文件路径
-        hex_path: 输出的 hex 文本文件路径
+    每行一个 32 位字 (8 个十六进制字符, 小写, 无 0x 前缀)
+    One 32-bit word per line (8 hex characters, lowercase, no 0x prefix)
+    
+    参数 / Parameters:
+        bin_path: 输入的二进制文件路径 / Input binary file path
+        hex_path: 输出的 hex 文本文件路径 / Output hex text file path
     """
+    WORD_SIZE = 4  # 32-bit word size in bytes
+    
     with open(bin_path, 'rb') as f_in, open(hex_path, 'w') as f_out:
         while True:
-            # 每次读取 4 字节 (32 位)
-            chunk = f_in.read(4)
+            # 每次读取 4 字节 (32 位) / Read 4 bytes (32 bits) at a time
+            chunk = f_in.read(WORD_SIZE)
             if not chunk:
                 break
             
-            # 如果不足 4 字节，补 0
-            if len(chunk) < 4:
-                chunk = chunk + b'\x00' * (4 - len(chunk))
+            # 如果不足 4 字节，补 0 / Pad with zeros if less than 4 bytes
+            if len(chunk) < WORD_SIZE:
+                chunk = chunk + b'\x00' * (WORD_SIZE - len(chunk))
             
             # 转换为小端序的 32 位整数，然后转为 8 位十六进制字符串
+            # Convert to little-endian 32-bit integer, then to 8-char hex string
             word = int.from_bytes(chunk, byteorder='little')
             f_out.write(f"{word:08x}\n")
 
@@ -138,10 +144,13 @@ def build_cpu(depth_log=16):
 
         # 寄存器堆
         # 初始化 SP (x2) 指向栈顶
+        # Initialize SP (x2) to point to the top of the stack
         # RAM 大小: 2^depth_log 字节，栈顶在最高地址
-        STACK_TOP = (1 << depth_log) - 4  # 栈顶地址（字对齐）
+        # RAM size: 2^depth_log bytes, stack top at highest address
+        WORD_SIZE = 4  # RISC-V 字长 / RISC-V word size (bytes)
+        STACK_TOP = (1 << depth_log) - WORD_SIZE  # 栈顶地址（字对齐）/ Stack top (word-aligned)
         reg_init = [0] * 32
-        reg_init[2] = STACK_TOP  # x2 = sp，初始化为栈顶
+        reg_init[2] = STACK_TOP  # x2 = sp，初始化为栈顶 / x2 = sp, initialize to stack top
         reg_file = RegArray(Bits(32), 32, initializer=reg_init)
 
         # 全局状态寄存器
