@@ -157,14 +157,10 @@ def main():
     args = parser.parse_args()
     
     # 确保输出目录存在
-    outdirs = set()
     for outfile in [args.text_out, args.data_out]:
         outdir = os.path.dirname(outfile)
-        if outdir and outdir not in outdirs:
-            outdirs.add(outdir)
+        if outdir:
             os.makedirs(outdir, exist_ok=True)
-            if not os.path.exists(outfile):  # Only print if directory was just created
-                print(f"[INFO] Ensured output directory exists: {outdir}")
     
     # 打印配置信息
     print("=" * 60)
