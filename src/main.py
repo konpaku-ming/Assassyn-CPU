@@ -19,8 +19,33 @@ current_path = os.path.dirname(os.path.abspath(__file__))
 workspace = os.path.join(current_path, ".workspace")
 
 
+def convert_bin_to_hex(bin_path, hex_path):
+    """
+    将二进制文件转换为 hex 文本格式
+    每行一个 32 位字 (8 个十六进制字符, 小写, 无 0x 前缀)
+    
+    参数:
+        bin_path: 输入的二进制文件路径
+        hex_path: 输出的 hex 文本文件路径
+    """
+    with open(bin_path, 'rb') as f_in, open(hex_path, 'w') as f_out:
+        while True:
+            # 每次读取 4 字节 (32 位)
+            chunk = f_in.read(4)
+            if not chunk:
+                break
+            
+            # 如果不足 4 字节，补 0
+            if len(chunk) < 4:
+                chunk = chunk + b'\x00' * (4 - len(chunk))
+            
+            # 转换为小端序的 32 位整数，然后转为 8 位十六进制字符串
+            word = int.from_bytes(chunk, byteorder='little')
+            f_out.write(f"{word:08x}\n")
+
+
 # 复制文件进入当前目录下指定路径（沙盒）
-def load_test_case(case_name, source_subdir="workloads"):
+def load_test_case(case_name, source_subdir="main_test"):
     # =========================================================
     # 1. 路径计算 (使用绝对路径解决 Apptainer/挂载问题)
     # =========================================================
@@ -32,10 +57,10 @@ def load_test_case(case_name, source_subdir="workloads"):
     # 获取项目根目录 (假设 src 的上一级是项目根目录)
     project_root = os.path.dirname(src_dir)
 
-    # 构造源文件目录: .../MyCPU/workloads
+    # 构造源文件目录: .../Assassyn-CPU/main_test
     source_dir = os.path.join(project_root, source_subdir)
 
-    # 构造沙盒目录: .../MyCPU/src/workspace
+    # 构造沙盒目录: .../Assassyn-CPU/src/.workspace
     workspace_dir = os.path.join(src_dir, ".workspace")
 
     print(f"[*] Source Dir: {source_dir}")
@@ -49,35 +74,41 @@ def load_test_case(case_name, source_subdir="workloads"):
     os.makedirs(workspace_dir)  # 重建空目录
 
     # =========================================================
-    # 3. 文件搬运 (Copy & Rename)
+    # 3. 文件转换 (从 .bin 到 .exe/.data)
     # =========================================================
 
-    # 定义源文件名 (假设源文件叫 0to100.exe 和 0to100.data)
-    src_exe = os.path.join(source_dir, f"{case_name}.exe")
-    src_data = os.path.join(source_dir, f"{case_name}.data")
+    # 定义源文件名 (二进制文件)
+    src_text_bin = os.path.join(source_dir, f"{case_name}_text.bin")
+    src_data_bin = os.path.join(source_dir, f"{case_name}_data.bin")
 
     # 定义目标文件名 (硬件写死的固定名字)
-    # 根据你之前的 build_cpu 代码，硬件找的是 workload.exe 和 workload.data
     dst_ins = os.path.join(workspace_dir, f"workload.exe")
     dst_mem = os.path.join(workspace_dir, f"workload.data")
 
-    # --- 复制指令文件 (.exe) -> icache ---
-    if os.path.exists(src_exe):
-        shutil.copy(src_exe, dst_ins)
-        print(f"  -> Copied Instruction: {case_name}.exe ==> workload_ins.exe")
+    # --- 转换指令文件 (.bin -> .exe) -> icache ---
+    if os.path.exists(src_text_bin):
+        convert_bin_to_hex(src_text_bin, dst_ins)
+        print(f"  -> Converted Instruction: {case_name}_text.bin ==> workload.exe")
     else:
         # 如果找不到源文件，抛出错误（因为指令文件是必须的）
-        raise FileNotFoundError(f"Test case not found: {src_exe}")
+        raise FileNotFoundError(f"Test case not found: {src_text_bin}")
 
-    # --- 复制数据文件 (.data) -> dcache ---
-    if os.path.exists(src_data):
-        shutil.copy(src_data, dst_mem)
-        print(f"  -> Copied Memory Data: {case_name}.data ==> workload_mem.exe")
+    # --- 转换数据文件 (.bin -> .data) -> dcache ---
+    if os.path.exists(src_data_bin):
+        # 检查文件是否为空
+        if os.path.getsize(src_data_bin) > 0:
+            convert_bin_to_hex(src_data_bin, dst_mem)
+            print(f"  -> Converted Memory Data: {case_name}_data.bin ==> workload.data")
+        else:
+            # 如果数据文件为空，创建一个空的 hex 文件
+            with open(dst_mem, "w") as f:
+                pass
+            print(f"  -> Data file is empty, created empty: workload.data")
     else:
         # 如果没有数据文件（有些简单测试不需要），创建一个空文件防止报错
         with open(dst_mem, "w") as f:
             pass
-        print(f"  -> No .data found, created empty: workload_mem.exe")
+        print(f"  -> No .data found, created empty: workload.data")
 
 
 class Driver(Module):
