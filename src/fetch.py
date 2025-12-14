@@ -1,5 +1,5 @@
 from assassyn.frontend import *
-from .control_signals import *
+from control_signals import *
 
 
 class Fetcher(Module):
@@ -29,15 +29,15 @@ class FetcherImpl(Downstream):
 
     @downstream.combinational
     def build(
-        self,
-        # --- 资源引用 ---
-        pc_reg: Array,  # 引用 Fetcher 的 PC
-        last_pc_reg: Array,  # 引用 Fetcher 的 Last PC
-        icache: SRAM,  # 引用 ICache
-        decoder: Module,  # 下一级模块 (用于发送指令)
-        # --- 反馈控制信号 (来自 DataHazardUnit/ControlHazardUnit) ---
-        stall_if: Bits(1),  # 暂停取指 (保持当前 PC)
-        branch_target: Array,  # 不为0时，根据目标地址冲刷流水线
+            self,
+            # --- 资源引用 ---
+            pc_reg: Array,  # 引用 Fetcher 的 PC
+            last_pc_reg: Array,  # 引用 Fetcher 的 Last PC
+            icache: SRAM,  # 引用 ICache
+            decoder: Module,  # 下一级模块 (用于发送指令)
+            # --- 反馈控制信号 (来自 DataHazardUnit/ControlHazardUnit) ---
+            stall_if: Bits(1),  # 暂停取指 (保持当前 PC)
+            branch_target: Array,  # 不为0时，根据目标地址冲刷流水线
     ):
         # 读取当前 PC
         current_pc = stall_if.select(last_pc_reg[0], pc_reg[0])

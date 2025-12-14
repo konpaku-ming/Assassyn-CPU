@@ -1,5 +1,5 @@
 from assassyn.frontend import *
-from .control_signals import *
+from control_signals import *
 
 
 class DataHazardUnit(Downstream):
@@ -19,18 +19,18 @@ class DataHazardUnit(Downstream):
 
     @downstream.combinational
     def build(
-        self,
-        # --- 1. 来自 ID 级 (当前指令需求) ---
-        rs1_idx: Bits(5),  # 源寄存器 1 索引 (Bits 5)
-        rs2_idx: Bits(5),  # 源寄存器 2 索引 (Bits 5)
-        rs1_used: Bits(1),  # 是否需要读取 rs1 (Bits 1) - 避免 LUI 等指令的虚假冒险
-        rs2_used: Bits(1),  # 是否需要读取 rs2 (Bits 1)
-        # --- 2. 来自流水线各级 (实时状态回传) ---
-        # 各级 Module build() 的返回值
-        ex_rd: Bits(5),  # EX 级目标寄存器索引
-        ex_is_load: Bits(1),  # EX 级是否为 Load 指令
-        mem_rd: Bits(5),  # MEM 级目标寄存器索引
-        wb_rd: Bits(5),  # WB 级目标寄存器索引
+            self,
+            # --- 1. 来自 ID 级 (当前指令需求) ---
+            rs1_idx: Bits(5),  # 源寄存器 1 索引 (Bits 5)
+            rs2_idx: Bits(5),  # 源寄存器 2 索引 (Bits 5)
+            rs1_used: Bits(1),  # 是否需要读取 rs1 (Bits 1) - 避免 LUI 等指令的虚假冒险
+            rs2_used: Bits(1),  # 是否需要读取 rs2 (Bits 1)
+            # --- 2. 来自流水线各级 (实时状态回传) ---
+            # 各级 Module build() 的返回值
+            ex_rd: Bits(5),  # EX 级目标寄存器索引
+            ex_is_load: Bits(1),  # EX 级是否为 Load 指令
+            mem_rd: Bits(5),  # MEM 级目标寄存器索引
+            wb_rd: Bits(5),  # WB 级目标寄存器索引
     ):
         log(
             "Input Signals: rs1_idx={} rs2_idx={} rs1_used={} rs2_used={} ex_rd={} ex_is_load={} mem_rd={} wb_rd={}",

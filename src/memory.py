@@ -1,5 +1,5 @@
 from assassyn.frontend import *
-from .control_signals import *
+from control_signals import *
 
 
 class MemoryAccess(Module):
@@ -19,10 +19,10 @@ class MemoryAccess(Module):
 
     @module.combinational
     def build(
-        self,
-        wb_module: Module,  # 下一级流水线 (writeback.py)
-        sram_dout: Array,  # SRAM 的输出端口 (Ref)
-        mem_bypass_reg: Array,  # 全局 Bypass 寄存器 (数据)
+            self,
+            wb_module: Module,  # 下一级流水线 (writeback.py)
+            sram_dout: Array,  # SRAM 的输出端口 (Ref)
+            mem_bypass_reg: Array,  # 全局 Bypass 寄存器 (数据)
     ):
         # 1. 弹出并解包
         ctrl, alu_result = self.pop_all_ports(False)

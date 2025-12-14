@@ -1,6 +1,6 @@
 from assassyn.frontend import *
-from .control_signals import *
-from .instruction_table import rv32i_table
+from control_signals import *
+from instruction_table import rv32i_table
 
 
 # 辅助函数：生成填充位
@@ -97,7 +97,7 @@ class Decoder(Module):
 
             if t_f3 is not None:
                 match_if &= funct3 == Bits(3)(t_f3)
-                
+
             if t_b30 is not None:
                 match_if &= bit30 == Bits(1)(t_b30)
 
@@ -150,7 +150,7 @@ class Decoder(Module):
             rs1_data=raw_rs1_data,
             rs2_data=raw_rs2_data,
         )
-        
+
         log("rs1_data:0x{:x} rs2_data:0x{:x}", raw_rs1_data, raw_rs2_data)
 
         # 返回: 预解码包, 冒险检测需要的原始信号
@@ -164,16 +164,16 @@ class DecoderImpl(Downstream):
 
     @downstream.combinational
     def build(
-        self,
-        # --- 1. 来自 Decoder Shell 的静态数据 (Record) ---
-        pre: Record,
-        # --- 2. 外部模块引用 ---
-        executor: Module,
-        # --- 3. DataHazardUnit 反馈信号 ---
-        rs1_sel: Bits(4),
-        rs2_sel: Bits(4),
-        stall_if: Bits(1),
-        branch_target_reg: Array,
+            self,
+            # --- 1. 来自 Decoder Shell 的静态数据 (Record) ---
+            pre: Record,
+            # --- 2. 外部模块引用 ---
+            executor: Module,
+            # --- 3. DataHazardUnit 反馈信号 ---
+            rs1_sel: Bits(4),
+            rs2_sel: Bits(4),
+            stall_if: Bits(1),
+            branch_target_reg: Array,
     ):
         mem_ctrl = mem_ctrl_signals.view(pre.mem_ctrl)
 
@@ -192,7 +192,7 @@ class DecoderImpl(Downstream):
             stall_if,
             branch_target_reg[0],
         )
-        
+
         final_rd = nop_if.select(Bits(5)(0), mem_ctrl.rd_addr)
         final_mem_opcode = nop_if.select(MemOp.NONE, mem_ctrl.mem_opcode)
         final_branch_type = nop_if.select(BranchType.NO_BRANCH, pre.branch_type)
