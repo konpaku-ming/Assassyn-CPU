@@ -137,7 +137,12 @@ def build_cpu(depth_log=16):
         icache.name = "icache"
 
         # 寄存器堆
-        reg_file = RegArray(Bits(32), 32)
+        # 初始化 SP (x2) 指向栈顶
+        # RAM 大小: 2^depth_log 字节，栈顶在最高地址
+        STACK_TOP = (1 << depth_log) - 4  # 栈顶地址（字对齐）
+        reg_init = [0] * 32
+        reg_init[2] = STACK_TOP  # x2 = sp，初始化为栈顶
+        reg_file = RegArray(Bits(32), 32, initializer=reg_init)
 
         # 全局状态寄存器
         branch_target_reg = RegArray(Bits(32), 1)
