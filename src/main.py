@@ -7,13 +7,13 @@ from assassyn.backend import elaborate, config
 from assassyn import utils
 
 # 导入所有模块
-from .control_signals import *
-from .fetch import Fetcher, FetcherImpl
-from .decoder import Decoder, DecoderImpl
-from .data_hazard import DataHazardUnit
-from .execution import Execution
-from .memory import MemoryAccess
-from .writeback import WriteBack
+from control_signals import *
+from fetch import Fetcher, FetcherImpl
+from decoder import Decoder, DecoderImpl
+from data_hazard import DataHazardUnit
+from execution import Execution
+from memory import MemoryAccess
+from writeback import WriteBack
 
 # 全局工作区路径
 current_path = os.path.dirname(os.path.abspath(__file__))
@@ -58,9 +58,9 @@ def load_test_case(case_name, source_subdir="workloads"):
     src_data = os.path.join(source_dir, f"{case_name}.data")
 
     # 定义目标文件名 (硬件写死的固定名字)
-    # 根据你之前的 build_cpu 代码，硬件找的是 workload_ins.exe 和 workload_mem.exe
-    dst_ins = os.path.join(workspace_dir, "workload_ins.exe")
-    dst_mem = os.path.join(workspace_dir, "workload_mem.exe")
+    # 根据你之前的 build_cpu 代码，硬件找的是 workload.exe 和 workload.data
+    dst_ins = os.path.join(workspace_dir, f"workload.exe")
+    dst_mem = os.path.join(workspace_dir, f"workload.data")
 
     # --- 复制指令文件 (.exe) -> icache ---
     if os.path.exists(src_exe):
@@ -94,23 +94,17 @@ def build_cpu(depth_log=16):
     sys_name = "rv32i_cpu"
     sys = SysBuilder(sys_name)
 
-    data_path = os.path.join(workspace, "workload_mem.exe")
-    ins_path = os.path.join(workspace, "workload_ins.exe")
+    data_path = os.path.join(workspace, f"workload.data")
+    ins_path = os.path.join(workspace, f"workload.exe")
     print(f"[*] Data Path: {data_path}")
     print(f"[*] Ins Path: {ins_path}")
 
     with sys:
         # 1. 物理资源初始化
-        dcache = SRAM(
-            width=32,
-            depth=1 << depth_log,
-            init_file=f"{data_path}",
-        )
-        icache = SRAM(
-            width=32,
-            depth=1 << depth_log,
-            init_file=f"{ins_path}",
-        )
+        dcache = SRAM(width=32, depth=1 << depth_log, init_file=data_path)
+        dcache.name = "dcache"
+        icache = SRAM(width=32, depth=1 << depth_log, init_file=ins_path)
+        icache.name = "icache"
 
         # 寄存器堆
         reg_file = RegArray(Bits(32), 32)
@@ -216,7 +210,12 @@ if __name__ == "__main__":
     print(f"🚀 Compiling system: {sys_builder.name}...")
 
     # 配置
-    cfg = config(verilog=False, sim_threshold=600000, idle_threshold=600000)
+    cfg = config(
+        verilog=False,
+        sim_threshold=600000,
+        resource_base="",
+        idle_threshold=600000,
+    )
 
     # 生成源码
     simulator_path, verilog_path = elaborate(sys_builder, **cfg)

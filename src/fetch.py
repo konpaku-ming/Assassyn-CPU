@@ -1,5 +1,5 @@
 from assassyn.frontend import *
-from .control_signals import *
+from control_signals import *
 
 class Fetcher(Module):
     def __init__(self):
