@@ -52,7 +52,7 @@ htmlcov/
 dmypy.json
 
 # Assassyn workspace and build artifacts
-.workspace/
+workloads/
 *.exe
 *.init
 *.bin
