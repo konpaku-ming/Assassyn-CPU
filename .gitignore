@@ -60,6 +60,8 @@ workloads/
 
 # Except for main_test example files
 !main_test/*.bin
+!main_test/*.exe
+!main_test/*.data
 
 # Rust build artifacts (from Assassyn backend)
 target/
