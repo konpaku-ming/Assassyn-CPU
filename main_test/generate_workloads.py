@@ -19,6 +19,7 @@
 """
 
 import sys
+import os
 import argparse
 import struct
 
@@ -124,13 +125,13 @@ def main():
     # 输出文件参数
     parser.add_argument(
         '--text-out',
-        default='my0to100.exe',
-        help='指令段输出文件，用于 icache（默认：my0to100.exe）'
+        default='../workloads/my0to100.exe',
+        help='指令段输出文件，用于 icache（默认：../workloads/my0to100.exe）'
     )
     parser.add_argument(
         '--data-out',
-        default='my0to100.data',
-        help='数据段输出文件，用于 dcache（默认：my0to100.data）'
+        default='../workloads/my0to100.data',
+        help='数据段输出文件，用于 dcache（默认：../workloads/my0to100.data）'
     )
     
     # 格式选项
@@ -154,6 +155,13 @@ def main():
     )
     
     args = parser.parse_args()
+    
+    # 确保输出目录存在
+    for outfile in [args.text_out, args.data_out]:
+        outdir = os.path.dirname(outfile)
+        if outdir and not os.path.exists(outdir):
+            os.makedirs(outdir)
+            print(f"[INFO] Created output directory: {outdir}")
     
     # 打印配置信息
     print("=" * 60)

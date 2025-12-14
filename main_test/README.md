@@ -20,8 +20,8 @@ python3 generate_workloads.py
 ```
 
 这将生成：
-- `my0to100.exe` - 用于 icache 初始化
-- `my0to100.data` - 用于 dcache 初始化
+- `../workloads/my0to100.exe` - 用于 icache 初始化
+- `../workloads/my0to100.data` - 用于 dcache 初始化
 
 ### 输出格式
 
@@ -69,15 +69,12 @@ _start:
 
 ## 集成到 main.py
 
-生成的文件需要放在 `workloads` 目录下（或 `main.py` 指定的位置）：
+生成的文件会自动输出到 `workloads` 目录下（由 `--text-out` 和 `--data-out` 参数指定默认路径）。
+
+如需自定义输出位置：
 
 ```bash
-# 如果 workloads 目录不存在，创建它
-mkdir -p ../workloads
-
-# 复制生成的文件
-cp my0to100.exe ../workloads/
-cp my0to100.data ../workloads/
+python3 generate_workloads.py --text-out /custom/path/program.exe --data-out /custom/path/program.data
 ```
 
 然后在 `src/main.py` 中加载：
