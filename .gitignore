@@ -51,13 +51,6 @@ htmlcov/
 .dmypy.json
 dmypy.json
 
-# Assassyn workspace and build artifacts
-workloads/
-*.exe
-*.init
-*.bin
-*.out
-
 # Except for main_test example files
 !main_test/*.bin
 
