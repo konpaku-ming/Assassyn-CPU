@@ -19,21 +19,7 @@ from .writeback import WriteBack
 
 # 全局工作区路径
 current_path = os.path.dirname(os.path.abspath(__file__))
-workspace = f"{current_path}/../.workspace/"
-
-
-# 辅助模块：用于初始化 offset (参考 minor_cpu)
-class MemUser(Module):
-    def __init__(self):
-        super().__init__(ports={})
-
-    @module.combinational
-    def build(self, rdata: RegArray):
-        width = rdata.scalar_ty.bits
-        rdata = rdata[0].bitcast(Int(width))
-        offset_reg = RegArray(Bits(width), 1)
-        offset_reg[0] = rdata.bitcast(Bits(width))
-        return offset_reg
+workspace = f"{current_path}/../workloads/"
 
 
 class Driver(Module):
@@ -41,29 +27,8 @@ class Driver(Module):
         super().__init__(ports={})
 
     @module.combinational
-    def build(self, fetcher: Module, user: Module):
-        init_reg = RegArray(UInt(1), 1, initializer=[1])
-        # 使用 workload.init 初始化 offset
-        init_cache = SRAM(width=32, depth=32, init_file=f"{workspace}/workload.init")
-        init_cache.build(
-            we=Bits(1)(0),
-            re=init_reg[0].bitcast(Bits(1)),
-            wdata=Bits(32)(0),
-            addr=Bits(5)(0),
-        )
-
-        # Cycle 0: 初始化 offset
-        with Condition(init_reg[0] == UInt(1)(1)):
-            user.async_called()
-            init_reg[0] = UInt(1)(0)
-
-        # Cycle >0: 启动 Fetcher (点火)
-        # 注意：这里我们只负责 "kickstart"，Fetcher 后续会自动流转
-        # 但在 Assassyn 的刚性流水线模型中，通常需要持续驱动
-        # 不过根据我们的 FetcherImpl 设计，它只要有 stall/flush 信号就会自我驱动
-        # 这里为了兼容性，保留这个启动信号，或者 Fetcher 内部有自举逻辑
-
-        return init_cache
+    def build(self, fetcher: Module):
+        fetcher.async_called()
 
 
 def build_cpu(depth_log=16):
@@ -100,14 +65,15 @@ def build_cpu(depth_log=16):
         memory_unit = MemoryAccess()
         writeback = WriteBack()
 
-        # 辅助模块 (Offset Loader)
-        mem_user = MemUser()
         driver = Driver()
 
         # 3. 逆序构建 (Reverse Build)
 
         # --- Step A: WB 阶段 ---
-        wb_rd = writeback.build(reg_file)
+        wb_rd = writeback.build(
+            reg_file=reg_file,
+            wb_bypass_reg=wb_bypass_reg,
+        )
 
         # --- Step B: MEM 阶段 ---
         mem_rd = memory_unit.build(
@@ -165,14 +131,7 @@ def build_cpu(depth_log=16):
         )
 
         # --- Step H: 辅助驱动 ---
-        init_cache = driver.build(fetcher, mem_user)
-        offset_reg = mem_user.build(init_cache.dout)
-
-        # 4. 顶层暴露 (Expose)
-        # --------------------------------------------------------
-        sys.expose_on_top(reg_file, kind="Output")
-        sys.expose_on_top(pc_reg, kind="Output")
-        # 可以暴露更多用于调试
+        driver.build(fetcher=fetcher)
 
     # 5. 生成仿真器
     print(f"Building System: {sys_name}")
@@ -183,16 +142,38 @@ def build_cpu(depth_log=16):
         fifo_depth=1,
     )
 
-    simulator_path, verilog_path = elaborate(sys, **conf)
+    return sys
+
+
+# ==============================================================================
+# 主程序入口
+# ==============================================================================
+
+if __name__ == "__main__":
+    # 构建 CPU 模块
+    sys_builder = build_cpu(depth_log=16)
+    print(f"🚀 Compiling system: {sys_builder.name}...")
+
+    # 配置
+    print(sys_builder)
+    cfg = config(verilog=False, sim_threshold=600000, idle_threshold=600000)
+
+    # 生成源码
+    simulator_path, verilog_path = elaborate(sys_builder, **cfg)
 
     # 编译二进制
-    print("Building Simulator Binary...")
-    binary_path = utils.build_simulator(simulator_path)
-    print(f"Binary Built: {binary_path}")
+    try:
+        # build_simulator 内部会调用 cargo build，它的输出我们暂时不管
+        # 只要最后 binary_path 存在就行
+        binary_path = utils.build_simulator(simulator_path)
+        print(f"🔨 Building binary from: {binary_path}")
+    except Exception as e:
+        print(f"❌ Simulator build failed: {e}")
+        raise e
 
-    return sys, binary_path
+    # 运行模拟器，捕获输出
+    print(f"🏃 Running simulation (Direct Output Mode)...")
+    raw = utils.run_simulator(binary_path=binary_path)
 
-
-# 导出构建函数
-if __name__ == "__main__":
-    build_cpu()
+    print(raw)
+    print("🔍 Verifying output...")
