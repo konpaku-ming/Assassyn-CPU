@@ -20,17 +20,41 @@
 **功能**：从二进制文件生成 dcache/icache 初始化文件
 
 **输入**：
-- `main_test/my0to100_text.bin` - 指令段二进制
-- `main_test/my0to100_data.bin` - 数据段二进制
+- `main_test/my0to100_text.bin` / `my0to100_data.bin` - 0到100累加程序
+- `main_test/multiply_text.bin` / `multiply_data.bin` - 乘法测试程序
+- `main_test/vvadd_text.bin` / `vvadd_data.bin` - 向量加法测试程序
 
 **输出**：
-- `my0to100.exe` - icache 初始化文件
-- `my0to100.data` - dcache 初始化文件
+- `workloads/{name}.exe` - icache 初始化文件
+- `workloads/{name}.data` - dcache 初始化文件
 
 **使用方法**：
 ```bash
 cd main_test
-python3 generate_workloads.py
+# 生成单个工作负载
+python3 generate_workloads.py --text-in multiply_text.bin --data-in multiply_data.bin --text-out ../workloads/multiply.exe --data-out ../workloads/multiply.data
+
+# 或使用批量生成脚本
+bash generate_all_workloads.sh
+```
+
+**状态**：✅ 已实现并测试通过
+
+---
+
+### 1.5. ✅ 批量生成脚本：`main_test/generate_all_workloads.sh`
+
+**功能**：一次性生成所有工作负载文件
+
+**输出文件**：
+- `workloads/my0to100.exe` / `my0to100.data` - 0到100累加程序 (22 words / 0 words)
+- `workloads/multiply.exe` / `multiply.data` - 乘法测试程序 (610 words / 300 words)
+- `workloads/vvadd.exe` / `vvadd.data` - 向量加法测试程序 (625 words / 900 words)
+
+**使用方法**：
+```bash
+cd main_test
+bash generate_all_workloads.sh
 ```
 
 **状态**：✅ 已实现并测试通过
@@ -166,12 +190,17 @@ print(raw)
 | 文件路径                              | 状态 | 说明                          |
 |--------------------------------------|------|------------------------------|
 | `main_test/generate_workloads.py`   | ✅   | 工具脚本（已实现）             |
+| `main_test/generate_all_workloads.sh`| ✅  | 批量生成脚本                  |
 | `main_test/INITIALIZATION_REPORT.md`| ✅   | SP 初始化完整报告             |
-| `main_test/README.md`               | ✅   | 快速参考                      |
+| `main_test/README.md`               | ✅   | 快速参考（已更新）            |
 | `main_test/my0to100.exe`            | ✅   | 生成的指令文件                |
 | `main_test/my0to100.data`           | ✅   | 生成的数据文件                |
 | `workloads/my0to100.exe`            | ✅   | 已复制到 workloads           |
 | `workloads/my0to100.data`           | ✅   | 已复制到 workloads           |
+| `workloads/multiply.exe`            | ✅   | 乘法测试程序指令              |
+| `workloads/multiply.data`           | ✅   | 乘法测试程序数据              |
+| `workloads/vvadd.exe`               | ✅   | 向量加法测试程序指令          |
+| `workloads/vvadd.data`              | ✅   | 向量加法测试程序数据          |
 | `docs/print_raw_investigation.md`   | ✅   | print(raw) 问题诊断报告       |
 | `docs/debug_run_simulator.py`       | ✅   | 诊断工具脚本                  |
 | `docs/SOLUTION_SUMMARY.md`          | ✅   | 本文件（解决方案总结）         |
@@ -180,8 +209,12 @@ print(raw)
 
 | 文件路径                          | 状态 | 说明                   |
 |----------------------------------|------|----------------------|
-| `main_test/my0to100_text.bin`   | ✅   | 指令段二进制（88 字节） |
+| `main_test/my0to100_text.bin`   | ✅   | 指令段二进制（88 字节）  |
 | `main_test/my0to100_data.bin`   | ✅   | 数据段二进制（空文件）   |
+| `main_test/multiply_text.bin`   | ✅   | 指令段二进制（2440 字节）|
+| `main_test/multiply_data.bin`   | ✅   | 数据段二进制（1200 字节）|
+| `main_test/vvadd_text.bin`      | ✅   | 指令段二进制（2500 字节）|
+| `main_test/vvadd_data.bin`      | ✅   | 数据段二进制（3600 字节）|
 | `src/main.py`                    | ⚠️   | 存在问题，需要修复      |
 
 ---
@@ -352,10 +385,12 @@ def run_simulator(path):
 
 ✅ **已完成的任务**：
 1. 生成工具脚本（generate_workloads.py）
-2. SP 初始化报告（INITIALIZATION_REPORT.md）
-3. print(raw) 问题诊断报告（print_raw_investigation.md）
-4. 诊断工具脚本（debug_run_simulator.py）
-5. 工作负载文件生成并验证
+2. 批量生成脚本（generate_all_workloads.sh）
+3. SP 初始化报告（INITIALIZATION_REPORT.md）
+4. print(raw) 问题诊断报告（print_raw_investigation.md）
+5. 诊断工具脚本（debug_run_simulator.py）
+6. 工作负载文件生成并验证（my0to100, multiply, vvadd）
+7. 更新 README 文档说明所有工作负载
 
 ⚠️ **待用户执行的任务**：
 1. 运行诊断脚本确认问题根源
