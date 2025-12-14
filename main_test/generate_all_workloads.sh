@@ -8,9 +8,6 @@
 #
 # 用法：
 #   bash generate_all_workloads.sh
-#
-# 作者：GitHub Copilot
-# 日期：2025-12-14
 # ============================================================================
 
 # 设置错误时退出
@@ -158,3 +155,4 @@ if [ $FAILED -gt 0 ]; then
 else
     exit 0
 fi
+main_test/generate_all_workloads.sh
