@@ -11,7 +11,7 @@ def get_pad(width, hex_mask, sign):
 class Decoder(Module):
     def __init__(self):
         super().__init__(ports={"pc": Port(Bits(32))})
-        self.name = "ID_Shell"
+        self.name = "Decoder"
 
     @module.combinational
     def build(self, icache_dout: Array, reg_file: Array):
@@ -95,8 +95,8 @@ class Decoder(Module):
             ) = entry
 
             # --- A. 匹配逻辑 ---
-            match_if = opcode == t_op
-
+            match_if = opcode == t_op      
+                      
             if t_f3 is not None:
                 match_if &= funct3 == Bits(3)(t_f3)
 
@@ -153,7 +153,13 @@ class Decoder(Module):
             rs2_data=raw_rs2_data,
         )
 
-        log("rs1_data:0x{:x} rs2_data:0x{:x}", raw_rs1_data, raw_rs2_data)
+
+        # 添加日志信息
+        log("PC: 0x{:x}, Instruction: 0x{:x}", pc_val, inst)
+        log("Control signals: alu_func=0x{:x} op1_sel=0x{:x} op2_sel=0x{:x} branch_type=0x{:x} mem_op=0x{:x} mem_wid=0x{:x} mem_uns=0x{:x} wb_en=0x{:x} rs1_used=0x{:x} rs2_used=0x{:x}",
+            acc_alu_func, acc_op1_sel, acc_op2_sel, acc_br_type, acc_mem_op, acc_mem_wid, acc_mem_uns, acc_wb_en, acc_rs1_used, acc_rs2_used)
+        log("Forwarding data: imm=0x{:x} pc=0x{:x} rs1_data=0x{:x} rs2_data=0x{:x}",
+            acc_imm, pc_val, raw_rs1_data, raw_rs2_data)
 
         # 返回: 预解码包, 冒险检测需要的原始信号
         return pre, rs1, rs2, acc_rs1_used, acc_rs2_used
