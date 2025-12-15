@@ -68,7 +68,7 @@ class BTBImpl(Downstream):
         pc_shifted = pc >> UInt(32)(2)
         index = pc_shifted & Bits(32)(self.index_mask)
         
-        # Extract tag (remaining upper bits)
+        # Extract tag (remaining upper bits after removing index and byte offset)
         tag = pc_shifted >> UInt(32)(self.index_bits)
         
         # Look up BTB entry
@@ -77,7 +77,10 @@ class BTBImpl(Downstream):
         entry_target = btb_targets[index]
         
         # Check for hit: valid bit set AND tag matches
-        tag_match = (entry_tag >> UInt(32)(2)) == tag
+        # Compare stored PC (shifted) with current PC (shifted) for upper bits
+        entry_tag_shifted = entry_tag >> UInt(32)(2)
+        entry_tag_upper = entry_tag_shifted >> UInt(32)(self.index_bits)
+        tag_match = entry_tag_upper == tag
         hit = entry_valid & tag_match
         
         # Debug logging
