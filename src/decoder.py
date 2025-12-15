@@ -1,6 +1,6 @@
 from assassyn.frontend import *
-from control_signals import *
-from instruction_table import rv32i_table
+from .control_signals import *
+from .instruction_table import rv32i_table
 
 
 # 辅助函数：生成填充位

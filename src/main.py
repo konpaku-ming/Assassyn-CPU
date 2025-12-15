@@ -7,13 +7,13 @@ from assassyn.backend import elaborate, config
 from assassyn import utils
 
 # 导入所有模块
-from control_signals import *
-from fetch import Fetcher, FetcherImpl
-from decoder import Decoder, DecoderImpl
-from data_hazard import DataHazardUnit
-from execution import Execution
-from memory import MemoryAccess
-from writeback import WriteBack
+from .control_signals import *
+from .fetch import Fetcher, FetcherImpl
+from .decoder import Decoder, DecoderImpl
+from .data_hazard import DataHazardUnit
+from .execution import Execution
+from .memory import MemoryAccess
+from .writeback import WriteBack
 
 # 全局工作区路径
 current_path = os.path.dirname(os.path.abspath(__file__))

@@ -1,4 +1,4 @@
-from control_signals import *
+from .control_signals import *
 
 # RV32I 指令真值表
 # 表格列定义:
