@@ -1,45 +1,53 @@
 from assassyn.frontend import *
 from control_signals import *
 
+
 class Fetcher(Module):
     def __init__(self):
         super().__init__(
             ports={}, no_arbiter=True  # Fetcher 是起点，通常不需要被别人 async_called
         )
-        self.name = "F"
+        self.name = "Fetcher"
 
     @module.combinational
     def build(self):
         # 1. PC 寄存器
         # 初始化为 0 (Reset Vector)
         pc_reg = RegArray(Bits(32), 1, initializer=[0])
+        # 用于驱动 FetcherImpl（Assassyn特性？）
+        pc_addr = pc_reg[0]
         # 记录上一个周期的PC，用于在 Stall 时稳住输入（Assassyn不允许"不输入"）
         last_pc_reg = RegArray(Bits(32), 1, initializer=[0])
 
+        log("IPC = 0x{:x}", pc_reg[0])
+        log("Last PC = 0x{:x}", last_pc_reg[0])
+
         # 暴露寄存器引用供 Impl 使用
-        return pc_reg, last_pc_reg
+        return pc_reg, pc_addr, last_pc_reg
 
 
 class FetcherImpl(Downstream):
 
     def __init__(self):
         super().__init__()
-        self.name = "F1"
+        self.name = "Fetcher_Impl"
 
     @downstream.combinational
     def build(
         self,
         # --- 资源引用 ---
         pc_reg: Array,  # 引用 Fetcher 的 PC
+        pc_addr: Bits(32),  # 引用 Fetcher 的 PC 地址
         last_pc_reg: Array,  # 引用 Fetcher 的 Last PC
         icache: SRAM,  # 引用 ICache
         decoder: Module,  # 下一级模块 (用于发送指令)
-        # --- 反馈控制信号 (来自 DataHazardUnit/ControlHazardUnit) ---
+        # --- 反馈控制信号 (来自 DataHazardUnit/ControlHazardReg) ---
         stall_if: Bits(1),  # 暂停取指 (保持当前 PC)
         branch_target: Array,  # 不为0时，根据目标地址冲刷流水线
     ):
+
         # 读取当前 PC
-        current_pc = stall_if.select(last_pc_reg[0], pc_reg[0])
+        current_pc = stall_if.select(last_pc_reg[0], pc_addr)
 
         flush_if = branch_target[0] != Bits(32)(0)
         target_pc = branch_target[0]

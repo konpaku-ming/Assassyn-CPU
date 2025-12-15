@@ -183,9 +183,10 @@ def build_cpu(depth_log=16):
         )
 
         # --- Step G: IF 阶段 ---
-        pc_reg, last_pc_reg = fetcher.build()
+        pc_reg, pc_addr, last_pc_reg = fetcher.build()
         fetcher_impl.build(
             pc_reg=pc_reg,
+            pc_addr=pc_addr,
             last_pc_reg=last_pc_reg,
             icache=icache,
             decoder=decoder,
@@ -195,6 +196,9 @@ def build_cpu(depth_log=16):
 
         # --- Step H: 辅助驱动 ---
         driver.build(fetcher=fetcher)
+
+        """RegArray exposing"""
+        sys.expose_on_top(reg_file, kind="Output")
 
     return sys
 
