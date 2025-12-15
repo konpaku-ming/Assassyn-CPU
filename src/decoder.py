@@ -10,14 +10,19 @@ def get_pad(width, hex_mask, sign):
 
 class Decoder(Module):
     def __init__(self):
-        super().__init__(ports={"pc": Port(Bits(32))})
+        super().__init__(
+            ports={
+                "pc": Port(Bits(32)),
+                "next_pc": Port(Bits(32)),
+            }
+        )
         self.name = "Decoder"
 
     @module.combinational
     def build(self, icache_dout: Array, reg_file: Array):
 
         # 1. 获取基础输入
-        pc_val = self.pop_all_ports(False)
+        pc_val, next_pc_val = self.pop_all_ports(False)
         # 从 SRAM 输出获取指令
         raw_inst = icache_dout[0].bitcast(Bits(32))
         # 将初始化时出现的 0b0 指令替换为 NOP
@@ -95,8 +100,8 @@ class Decoder(Module):
             ) = entry
 
             # --- A. 匹配逻辑 ---
-            match_if = opcode == t_op      
-                      
+            match_if = opcode == t_op
+
             if t_f3 is not None:
                 match_if &= funct3 == Bits(3)(t_f3)
 
@@ -145,7 +150,7 @@ class Decoder(Module):
             op1_sel=acc_op1_sel,
             op2_sel=acc_op2_sel,
             branch_type=acc_br_type,
-            next_pc_addr=pc_val + Bits(32)(4),  # 默认下一条指令地址
+            next_pc_addr=next_pc_val,
             mem_ctrl=mem_ctrl_t,
             imm=acc_imm,
             pc=pc_val,
@@ -153,13 +158,28 @@ class Decoder(Module):
             rs2_data=raw_rs2_data,
         )
 
-
         # 添加日志信息
         log("PC: 0x{:x}, Instruction: 0x{:x}", pc_val, inst)
-        log("Control signals: alu_func=0x{:x} op1_sel=0x{:x} op2_sel=0x{:x} branch_type=0x{:x} mem_op=0x{:x} mem_wid=0x{:x} mem_uns=0x{:x} rd=0x{:x} rs1_used=0x{:x} rs2_used=0x{:x}",
-            acc_alu_func, acc_op1_sel, acc_op2_sel, acc_br_type, acc_mem_op, acc_mem_wid, acc_mem_uns, final_rd, acc_rs1_used, acc_rs2_used)
-        log("Forwarding data: imm=0x{:x} pc=0x{:x} rs1_data=0x{:x} rs2_data=0x{:x}",
-            acc_imm, pc_val, raw_rs1_data, raw_rs2_data)
+        log(
+            "Control signals: alu_func=0x{:x} op1_sel=0x{:x} op2_sel=0x{:x} branch_type=0x{:x} mem_op=0x{:x} mem_wid=0x{:x} mem_uns=0x{:x} rd=0x{:x} rs1_used=0x{:x} rs2_used=0x{:x}",
+            acc_alu_func,
+            acc_op1_sel,
+            acc_op2_sel,
+            acc_br_type,
+            acc_mem_op,
+            acc_mem_wid,
+            acc_mem_uns,
+            final_rd,
+            acc_rs1_used,
+            acc_rs2_used,
+        )
+        log(
+            "Forwarding data: imm=0x{:x} pc=0x{:x} rs1_data=0x{:x} rs2_data=0x{:x}",
+            acc_imm,
+            pc_val,
+            raw_rs1_data,
+            raw_rs2_data,
+        )
 
         # 返回: 预解码包, 冒险检测需要的原始信号
         return pre, rs1, rs2, acc_rs1_used, acc_rs2_used
@@ -205,7 +225,7 @@ class DecoderImpl(Downstream):
         final_mem_opcode = nop_if.select(MemOp.NONE, mem_ctrl.mem_opcode)
         final_alu_func = nop_if.select(ALUOp.NOP, pre.alu_func)
         final_branch_type = nop_if.select(BranchType.NO_BRANCH, pre.branch_type)
-        
+
         final_mem_ctrl = mem_ctrl_signals.bundle(
             mem_opcode=final_mem_opcode,
             mem_width=mem_ctrl.mem_width,
