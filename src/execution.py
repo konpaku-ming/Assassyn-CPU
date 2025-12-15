@@ -40,6 +40,16 @@ class Execution(Module):
         ctrl, pc, rs1, rs2, imm = self.pop_all_ports(False)
         mem_ctrl = mem_ctrl_signals.view(ctrl.mem_ctrl)
 
+        log(
+            "Input of EX: alu_func=0x{:x} pc=0x{:x} branch_type=0x{:x} next_pc_addr=0x{:x} rs1_data=0x{:x} rs2_data=0x{:x}",
+            ctrl.alu_func,
+            pc,
+            ctrl.branch_type,
+            ctrl.next_pc_addr,
+            rs1,
+            rs2,
+        )
+
         # 确定是否要 Flush 指令
         flush_if = branch_target_reg[0] != Bits(32)(0)
         final_rd = flush_if.select(Bits(5)(0), mem_ctrl.rd_addr)
@@ -66,15 +76,48 @@ class Execution(Module):
             rs2, fwd_from_mem, fwd_from_wb, fwd_from_wb_stage
         )
 
+        # 输出旁路选择日志
+        with Condition(ctrl.rs1_sel == Rs1Sel.RS1):
+            log("EX: RS1 source: No Bypass")
+        with Condition(ctrl.rs1_sel == Rs1Sel.EX_MEM_BYPASS):
+            log("EX: RS1 source: EX-MEM Bypass (0x{:x})", fwd_from_mem)
+        with Condition(ctrl.rs1_sel == Rs1Sel.MEM_WB_BYPASS):
+            log("EX: RS1 source: MEM-WB Bypass (0x{:x})", fwd_from_wb)
+        with Condition(ctrl.rs1_sel == Rs1Sel.WB_BYPASS):
+            log("EX: RS1 source: WB Bypass (0x{:x})", fwd_from_wb_stage)
+
+        with Condition(ctrl.rs2_sel == Rs2Sel.RS2):
+            log("EX: RS2 source: No Bypass")
+        with Condition(ctrl.rs2_sel == Rs2Sel.EX_MEM_BYPASS):
+            log("EX: RS2 source: EX-MEM Bypass (0x{:x})", fwd_from_mem)
+        with Condition(ctrl.rs2_sel == Rs2Sel.MEM_WB_BYPASS):
+            log("EX: RS2 source: MEM-WB Bypass (0x{:x})", fwd_from_wb)
+        with Condition(ctrl.rs2_sel == Rs2Sel.WB_BYPASS):
+            log("EX: RS2 source: WB Bypass (0x{:x})", fwd_from_wb_stage)
+
         # --- 操作数 1 选择 ---
         alu_op1 = ctrl.op1_sel.select1hot(
             real_rs1, pc, Bits(32)(0)  # 0  # 1 (AUIPC/JAL/Branch)  # 2 (LUI Link)
         )
 
+        with Condition(ctrl.op1_sel == Op1Sel.RS1):
+            log("EX: ALU Op1 source: RS1 (0x{:x})", real_rs1)
+        with Condition(ctrl.op1_sel == Op1Sel.PC):
+            log("EX: ALU Op1 source: PC (0x{:x})", pc)
+        with Condition(ctrl.op1_sel == Op1Sel.ZERO):
+            log("EX: ALU Op1 source: ZERO (0x0)")
+
         # --- 操作数 2 选择 ---
         alu_op2 = ctrl.op2_sel.select1hot(
             real_rs2, imm, Bits(32)(4)  # 0  # 1  # 2 (JAL/JALR Link)
         )
+
+        with Condition(ctrl.op2_sel == Op2Sel.RS2):
+            log("EX: ALU Op2 source: RS2 (0x{:x})", real_rs2)
+        with Condition(ctrl.op2_sel == Op2Sel.IMM):
+            log("EX: ALU Op2 source: IMM (0x{:x})", imm)
+        with Condition(ctrl.op2_sel == Op2Sel.CONST_4):
+            log("EX: ALU Op2 source: CONST_4 (0x4)")
 
         # --- ALU 计算 ---
         # 1. 基础运算
@@ -114,10 +157,10 @@ class Execution(Module):
         sltu_res = (alu_op1 < alu_op2).bitcast(Bits(32))
 
         # ebreak 停机
-        with Condition(ctrl.alu_func == ALUOp.SYS):
+        with Condition(ctrl.alu_func == ALUOp.SYS & ~flush_if):
             log("EBREAK encountered at PC=0x{:x}, halting simulation.", pc)
             finish()
-            
+
         # 2. 结果选择
         alu_result = ctrl.alu_func.select1hot(
             add_res,  # ADD
@@ -148,25 +191,6 @@ class Execution(Module):
         # 输出旁路寄存器更新日志
         log("EX: Bypass Update: 0x{:x}", alu_result)
 
-        # 输出旁路选择日志
-        with Condition(ctrl.rs1_sel == Rs1Sel.RS1):
-            log("EX: RS1 source: Register")
-        with Condition(ctrl.rs1_sel == Rs1Sel.EX_MEM_BYPASS):
-            log("EX: RS1 source: EX-MEM Bypass (0x{:x})", fwd_from_mem)
-        with Condition(ctrl.rs1_sel == Rs1Sel.MEM_WB_BYPASS):
-            log("EX: RS1 source: MEM-WB Bypass (0x{:x})", fwd_from_wb)
-        with Condition(ctrl.rs1_sel == Rs1Sel.WB_BYPASS):
-            log("EX: RS1 source: WB Bypass (0x{:x})", fwd_from_wb_stage)
-
-        with Condition(ctrl.rs2_sel == Rs2Sel.RS2):
-            log("EX: RS2 source: Register")
-        with Condition(ctrl.rs2_sel == Rs2Sel.EX_MEM_BYPASS):
-            log("EX: RS2 source: EX-MEM Bypass (0x{:x})", fwd_from_mem)
-        with Condition(ctrl.rs2_sel == Rs2Sel.MEM_WB_BYPASS):
-            log("EX: RS2 source: MEM-WB Bypass (0x{:x})", fwd_from_wb)
-        with Condition(ctrl.rs2_sel == Rs2Sel.WB_BYPASS):
-            log("EX: RS2 source: WB Bypass (0x{:x})", fwd_from_wb_stage)
-
         # --- 访存操作 (Store Handling) ---
         # 仅在 is_write (Store) 为真时驱动 SRAM 的 WE
         # 地址是 ALU 计算结果，数据是经过 Forwarding 的 rs2
@@ -184,10 +208,14 @@ class Execution(Module):
         # --- 分支处理 (Branch Handling) ---
         # 1. 使用专用加法器计算跳转地址，对于 JALR，基址是 rs1；对于 JAL/Branch，基址是 PC
         is_jalr = ctrl.branch_type == BranchType.JALR
-        target_base = is_jalr.select(pc, real_rs1)  # 0: Branch / JAL  # 1: JALR
+        target_base = is_jalr.select(real_rs1, pc)  # 0: Branch / JAL  # 1: JALR
 
         # 专用加法器永远做 Base + Imm
-        raw_calc_target = target_base + imm
+        imm_signed = imm.bitcast(Int(32))
+        log("EX: Branch Target Base: 0x{:x}", target_base)
+        target_base_signed = target_base.bitcast(Int(32))
+        log("EX: Branch Immediate: 0x{:x}", imm)
+        raw_calc_target = (target_base_signed + imm_signed).bitcast(Bits(32))
         calc_target = is_jalr.select(
             concat(raw_calc_target[0:30], Bits(1)(0)),  # JALR: 目标地址最低位清0
             raw_calc_target,  # Branch / JAL: 直接使用计算结果
