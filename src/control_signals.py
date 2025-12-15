@@ -39,6 +39,7 @@ class ALUOp:
     OR = Bits(16)(0b0000000100000000)
     AND = Bits(16)(0b0000001000000000)
     # 占位/直通/特殊用途
+    SYS = Bits(16)(0b0000010000000000)
     NOP = Bits(16)(0b1000000000000000)
 
 
@@ -56,15 +57,15 @@ class BranchType:
 
 class Rs1Sel:
     RS1 = Bits(4)(0b0001)
-    EX_MEM_BYPASS = Bits(4)(0b0010)
-    MEM_WB_BYPASS = Bits(4)(0b0100)
+    EX_BYPASS = Bits(4)(0b0010)
+    MEM_BYPASS = Bits(4)(0b0100)
     WB_BYPASS = Bits(4)(0b1000)
 
 
 class Rs2Sel:
     RS2 = Bits(4)(0b0001)
-    EX_MEM_BYPASS = Bits(4)(0b0010)
-    MEM_WB_BYPASS = Bits(4)(0b0100)
+    EX_BYPASS = Bits(4)(0b0010)
+    MEM_BYPASS = Bits(4)(0b0100)
     WB_BYPASS = Bits(4)(0b1000)
 
 
@@ -121,10 +122,6 @@ class RsUse:
 
 # 4. 控制信号结构定义
 
-# 写回域 (WbCtrl)
-# Record至少需要包含两个字段，因此 `rd_addr` 不定义为 `Record`
-rd_addr = Bits(5)  # 目标寄存器索引，如果是0拒绝写入。
-
 # 访存域 (MemCtrl)
 mem_ctrl_signals = Record(
     mem_opcode=Bits(3),  # 内存操作，独热码 (0:None, 1:Load, 2:Store)
@@ -137,18 +134,14 @@ mem_ctrl_signals = Record(
 ex_ctrl_signals = Record(
     # ALU 功能码，使用 Bits(16) 静态定义 (ADD:Bits(16)(0b0000000000000001), SUB:Bits(16)(0b0000000000000010), ...)
     alu_func=Bits(16),
-    rs1_sel=Bits(
-        4
-    ),  # rs1结果来源，使用 Bits(4) 静态定义 (RS1:Bits(4)(0b0001), EX_BYPASS:Bits(4)(0b0010), MEM_BYPASS:Bits(4)(0b0100), WB_BYPASS: Bits(4)(0b1000))
-    rs2_sel=Bits(
-        4
-    ),  # rs2结果来源，使用 Bits(4) 静态定义 (RS2:Bits(4)(0b0001), EX_BYPASS:Bits(4)(0b0010), MEM_BYPASS:Bits(4)(0b0100), WB_BYPASS:Bits(4)(0b1000))
-    op1_sel=Bits(
-        3
-    ),  # 操作数1来源，使用 Bits(3) 静态定义 (RS1:Bits(3)(0b001), PC:Bits(3)(0b010), ZERO:Bits(3)(0b100))
-    op2_sel=Bits(
-        3
-    ),  # 操作数2来源，使用 Bits(3) 静态定义 (RS2:Bits(3)(0b001), IMM:Bits(3)(0b010), CONST_4:Bits(3)(0b100))
+    # rs1结果来源，使用 Bits(4) 静态定义 (RS1:Bits(4)(0b0001), EX_BYPASS:Bits(4)(0b0010), MEM_BYPASS:Bits(4)(0b0100), WB_BYPASS: Bits(4)(0b1000))
+    rs1_sel=Bits(4),
+    # rs2结果来源，使用 Bits(4) 静态定义 (RS2:Bits(4)(0b0001), EX_BYPASS:Bits(4)(0b0010), MEM_BYPASS:Bits(4)(0b0100), WB_BYPASS:Bits(4)(0b1000))
+    rs2_sel=Bits(4),
+    # 操作数1来源，使用 Bits(3) 静态定义 (RS1:Bits(3)(0b001), PC:Bits(3)(0b010), ZERO:Bits(3)(0b100))
+    op1_sel=Bits(3),
+    # 操作数2来源，使用 Bits(3) 静态定义 (RS2:Bits(3)(0b001), IMM:Bits(3)(0b010), CONST_4:Bits(3)(0b100))
+    op2_sel=Bits(3),
     branch_type=Bits(16),  # Branch 指令功能码，使用 Bits(16) 静态定义
     next_pc_addr=Bits(32),  # 预测结果：下一条指令的地址
     mem_ctrl=mem_ctrl_signals,  # 【嵌套】携带 MEM 级信号

@@ -6,13 +6,13 @@ from assassyn.backend import elaborate, config
 from assassyn import utils
 
 # 导入所有模块
-from control_signals import *
-from fetch import Fetcher, FetcherImpl
-from decoder import Decoder, DecoderImpl
-from data_hazard import DataHazardUnit
-from execution import Execution
-from memory import MemoryAccess
-from writeback import WriteBack
+from .control_signals import *
+from .fetch import Fetcher, FetcherImpl
+from .decoder import Decoder, DecoderImpl
+from .data_hazard import DataHazardUnit
+from .execution import Execution
+from .memory import MemoryAccess
+from .writeback import WriteBack
 
 # 全局工作区路径
 current_path = os.path.dirname(os.path.abspath(__file__))
@@ -106,15 +106,12 @@ def build_cpu(depth_log=16):
         icache.name = "icache"
 
         # 寄存器堆
-        # 初始化 SP (x2) 指向栈顶
-        # Initialize SP (x2) to point to the top of the stack
-        # RAM 大小: 2^depth_log 字节，栈顶在最高地址
-        # RAM size: 2^depth_log bytes, stack top at highest address
-        WORD_SIZE = 4  # RISC-V 字长 / RISC-V word size (bytes)
-        STACK_TOP = (1 << depth_log) - WORD_SIZE  # 栈顶地址（字对齐）/ Stack top (word-aligned)
+        # Initialize register file with stack pointer (x2/sp) set to a valid stack base
+        # Stack grows downward from 0x40000 (top of 64K word address space)
+        # x2 = sp (stack pointer) = 0x10000 * 4 = 0x40000 (byte address = 262,144 bytes)
         reg_init = [0] * 32
-        reg_init[2] = STACK_TOP  # x2 = sp，初始化为栈顶 / x2 = sp, initialize to stack top
-        reg_file = RegArray(Bits(32), 32, initializer=reg_init)
+        reg_init[2] = 0x40000  # Set sp (x2) to stack base at 256 KiB (262,144 bytes)
+        reg_file = RegArray(Bits(32), 32, reg_init)
 
         # 全局状态寄存器
         branch_target_reg = RegArray(Bits(32), 1)
@@ -154,8 +151,8 @@ def build_cpu(depth_log=16):
         # --- Step C: EX 阶段 ---
         ex_rd, ex_is_load = executor.build(
             mem_module=memory_unit,
-            ex_mem_bypass=ex_bypass_reg,
-            mem_wb_bypass=mem_bypass_reg,
+            ex_bypass=ex_bypass_reg,
+            mem_bypass=mem_bypass_reg,
             wb_bypass=wb_bypass_reg,
             branch_target_reg=branch_target_reg,
             dcache=dcache,
@@ -190,9 +187,10 @@ def build_cpu(depth_log=16):
         )
 
         # --- Step G: IF 阶段 ---
-        pc_reg, last_pc_reg = fetcher.build()
+        pc_reg, pc_addr, last_pc_reg = fetcher.build()
         fetcher_impl.build(
             pc_reg=pc_reg,
+            pc_addr=pc_addr,
             last_pc_reg=last_pc_reg,
             icache=icache,
             decoder=decoder,
@@ -202,6 +200,9 @@ def build_cpu(depth_log=16):
 
         # --- Step H: 辅助驱动 ---
         driver.build(fetcher=fetcher)
+
+        """RegArray exposing"""
+        sys.expose_on_top(reg_file, kind="Output")
 
     return sys
 
@@ -214,6 +215,11 @@ if __name__ == "__main__":
     # 构建 CPU 模块
     load_test_case("my0to100")
     sys_builder = build_cpu(depth_log=16)
+
+    circ_path = os.path.join(workspace, f"circ.txt")
+    with open(circ_path, "w") as f:
+        print(sys_builder, file=f)
+
     print(f"🚀 Compiling system: {sys_builder.name}...")
 
     # 配置
@@ -240,6 +246,10 @@ if __name__ == "__main__":
     # 运行模拟器，捕获输出
     print(f"🏃 Running simulation (Direct Output Mode)...")
     raw = utils.run_simulator(binary_path=binary_path)
+
+    log_path = os.path.join(workspace, f"raw.log")
+    with open(log_path, "w") as f:
+        print(raw, file=f)
 
     print(raw)
     print("🔍 Verifying output...")

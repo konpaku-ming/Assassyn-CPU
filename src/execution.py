@@ -1,5 +1,5 @@
 from assassyn.frontend import *
-from control_signals import *
+from .control_signals import *
 
 
 class Execution(Module):
@@ -7,8 +7,7 @@ class Execution(Module):
         super().__init__(
             ports={
                 # --- [1] 控制通道 (Control Plane) ---
-                # 包含 alu_func, op1_sel, op2_sel, is_branch, is_write
-                # 以及嵌套的 mem_ctrl
+                # 包含 alu_func, op1_sel, op2_sel, is_branch, is_write 以及嵌套的 mem_ctrl
                 "ctrl": Port(ex_ctrl_signals),
                 # --- [2] 数据通道群 (Data Plane) ---
                 # 当前指令地址 (用于 Branch/AUIPC/JAL)
@@ -21,33 +20,48 @@ class Execution(Module):
                 "imm": Port(Bits(32)),
             }
         )
-        self.name = "EX"
+        self.name = "Executor"
 
     @module.combinational
     def build(
-        self,
-        mem_module: Module,  # 下一级流水线 (MEM)
-        # --- 旁路数据源 (Forwarding Sources) ---
-        ex_mem_bypass: Array,  # 来自 EX-MEM 旁路寄存器的数据（上条指令结果）
-        mem_wb_bypass: Array,  # 来自 MEM-WB 旁路寄存器的数据 (上上条指令结果)
-        wb_bypass: Array,  # 来自 WB 旁路寄存器的数据 (当前写回数据)
-        # --- 分支反馈 ---
-        branch_target_reg: Array,  # 用于通知 IF 跳转目标的全局寄存器
-        dcache: SRAM,  # SRAM 模块引用 (用于Store操作)
+            self,
+            mem_module: Module,  # 下一级流水线 (MEM)
+            # --- 旁路数据源 (Forwarding Sources) ---
+            ex_bypass: Array,  # 来自 EX-MEM 旁路寄存器的数据（上条指令结果）
+            mem_bypass: Array,  # 来自 MEM-WB 旁路寄存器的数据 (上上条指令结果)
+            wb_bypass: Array,  # 来自 WB 旁路寄存器的数据 (当前写回数据)
+            # --- 分支反馈 ---
+            branch_target_reg: Array,  # 用于通知 IF 跳转目标的全局寄存器
+            dcache: SRAM,  # SRAM 模块引用 (用于Store操作)
     ):
         # 1. 弹出所有端口数据
         # 根据 __init__ 定义顺序解包
-        ctrl = self.ctrl.pop()
-        pc = self.pc.pop()
-        rs1 = self.rs1_data.pop()
-        rs2 = self.rs2_data.pop()
-        imm = self.imm.pop()
+        ctrl, pc, rs1, rs2, imm = self.pop_all_ports(False)
         mem_ctrl = mem_ctrl_signals.view(ctrl.mem_ctrl)
+
+        log(
+            "Input: pc=0x{:x} rs1_data=0x{:x} rs2_data=0x{:x} Imm=0x{:x}",
+            pc,
+            rs1,
+            rs2,
+            imm,
+        )
 
         # 确定是否要 Flush 指令
         flush_if = branch_target_reg[0] != Bits(32)(0)
+
+        with Condition(flush_if == Bits(1)(1)):
+            log("EX: Flush")
+
         final_rd = flush_if.select(Bits(5)(0), mem_ctrl.rd_addr)
         final_mem_opcode = flush_if.select(Bits(3)(0), mem_ctrl.mem_opcode)
+
+        log(
+            "Memory Control after Flush Check: mem_opcode=0x{:x} rd=0x{:x}",
+            final_mem_opcode,
+            final_rd,
+        )
+
         final_mem_ctrl = mem_ctrl_signals.bundle(
             mem_opcode=final_mem_opcode,
             mem_width=mem_ctrl.mem_width,
@@ -56,8 +70,8 @@ class Execution(Module):
         )
 
         # 获取旁路数据
-        fwd_from_mem = ex_mem_bypass[0]
-        fwd_from_wb = mem_wb_bypass[0]
+        fwd_from_mem = ex_bypass[0]
+        fwd_from_wb = mem_bypass[0]
         fwd_from_wb_stage = wb_bypass[0]
 
         # --- rs1 旁路处理 ---
@@ -70,15 +84,48 @@ class Execution(Module):
             rs2, fwd_from_mem, fwd_from_wb, fwd_from_wb_stage
         )
 
+        # 输出旁路选择日志
+        with Condition(ctrl.rs1_sel == Rs1Sel.RS1):
+            log("EX: RS1 source: No Bypass")
+        with Condition(ctrl.rs1_sel == Rs1Sel.EX_BYPASS):
+            log("EX: RS1 source: EX-MEM Bypass (0x{:x})", fwd_from_mem)
+        with Condition(ctrl.rs1_sel == Rs1Sel.MEM_BYPASS):
+            log("EX: RS1 source: MEM-WB Bypass (0x{:x})", fwd_from_wb)
+        with Condition(ctrl.rs1_sel == Rs1Sel.WB_BYPASS):
+            log("EX: RS1 source: WB Bypass (0x{:x})", fwd_from_wb_stage)
+
+        with Condition(ctrl.rs2_sel == Rs2Sel.RS2):
+            log("EX: RS2 source: No Bypass")
+        with Condition(ctrl.rs2_sel == Rs2Sel.EX_BYPASS):
+            log("EX: RS2 source: EX-MEM Bypass (0x{:x})", fwd_from_mem)
+        with Condition(ctrl.rs2_sel == Rs2Sel.MEM_BYPASS):
+            log("EX: RS2 source: MEM-WB Bypass (0x{:x})", fwd_from_wb)
+        with Condition(ctrl.rs2_sel == Rs2Sel.WB_BYPASS):
+            log("EX: RS2 source: WB Bypass (0x{:x})", fwd_from_wb_stage)
+
         # --- 操作数 1 选择 ---
         alu_op1 = ctrl.op1_sel.select1hot(
             real_rs1, pc, Bits(32)(0)  # 0  # 1 (AUIPC/JAL/Branch)  # 2 (LUI Link)
         )
 
+        with Condition(ctrl.op1_sel == Op1Sel.RS1):
+            log("EX: ALU Op1 source: RS1 (0x{:x})", real_rs1)
+        with Condition(ctrl.op1_sel == Op1Sel.PC):
+            log("EX: ALU Op1 source: PC (0x{:x})", pc)
+        with Condition(ctrl.op1_sel == Op1Sel.ZERO):
+            log("EX: ALU Op1 source: ZERO (0x0)")
+
         # --- 操作数 2 选择 ---
         alu_op2 = ctrl.op2_sel.select1hot(
             real_rs2, imm, Bits(32)(4)  # 0  # 1  # 2 (JAL/JALR Link)
         )
+
+        with Condition(ctrl.op2_sel == Op2Sel.RS2):
+            log("EX: ALU Op2 source: RS2 (0x{:x})", real_rs2)
+        with Condition(ctrl.op2_sel == Op2Sel.IMM):
+            log("EX: ALU Op2 source: IMM (0x{:x})", imm)
+        with Condition(ctrl.op2_sel == Op2Sel.CONST_4):
+            log("EX: ALU Op2 source: CONST_4 (0x4)")
 
         # --- ALU 计算 ---
         # 1. 基础运算
@@ -117,6 +164,11 @@ class Execution(Module):
         # 无符号比较小于
         sltu_res = (alu_op1 < alu_op2).bitcast(Bits(32))
 
+        # ebreak 停机
+        with Condition((ctrl.alu_func == ALUOp.SYS) & ~flush_if):
+            log("EBREAK encountered at PC=0x{:x}, halting simulation.", pc)
+            finish()
+
         # 2. 结果选择
         alu_result = ctrl.alu_func.select1hot(
             add_res,  # ADD
@@ -129,7 +181,7 @@ class Execution(Module):
             sra_res,  # SRA
             or_res,  # OR
             and_res,  # AND
-            alu_op2,  # NOP (直接输出操作数2)
+            alu_op2,  # SYS
             alu_op2,  # 占位
             alu_op2,  # 占位
             alu_op2,  # 占位
@@ -137,40 +189,49 @@ class Execution(Module):
             alu_op2,  # 占位
         )
 
-        # 3. 驱动本级 Bypass 寄存器 (向 ID 级提供数据)
-        # 这样下一拍 ID 级就能看到这条指令的结果了
-        ex_mem_bypass[0] = alu_result
+        with Condition(ctrl.alu_func == ALUOp.ADD):
+            log("EX: ALU Operation: ADD")
+        with Condition(ctrl.alu_func == ALUOp.SUB):
+            log("EX: ALU Operation: SUB")
+        with Condition(ctrl.alu_func == ALUOp.SLL):
+            log("EX: ALU Operation: SLL")
+        with Condition(ctrl.alu_func == ALUOp.SLT):
+            log("EX: ALU Operation: SLT")
+        with Condition(ctrl.alu_func == ALUOp.SLTU):
+            log("EX: ALU Operation: SLTU")
+        with Condition(ctrl.alu_func == ALUOp.XOR):
+            log("EX: ALU Operation: XOR")
+        with Condition(ctrl.alu_func == ALUOp.SRL):
+            log("EX: ALU Operation: SRL")
+        with Condition(ctrl.alu_func == ALUOp.SRA):
+            log("EX: ALU Operation: SRA")
+        with Condition(ctrl.alu_func == ALUOp.OR):
+            log("EX: ALU Operation: OR")
+        with Condition(ctrl.alu_func == ALUOp.AND):
+            log("EX: ALU Operation: AND")
+        with Condition(ctrl.alu_func == ALUOp.SYS):
+            log("EX: ALU Operation: SYS")
+        with Condition(ctrl.alu_func == ALUOp.NOP):
+            log("EX: ALU Operation: NOP or Reserved")
 
-        # 输出ALU结果日志
+        # 3. 更新本级 Bypass 寄存器
+        ex_bypass[0] = alu_result
         log("EX: ALU Result: 0x{:x}", alu_result)
-
-        # 输出旁路寄存器更新日志
         log("EX: Bypass Update: 0x{:x}", alu_result)
-
-        # 输出旁路选择日志
-        with Condition(ctrl.rs1_sel == Rs1Sel.RS1):
-            log("EX: RS1 source: Register")
-        with Condition(ctrl.rs1_sel == Rs1Sel.EX_MEM_BYPASS):
-            log("EX: RS1 source: EX-MEM Bypass (0x{:x})", fwd_from_mem)
-        with Condition(ctrl.rs1_sel == Rs1Sel.MEM_WB_BYPASS):
-            log("EX: RS1 source: MEM-WB Bypass (0x{:x})", fwd_from_wb)
-        with Condition(ctrl.rs1_sel == Rs1Sel.WB_BYPASS):
-            log("EX: RS1 source: WB Bypass (0x{:x})", fwd_from_wb_stage)
-
-        with Condition(ctrl.rs2_sel == Rs2Sel.RS2):
-            log("EX: RS2 source: Register")
-        with Condition(ctrl.rs2_sel == Rs2Sel.EX_MEM_BYPASS):
-            log("EX: RS2 source: EX-MEM Bypass (0x{:x})", fwd_from_mem)
-        with Condition(ctrl.rs2_sel == Rs2Sel.MEM_WB_BYPASS):
-            log("EX: RS2 source: MEM-WB Bypass (0x{:x})", fwd_from_wb)
-        with Condition(ctrl.rs2_sel == Rs2Sel.WB_BYPASS):
-            log("EX: RS2 source: WB Bypass (0x{:x})", fwd_from_wb_stage)
 
         # --- 访存操作 (Store Handling) ---
         # 仅在 is_write (Store) 为真时驱动 SRAM 的 WE
         # 地址是 ALU 计算结果，数据是经过 Forwarding 的 rs2
         is_store = final_mem_ctrl.mem_opcode == MemOp.STORE
         is_load = final_mem_ctrl.mem_opcode == MemOp.LOAD
+
+        with Condition(is_store):
+            log("EX: Memory Operation: STORE")
+            log("EX: Store Address: 0x{:x}", alu_result)
+            log("EX: Store Data: 0x{:x}", real_rs2)
+        with Condition(is_load):
+            log("EX: Memory Operation: LOAD")
+            log("EX: Load Address: 0x{:x}", alu_result)
 
         # 直接调用 dcache.build 处理 SRAM 操作
         dcache.build(
@@ -183,10 +244,18 @@ class Execution(Module):
         # --- 分支处理 (Branch Handling) ---
         # 1. 使用专用加法器计算跳转地址，对于 JALR，基址是 rs1；对于 JAL/Branch，基址是 PC
         is_jalr = ctrl.branch_type == BranchType.JALR
-        target_base = is_jalr.select(pc, real_rs1)  # 0: Branch / JAL  # 1: JALR
+        target_base = is_jalr.select(real_rs1, pc)  # 0: Branch / JAL  # 1: JALR
 
         # 专用加法器永远做 Base + Imm
-        calc_target = target_base + imm
+        imm_signed = imm.bitcast(Int(32))
+        log("EX: Branch Target Base: 0x{:x}", target_base)
+        target_base_signed = target_base.bitcast(Int(32))
+        log("EX: Branch Immediate: 0x{:x}", imm)
+        raw_calc_target = (target_base_signed + imm_signed).bitcast(Bits(32))
+        calc_target = is_jalr.select(
+            concat(raw_calc_target[0:30], Bits(1)(0)),  # JALR: 目标地址最低位清0
+            raw_calc_target,  # Branch / JAL: 直接使用计算结果
+        )
 
         # 2. 计算分支条件
         # 对于 BEQ: alu_result == 0
@@ -235,12 +304,14 @@ class Execution(Module):
         is_taken_geu = (ctrl.branch_type == BranchType.BGEU) & ~is_lt
 
         is_taken = (
-            is_taken_eq
-            | is_taken_ne
-            | is_taken_lt
-            | is_taken_ge
-            | is_taken_ltu
-            | is_taken_geu
+                is_taken_eq
+                | is_taken_ne
+                | is_taken_lt
+                | is_taken_ge
+                | is_taken_ltu
+                | is_taken_geu
+                | (ctrl.branch_type == BranchType.JAL)
+                | is_jalr
         )
 
         final_next_pc = flush_if.select(
