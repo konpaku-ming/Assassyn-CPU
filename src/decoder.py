@@ -22,6 +22,11 @@ class Decoder(Module):
         raw_inst = icache_dout[0].bitcast(Bits(32))
         # 将初始化时出现的 0b0 指令替换为 NOP
         inst = (raw_inst == Bits(32)(0)).select(Bits(32)(0x00000013), raw_inst)
+        
+        # ebreak 停机
+        with Condition(inst == Bits(32)(0x00100073)):
+            log("EBREAK encountered at PC=0x{:x}, halting simulation.", pc_val)
+            finish()
 
         # 2. 物理切片
         opcode = inst[0:6]
