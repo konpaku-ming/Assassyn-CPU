@@ -13,6 +13,7 @@ from .data_hazard import DataHazardUnit
 from .execution import Execution
 from .memory import MemoryAccess
 from .writeback import WriteBack
+from .btb import BTB, BTBImpl
 
 # 全局工作区路径
 current_path = os.path.dirname(os.path.abspath(__file__))
@@ -125,6 +126,10 @@ def build_cpu(depth_log=16):
         fetcher = Fetcher()
         fetcher_impl = FetcherImpl()
 
+        # BTB for branch prediction
+        btb = BTB(num_entries=64, index_bits=6)
+        btb_impl = BTBImpl(num_entries=64, index_bits=6)
+
         decoder = Decoder()
         decoder_impl = DecoderImpl()
         hazard_unit = DataHazardUnit()
@@ -136,6 +141,9 @@ def build_cpu(depth_log=16):
         driver = Driver()
 
         # 3. 逆序构建
+        
+        # --- Step 0: BTB 构建（需要在使用前构建） ---
+        btb_valid, btb_tags, btb_targets = btb.build()
 
         # --- Step A: WB 阶段 ---
         wb_rd = writeback.build(
@@ -158,6 +166,10 @@ def build_cpu(depth_log=16):
             wb_bypass=wb_bypass_reg,
             branch_target_reg=branch_target_reg,
             dcache=dcache,
+            btb_impl=btb_impl,
+            btb_valid=btb_valid,
+            btb_tags=btb_tags,
+            btb_targets=btb_targets,
         )
 
         # --- Step D: ID 阶段 (Shell) ---
@@ -198,6 +210,10 @@ def build_cpu(depth_log=16):
             decoder=decoder,
             stall_if=stall_if,
             branch_target=branch_target_reg,
+            btb_impl=btb_impl,
+            btb_valid=btb_valid,
+            btb_tags=btb_tags,
+            btb_targets=btb_targets,
         )
 
         # --- Step H: 辅助驱动 ---
