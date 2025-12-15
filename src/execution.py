@@ -182,7 +182,11 @@ class Execution(Module):
         target_base = is_jalr.select(pc, real_rs1)  # 0: Branch / JAL  # 1: JALR
 
         # 专用加法器永远做 Base + Imm
-        calc_target = target_base + imm
+        raw_calc_target = target_base + imm
+        calc_target = is_jalr.select(
+            concat(raw_calc_target[0:30], Bits(1)(0)),  # JALR: 目标地址最低位清0
+            raw_calc_target,  # Branch / JAL: 直接使用计算结果
+        )
 
         # 2. 计算分支条件
         # 对于 BEQ: alu_result == 0
@@ -237,6 +241,8 @@ class Execution(Module):
             | is_taken_ge
             | is_taken_ltu
             | is_taken_geu
+            | (ctrl.branch_type == BranchType.JAL)
+            | is_jalr
         )
 
         final_next_pc = flush_if.select(
