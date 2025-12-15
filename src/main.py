@@ -111,9 +111,9 @@ def build_cpu(depth_log=16):
         # dcache has 2^depth_log words, each 4 bytes
         # Valid byte addresses: 0x0 to ((2^depth_log - 1) * 4)
         # x2 = sp (stack pointer) points to the last valid word address
-        reg_init = [0] * 32
-        reg_init[2] = ((1 << depth_log) - 1) * 4  # Set sp to top of addressable memory
-        reg_file = RegArray(Bits(32), 32, reg_init)
+        # reg_init = [0] * 32
+        # reg_init[2] = ((1 << depth_log) - 1) * 4  # Set sp to top of addressable memory
+        reg_file = RegArray(Bits(32), 32)
 
         # 全局状态寄存器
         branch_target_reg = RegArray(Bits(32), 1)
@@ -215,7 +215,7 @@ def build_cpu(depth_log=16):
 
 if __name__ == "__main__":
     # 构建 CPU 模块
-    load_test_case("my0to100")
+    load_test_case("multiply")
     sys_builder = build_cpu(depth_log=16)
 
     circ_path = os.path.join(workspace, f"circ.txt")
