@@ -19,7 +19,9 @@ class Decoder(Module):
         # 1. 获取基础输入
         pc_val = self.pop_all_ports(False)
         # 从 SRAM 输出获取指令
-        inst = icache_dout[0].bitcast(Bits(32))
+        raw_inst = icache_dout[0].bitcast(Bits(32))
+        # 将初始化时出现的 0b0 指令替换为 NOP
+        inst = (raw_inst == Bits(32)(0)).select(Bits(32)(0x00000013), raw_inst)
 
         # 2. 物理切片
         opcode = inst[0:6]
@@ -97,7 +99,7 @@ class Decoder(Module):
 
             if t_f3 is not None:
                 match_if &= funct3 == Bits(3)(t_f3)
-                
+
             if t_b30 is not None:
                 match_if &= bit30 == Bits(1)(t_b30)
 
@@ -150,7 +152,7 @@ class Decoder(Module):
             rs1_data=raw_rs1_data,
             rs2_data=raw_rs2_data,
         )
-        
+
         log("rs1_data:0x{:x} rs2_data:0x{:x}", raw_rs1_data, raw_rs2_data)
 
         # 返回: 预解码包, 冒险检测需要的原始信号
@@ -192,7 +194,7 @@ class DecoderImpl(Downstream):
             stall_if,
             branch_target_reg[0],
         )
-        
+
         final_rd = nop_if.select(Bits(5)(0), mem_ctrl.rd_addr)
         final_mem_opcode = nop_if.select(MemOp.NONE, mem_ctrl.mem_opcode)
         final_branch_type = nop_if.select(BranchType.NO_BRANCH, pre.branch_type)

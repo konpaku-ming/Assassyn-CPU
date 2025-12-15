@@ -37,11 +37,7 @@ class Execution(Module):
     ):
         # 1. 弹出所有端口数据
         # 根据 __init__ 定义顺序解包
-        ctrl = self.ctrl.pop()
-        pc = self.pc.pop()
-        rs1 = self.rs1_data.pop()
-        rs2 = self.rs2_data.pop()
-        imm = self.imm.pop()
+        ctrl, pc, rs1, rs2, imm = self.pop_all_ports(False)
         mem_ctrl = mem_ctrl_signals.view(ctrl.mem_ctrl)
 
         # 确定是否要 Flush 指令

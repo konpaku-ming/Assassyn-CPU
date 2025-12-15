@@ -1,0 +1,6 @@
+000007b7 //  0: lui a5, 0x00
+00100073 // 32: ebreak
+00000033 // 36: add x0, x0, x0, pad the ebreak with noops to avoid empty pipeline fetch.
+00000033 // 40: add x0, x0, x0
+00000033 // 44: add x0, x0, x0
+00000033 // 48: add x0, x0, x0
