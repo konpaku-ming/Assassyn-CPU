@@ -52,6 +52,7 @@ class Execution(Module):
 
         # 确定是否要 Flush 指令
         flush_if = branch_target_reg[0] != Bits(32)(0)
+        log("EX: Flush IF: {}", flush_if == Bits(1)(1))
         final_rd = flush_if.select(Bits(5)(0), mem_ctrl.rd_addr)
         final_mem_opcode = flush_if.select(Bits(3)(0), mem_ctrl.mem_opcode)
         final_mem_ctrl = mem_ctrl_signals.bundle(
@@ -157,7 +158,7 @@ class Execution(Module):
         sltu_res = (alu_op1 < alu_op2).bitcast(Bits(32))
 
         # ebreak 停机
-        with Condition(ctrl.alu_func == ALUOp.SYS & ~flush_if):
+        with Condition((ctrl.alu_func == ALUOp.SYS) & ~flush_if):
             log("EBREAK encountered at PC=0x{:x}, halting simulation.", pc)
             finish()
 

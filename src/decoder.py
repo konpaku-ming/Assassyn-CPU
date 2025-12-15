@@ -203,7 +203,9 @@ class DecoderImpl(Downstream):
 
         final_rd = nop_if.select(Bits(5)(0), mem_ctrl.rd_addr)
         final_mem_opcode = nop_if.select(MemOp.NONE, mem_ctrl.mem_opcode)
+        final_alu_func = nop_if.select(ALUOp.NOP, pre.alu_func)
         final_branch_type = nop_if.select(BranchType.NO_BRANCH, pre.branch_type)
+        
         final_mem_ctrl = mem_ctrl_signals.bundle(
             mem_opcode=final_mem_opcode,
             mem_width=mem_ctrl.mem_width,
@@ -211,7 +213,7 @@ class DecoderImpl(Downstream):
             rd_addr=final_rd,
         )
         final_ex_ctrl = ex_ctrl_signals.bundle(
-            alu_func=pre.alu_func,
+            alu_func=final_alu_func,
             op1_sel=pre.op1_sel,
             op2_sel=pre.op2_sel,
             rs1_sel=rs1_sel,
