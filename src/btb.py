@@ -65,22 +65,16 @@ class BTBImpl(Downstream):
         """
         # Extract index from PC (word-aligned, so skip lowest 2 bits)
         # Index is bits [index_bits+1:2] of PC
-        pc_shifted = pc >> UInt(32)(2)
-        index = pc_shifted & Bits(32)(self.index_mask)
-        
-        # Extract tag (remaining upper bits after removing index and byte offset)
-        tag = pc_shifted >> UInt(32)(self.index_bits)
+        index = (pc >> UInt(32)(2)) & Bits(32)(self.index_mask)
         
         # Look up BTB entry
         entry_valid = btb_valid[index]
         entry_tag = btb_tags[index]
         entry_target = btb_targets[index]
         
-        # Check for hit: valid bit set AND tag matches
-        # Compare stored PC (shifted) with current PC (shifted) for upper bits
-        entry_tag_shifted = entry_tag >> UInt(32)(2)
-        entry_tag_upper = entry_tag_shifted >> UInt(32)(self.index_bits)
-        tag_match = entry_tag_upper == tag
+        # Check for hit: valid bit set AND PC matches (stored PC is full PC)
+        # We compare full PCs to avoid bit manipulation issues
+        tag_match = entry_tag == pc
         hit = entry_valid & tag_match
         
         # Debug logging
@@ -104,17 +98,12 @@ class BTBImpl(Downstream):
         """
         Update BTB with resolved branch information.
         """
-        # Extract index and tag same as predict
-        pc_shifted = pc >> UInt(32)(2)
-        index = pc_shifted & Bits(32)(self.index_mask)
-        tag = pc_shifted >> UInt(32)(self.index_bits)
-        
-        # Store full PC as tag for comparison (shifted version)
-        stored_tag = pc
+        # Extract index same as predict
+        index = (pc >> UInt(32)(2)) & Bits(32)(self.index_mask)
         
         with Condition(should_update == Bits(1)(1)):
             log("BTB: UPDATE at PC=0x{:x}, Index={}, Target=0x{:x}", pc, index, target)
-            # Update entry
+            # Update entry: store full PC as tag for exact comparison
             btb_valid[index] <= Bits(1)(1)
-            btb_tags[index] <= stored_tag
+            btb_tags[index] <= pc
             btb_targets[index] <= target

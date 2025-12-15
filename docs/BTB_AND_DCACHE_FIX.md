@@ -115,19 +115,37 @@ The `build_cpu()` function now:
 ### Index Calculation
 ```
 PC (32 bits):  [31...........8][7......2][1:0]
-                    TAG         INDEX    OFFSET
+                                INDEX    OFFSET
 
-pc_shifted = pc >> 2              # Remove byte offset
-index = pc_shifted & 0x3F         # Extract 6 bits (64 entries)
-tag = pc_shifted >> 6             # Upper bits for comparison
+index = (pc >> 2) & 0x3F          # Extract 6 bits (64 entries)
+stored_tag = pc                    # Store full PC for exact matching
 ```
+
+### Tag Matching (Simplified)
+The BTB stores the full PC as the tag and compares full PCs:
+```python
+# In predict:
+entry_tag = btb_tags[index]       # Full PC stored previously
+tag_match = (entry_tag == pc)     # Exact PC comparison
+hit = valid & tag_match
+
+# In update:
+btb_tags[index] = pc              # Store full PC
+```
+
+This approach is simpler and avoids bit-manipulation errors while maintaining correctness.
 
 ### Tag Matching
 When looking up a PC:
 1. Extract index to find BTB entry
 2. Check valid bit
-3. Compare stored PC's upper bits with lookup PC's upper bits
-4. Hit if valid AND tags match
+3. Compare stored PC with lookup PC (full PC comparison)
+4. Hit if valid AND PCs match exactly
+
+**Note**: The BTB uses full PC comparison for simplicity and correctness. This means:
+- Each BTB index can hold one unique PC
+- Different PCs mapping to the same index will cause replacements (conflict misses)
+- No aliasing issues - only exact PC matches result in hits
 
 ## Testing and Validation
 
