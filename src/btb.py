@@ -21,7 +21,7 @@ class BTB(Module):
         self.name = "BTB"
         self.num_entries = num_entries
         self.index_bits = index_bits
-        # Each entry contains: valid (1 bit) + tag (32-index_bits-2 bits) + target (32 bits)
+        # Each entry contains: valid (1 bit) + tag (full 32-bit PC) + target (32 bits)
         # We'll use separate arrays for simplicity
         
     @module.combinational
@@ -64,7 +64,7 @@ class BTBImpl(Downstream):
         Returns (hit, target) where hit indicates if prediction is valid.
         """
         # Extract index from PC (word-aligned, so skip lowest 2 bits)
-        # Index is bits [index_bits+1:2] of PC
+        # For 64 entries (6 index bits): bits [7:2] of PC
         index = (pc >> UInt(32)(2)) & Bits(32)(self.index_mask)
         
         # Look up BTB entry
