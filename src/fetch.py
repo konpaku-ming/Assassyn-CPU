@@ -42,12 +42,14 @@ class FetcherImpl(Downstream):
         icache: SRAM,  # 引用 ICache
         decoder: Module,  # 下一级模块 (用于发送指令)
         # --- 反馈控制信号 (来自 DataHazardUnit/ControlHazardReg) ---
-        stall_if: Bits(1),  # 暂停取指 (保持当前 PC)
+        stall_if: Value,  # 暂停取指 (保持当前 PC)
         branch_target: Array,  # 不为0时，根据目标地址冲刷流水线
     ):
 
+        current_stall_if = stall_if.optional(Bits(1)(0))
+
         # 读取当前 PC
-        current_pc = stall_if.select(last_pc_reg[0], pc_addr)
+        current_pc = current_stall_if.select(last_pc_reg[0], pc_addr)
 
         flush_if = branch_target[0] != Bits(32)(0)
         target_pc = branch_target[0]
@@ -75,7 +77,7 @@ class FetcherImpl(Downstream):
         log(
             "IF: PC=0x{:x} Stall={} Flush={}",
             final_next_pc,
-            stall_if == Bits(1)(1),
+            current_stall_if == Bits(1)(1),
             flush_if == Bits(1)(1),
         )
 

@@ -121,10 +121,6 @@ class RsUse:
 
 # 4. 控制信号结构定义
 
-# 写回域 (WbCtrl)
-# Record至少需要包含两个字段，因此 `rd_addr` 不定义为 `Record`
-rd_addr = Bits(5)  # 目标寄存器索引，如果是0拒绝写入。
-
 # 访存域 (MemCtrl)
 mem_ctrl_signals = Record(
     mem_opcode=Bits(3),  # 内存操作，独热码 (0:None, 1:Load, 2:Store)
