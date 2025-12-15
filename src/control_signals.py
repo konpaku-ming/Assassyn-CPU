@@ -57,15 +57,15 @@ class BranchType:
 
 class Rs1Sel:
     RS1 = Bits(4)(0b0001)
-    EX_MEM_BYPASS = Bits(4)(0b0010)
-    MEM_WB_BYPASS = Bits(4)(0b0100)
+    EX_BYPASS = Bits(4)(0b0010)
+    MEM_BYPASS = Bits(4)(0b0100)
     WB_BYPASS = Bits(4)(0b1000)
 
 
 class Rs2Sel:
     RS2 = Bits(4)(0b0001)
-    EX_MEM_BYPASS = Bits(4)(0b0010)
-    MEM_WB_BYPASS = Bits(4)(0b0100)
+    EX_BYPASS = Bits(4)(0b0010)
+    MEM_BYPASS = Bits(4)(0b0100)
     WB_BYPASS = Bits(4)(0b1000)
 
 

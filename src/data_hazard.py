@@ -74,17 +74,17 @@ class DataHazardUnit(Downstream):
         # 如果没有 Load-Use 冒险，我们生成选择码 rs1_sel 与 rs2_sel
 
         rs1_wb_pass = (rs1_idx_val == wb_rd_val).select(Rs1Sel.WB_BYPASS, Rs1Sel.RS1)
-        rs1_mem_bypass = (rs1_idx_val == mem_rd_val).select(Rs1Sel.MEM_WB_BYPASS, rs1_wb_pass)
+        rs1_mem_bypass = (rs1_idx_val == mem_rd_val).select(Rs1Sel.MEM_BYPASS, rs1_wb_pass)
         rs1_ex_bypass = ((rs1_idx_val == ex_rd_val) & ~ex_is_load_val).select(
-            Rs1Sel.EX_MEM_BYPASS, rs1_mem_bypass
+            Rs1Sel.EX_BYPASS, rs1_mem_bypass
         )
         rs1_sel = (rs1_used_val & ~rs1_is_zero).select(rs1_ex_bypass, Rs1Sel.RS1)
 
         # 对于 rs2 的旁路选择
         rs2_wb_pass = (rs2_idx_val == wb_rd_val).select(Rs2Sel.WB_BYPASS, Rs2Sel.RS2)
-        rs2_mem_bypass = (rs2_idx_val == mem_rd_val).select(Rs2Sel.MEM_WB_BYPASS, rs2_wb_pass)
+        rs2_mem_bypass = (rs2_idx_val == mem_rd_val).select(Rs2Sel.MEM_BYPASS, rs2_wb_pass)
         rs2_ex_bypass = ((rs2_idx_val == ex_rd_val) & ~ex_is_load_val).select(
-            Rs2Sel.EX_MEM_BYPASS, rs2_mem_bypass
+            Rs2Sel.EX_BYPASS, rs2_mem_bypass
         )
         rs2_sel = (rs2_used_val & ~rs2_is_zero).select(rs2_ex_bypass, Rs2Sel.RS2)
 

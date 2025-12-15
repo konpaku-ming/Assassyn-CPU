@@ -27,6 +27,7 @@ class Decoder(Module):
         raw_inst = icache_dout[0].bitcast(Bits(32))
         # 将初始化时出现的 0b0 指令替换为 NOP
         inst = (raw_inst == Bits(32)(0)).select(Bits(32)(0x00000013), raw_inst)
+        log("ID: Fetched Instruction=0x{:x} at PC=0x{:x}", inst, pc_val)
 
         # 2. 物理切片
         opcode = inst[0:6]
@@ -159,7 +160,6 @@ class Decoder(Module):
         )
 
         # 添加日志信息
-        log("PC: 0x{:x}, Instruction: 0x{:x}", pc_val, inst)
         log(
             "Control signals: alu_func=0x{:x} op1_sel=0x{:x} op2_sel=0x{:x} branch_type=0x{:x} mem_op=0x{:x} mem_wid=0x{:x} mem_uns=0x{:x} rd=0x{:x} rs1_used=0x{:x} rs2_used=0x{:x}",
             acc_alu_func,
@@ -188,7 +188,7 @@ class Decoder(Module):
 class DecoderImpl(Downstream):
     def __init__(self):
         super().__init__()
-        self.name = "ID_Impl"
+        self.name = "Decoder_Impl"
 
     @downstream.combinational
     def build(
@@ -208,23 +208,17 @@ class DecoderImpl(Downstream):
         flush_if = branch_target_reg[0] != Bits(32)(0)
         nop_if = flush_if | stall_if
 
-        log(
-            "Input of ID_Impl: alu_func=0x{:x} op1_sel=0x{:x} op2_sel=0x{:x} branch_type=0x{:x} next_pc_addr=0x{:x} rs1_data=0x{:x} rs2_data=0x{:x} stall_if=0x{:x} branch_target=0x{:x}",
-            pre.alu_func,
-            pre.op1_sel,
-            pre.op2_sel,
-            pre.branch_type,
-            pre.next_pc_addr,
-            pre.rs1_data,
-            pre.rs2_data,
-            stall_if,
-            branch_target_reg[0],
-        )
-
         final_rd = nop_if.select(Bits(5)(0), mem_ctrl.rd_addr)
         final_mem_opcode = nop_if.select(MemOp.NONE, mem_ctrl.mem_opcode)
         final_alu_func = nop_if.select(ALUOp.NOP, pre.alu_func)
         final_branch_type = nop_if.select(BranchType.NO_BRANCH, pre.branch_type)
+
+        with Condition(nop_if == Bits(1)(1)):
+            log(
+                "ID: Inserting NOP (Stall={} Flush={})",
+                stall_if == Bits(1)(1),
+                flush_if == Bits(1)(1),
+            )
 
         final_mem_ctrl = mem_ctrl_signals.bundle(
             mem_opcode=final_mem_opcode,
@@ -243,13 +237,23 @@ class DecoderImpl(Downstream):
             mem_ctrl=final_mem_ctrl,
         )
 
+        log(
+            "Output: alu_func=0x{:x} rs1_sel=0x{:x} rs2_sel=0x{:x} branch_type=0x{:x} mem_op=0x{:x} rd=0x{:x}",
+            pre.alu_func,
+            rs1_sel,
+            rs2_sel,
+            pre.branch_type,
+            mem_ctrl.mem_opcode,
+            mem_ctrl.rd_addr,
+        )
+
         # 无论是否 Stall，都向 EX 发送数据 (刚性流水线)
         # 如果是 NOP，数据线上的值(pc, imm等)是无意义的，EX 不会使用
         call = executor.async_called(
             ctrl=final_ex_ctrl,
             pc=pre.pc,
-            rs1_data=pre.rs1_data,  # 发送修补后的数据
-            rs2_data=pre.rs2_data,  # 发送修补后的数据
+            rs1_data=pre.rs1_data,
+            rs2_data=pre.rs2_data,
             imm=pre.imm,
         )
         call.bind.set_fifo_depth(ctrl=1, pc=1, rs1_data=1, rs2_data=1, imm=1)

@@ -16,12 +16,10 @@ class WriteBack(Module):
 
     @module.combinational
     def build(self, reg_file: Array, wb_bypass_reg: Array):
+        
         # 1. 获取输入 (Consume)
-        # 从 MEM->WB 的 FIFO 中弹出数据
-        # 由于采用刚性流水线（NOP注入），这里假定总是能 pop 到数据
-        ctrl, wdata = self.pop_all_ports(False)
-
-        rd = ctrl
+        rd, wdata = self.pop_all_ports(False)
+        log("Input: rd=x{} wdata=0x{:x}", rd, wdata)
 
         # 2. 写入逻辑 (Write Logic)
         # 物理含义：生成寄存器堆的 Write Enable 信号

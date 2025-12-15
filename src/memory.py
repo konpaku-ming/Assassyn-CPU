@@ -98,7 +98,6 @@ class MemoryAccess(Module):
 
         # 4. 输出驱动 (Output Driver)
         # 驱动全局 Bypass 寄存器 (Side Channel)
-        # 这使得下下条指令 (ID级) 能在当前周期看到结果
         # 注意：如果当前是气泡 (rd=0)，写入 0 也是安全的
         mem_bypass_reg[0] = final_data
 

@@ -7,8 +7,7 @@ class Execution(Module):
         super().__init__(
             ports={
                 # --- [1] 控制通道 (Control Plane) ---
-                # 包含 alu_func, op1_sel, op2_sel, is_branch, is_write
-                # 以及嵌套的 mem_ctrl
+                # 包含 alu_func, op1_sel, op2_sel, is_branch, is_write 以及嵌套的 mem_ctrl
                 "ctrl": Port(ex_ctrl_signals),
                 # --- [2] 数据通道群 (Data Plane) ---
                 # 当前指令地址 (用于 Branch/AUIPC/JAL)
@@ -21,15 +20,15 @@ class Execution(Module):
                 "imm": Port(Bits(32)),
             }
         )
-        self.name = "EX"
+        self.name = "Executor"
 
     @module.combinational
     def build(
         self,
         mem_module: Module,  # 下一级流水线 (MEM)
         # --- 旁路数据源 (Forwarding Sources) ---
-        ex_mem_bypass: Array,  # 来自 EX-MEM 旁路寄存器的数据（上条指令结果）
-        mem_wb_bypass: Array,  # 来自 MEM-WB 旁路寄存器的数据 (上上条指令结果)
+        ex_bypass: Array,  # 来自 EX-MEM 旁路寄存器的数据（上条指令结果）
+        mem_bypass: Array,  # 来自 MEM-WB 旁路寄存器的数据 (上上条指令结果)
         wb_bypass: Array,  # 来自 WB 旁路寄存器的数据 (当前写回数据)
         # --- 分支反馈 ---
         branch_target_reg: Array,  # 用于通知 IF 跳转目标的全局寄存器
@@ -41,20 +40,28 @@ class Execution(Module):
         mem_ctrl = mem_ctrl_signals.view(ctrl.mem_ctrl)
 
         log(
-            "Input of EX: alu_func=0x{:x} pc=0x{:x} branch_type=0x{:x} next_pc_addr=0x{:x} rs1_data=0x{:x} rs2_data=0x{:x}",
-            ctrl.alu_func,
+            "Input: pc=0x{:x} rs1_data=0x{:x} rs2_data=0x{:x} Imm=0x{:x}",
             pc,
-            ctrl.branch_type,
-            ctrl.next_pc_addr,
             rs1,
             rs2,
+            imm,
         )
 
         # 确定是否要 Flush 指令
         flush_if = branch_target_reg[0] != Bits(32)(0)
-        log("EX: Flush IF: {}", flush_if == Bits(1)(1))
+
+        with Condition(flush_if == Bits(1)(1)):
+            log("EX: Flush")
+
         final_rd = flush_if.select(Bits(5)(0), mem_ctrl.rd_addr)
         final_mem_opcode = flush_if.select(Bits(3)(0), mem_ctrl.mem_opcode)
+
+        log(
+            "Memory Control after Flush Check: mem_opcode=0x{:x} rd=0x{:x}",
+            final_mem_opcode,
+            final_rd,
+        )
+
         final_mem_ctrl = mem_ctrl_signals.bundle(
             mem_opcode=final_mem_opcode,
             mem_width=mem_ctrl.mem_width,
@@ -63,8 +70,8 @@ class Execution(Module):
         )
 
         # 获取旁路数据
-        fwd_from_mem = ex_mem_bypass[0]
-        fwd_from_wb = mem_wb_bypass[0]
+        fwd_from_mem = ex_bypass[0]
+        fwd_from_wb = mem_bypass[0]
         fwd_from_wb_stage = wb_bypass[0]
 
         # --- rs1 旁路处理 ---
@@ -80,18 +87,18 @@ class Execution(Module):
         # 输出旁路选择日志
         with Condition(ctrl.rs1_sel == Rs1Sel.RS1):
             log("EX: RS1 source: No Bypass")
-        with Condition(ctrl.rs1_sel == Rs1Sel.EX_MEM_BYPASS):
+        with Condition(ctrl.rs1_sel == Rs1Sel.EX_BYPASS):
             log("EX: RS1 source: EX-MEM Bypass (0x{:x})", fwd_from_mem)
-        with Condition(ctrl.rs1_sel == Rs1Sel.MEM_WB_BYPASS):
+        with Condition(ctrl.rs1_sel == Rs1Sel.MEM_BYPASS):
             log("EX: RS1 source: MEM-WB Bypass (0x{:x})", fwd_from_wb)
         with Condition(ctrl.rs1_sel == Rs1Sel.WB_BYPASS):
             log("EX: RS1 source: WB Bypass (0x{:x})", fwd_from_wb_stage)
 
         with Condition(ctrl.rs2_sel == Rs2Sel.RS2):
             log("EX: RS2 source: No Bypass")
-        with Condition(ctrl.rs2_sel == Rs2Sel.EX_MEM_BYPASS):
+        with Condition(ctrl.rs2_sel == Rs2Sel.EX_BYPASS):
             log("EX: RS2 source: EX-MEM Bypass (0x{:x})", fwd_from_mem)
-        with Condition(ctrl.rs2_sel == Rs2Sel.MEM_WB_BYPASS):
+        with Condition(ctrl.rs2_sel == Rs2Sel.MEM_BYPASS):
             log("EX: RS2 source: MEM-WB Bypass (0x{:x})", fwd_from_wb)
         with Condition(ctrl.rs2_sel == Rs2Sel.WB_BYPASS):
             log("EX: RS2 source: WB Bypass (0x{:x})", fwd_from_wb_stage)
@@ -182,14 +189,34 @@ class Execution(Module):
             alu_op2,  # 占位
         )
 
-        # 3. 驱动本级 Bypass 寄存器 (向 ID 级提供数据)
-        # 这样下一拍 ID 级就能看到这条指令的结果了
-        ex_mem_bypass[0] = alu_result
-
-        # 输出ALU结果日志
+        with Condition(ctrl.alu_func == ALUOp.ADD):
+            log("EX: ALU Operation: ADD")
+        with Condition(ctrl.alu_func == ALUOp.SUB):
+            log("EX: ALU Operation: SUB")
+        with Condition(ctrl.alu_func == ALUOp.SLL):
+            log("EX: ALU Operation: SLL")
+        with Condition(ctrl.alu_func == ALUOp.SLT):
+            log("EX: ALU Operation: SLT")
+        with Condition(ctrl.alu_func == ALUOp.SLTU):
+            log("EX: ALU Operation: SLTU")
+        with Condition(ctrl.alu_func == ALUOp.XOR):
+            log("EX: ALU Operation: XOR")
+        with Condition(ctrl.alu_func == ALUOp.SRL):
+            log("EX: ALU Operation: SRL")
+        with Condition(ctrl.alu_func == ALUOp.SRA):
+            log("EX: ALU Operation: SRA")
+        with Condition(ctrl.alu_func == ALUOp.OR):
+            log("EX: ALU Operation: OR")
+        with Condition(ctrl.alu_func == ALUOp.AND):
+            log("EX: ALU Operation: AND")
+        with Condition(ctrl.alu_func == ALUOp.SYS):
+            log("EX: ALU Operation: SYS")
+        with Condition(ctrl.alu_func == ALUOp.NOP):
+            log("EX: ALU Operation: NOP or Reserved")
+            
+        # 3. 更新本级 Bypass 寄存器
+        ex_bypass[0] = alu_result
         log("EX: ALU Result: 0x{:x}", alu_result)
-
-        # 输出旁路寄存器更新日志
         log("EX: Bypass Update: 0x{:x}", alu_result)
 
         # --- 访存操作 (Store Handling) ---
@@ -205,7 +232,7 @@ class Execution(Module):
         with Condition(is_load):
             log("EX: Memory Operation: LOAD")
             log("EX: Load Address: 0x{:x}", alu_result)
-            
+
         # 直接调用 dcache.build 处理 SRAM 操作
         dcache.build(
             we=is_store,  # 写使能信号（对于Store指令）

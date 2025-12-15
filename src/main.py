@@ -147,8 +147,8 @@ def build_cpu(depth_log=16):
         # --- Step C: EX 阶段 ---
         ex_rd, ex_is_load = executor.build(
             mem_module=memory_unit,
-            ex_mem_bypass=ex_bypass_reg,
-            mem_wb_bypass=mem_bypass_reg,
+            ex_bypass=ex_bypass_reg,
+            mem_bypass=mem_bypass_reg,
             wb_bypass=wb_bypass_reg,
             branch_target_reg=branch_target_reg,
             dcache=dcache,
