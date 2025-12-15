@@ -31,6 +31,25 @@ class MemoryAccess(Module):
         mem_opcode = ctrl.mem_opcode
         mem_width = ctrl.mem_width
         mem_unsigned = ctrl.mem_unsigned
+        
+        with Condition(mem_opcode == MemOp.NONE):
+            log("MEM: OP NONE.")
+        with Condition(mem_opcode == MemOp.LOAD):
+            log("MEM: OP LOAD.")
+        with Condition(mem_opcode == MemOp.STORE):
+            log("MEM: OP STORE.")
+            
+        with Condition(mem_width == MemWidth.BYTE):
+            log("MEM: WIDTH BYTE.")
+        with Condition(mem_width == MemWidth.HALF):
+            log("MEM: WIDTH HALF.")
+        with Condition(mem_width == MemWidth.WORD):
+            log("MEM: WIDTH WORD.")
+        
+        with Condition(mem_unsigned == Bits(1)(1)):
+            log("MEM: UNSIGNED.")
+        with Condition(mem_unsigned == Bits(1)(0)):
+            log("MEM: SIGNED.")
 
         # 2. SRAM 数据加工 (Data Aligner)
         # 读取 SRAM 原始数据 (32-bit)

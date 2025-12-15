@@ -197,6 +197,14 @@ class Execution(Module):
         is_store = final_mem_ctrl.mem_opcode == MemOp.STORE
         is_load = final_mem_ctrl.mem_opcode == MemOp.LOAD
 
+        with Condition(is_store):
+            log("EX: Memory Operation: STORE")
+            log("EX: Store Address: 0x{:x}", alu_result)
+            log("EX: Store Data: 0x{:x}", real_rs2)
+        with Condition(is_load):
+            log("EX: Memory Operation: LOAD")
+            log("EX: Load Address: 0x{:x}", alu_result)
+            
         # 直接调用 dcache.build 处理 SRAM 操作
         dcache.build(
             we=is_store,  # 写使能信号（对于Store指令）
