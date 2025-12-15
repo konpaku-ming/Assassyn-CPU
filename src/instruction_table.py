@@ -70,7 +70,7 @@ rv32i_table = [
     ('auipc',  OP_AUIPC,  None, None, ImmType.U, ALUOp.ADD, RsUse.NO,  RsUse.NO,  Op1Sel.PC,  Op2Sel.IMM, MemOp.NONE, MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
 
     # --- Environment (ECALL/EBREAK) ---
-    # 作为特殊 I-Type 处理，但这里只给基本信号，具体逻辑由 Decoder/Execution 中的 finish() 逻辑拦截，直接停止模拟。
-    ('ecall',  OP_SYSTEM, 0x0,  0, ImmType.I, ALUOp.NOP, RsUse.NO,  RsUse.NO,  Op1Sel.RS1, Op2Sel.IMM, MemOp.NONE, MemWidth.WORD, Bits(1)(0), WB.NO, BranchType.NO_BRANCH),
-    ('ebreak', OP_SYSTEM, 0x0,  0, ImmType.I, ALUOp.NOP, RsUse.NO,  RsUse.NO,  Op1Sel.RS1, Op2Sel.IMM, MemOp.NONE, MemWidth.WORD, Bits(1)(0), WB.NO, BranchType.NO_BRANCH),
+    # 由 Execution 中的 finish() 逻辑拦截，直接停止模拟。
+    ('ecall',  OP_SYSTEM, 0x0,  0, ImmType.I, ALUOp.SYS, RsUse.NO,  RsUse.NO,  Op1Sel.RS1, Op2Sel.IMM, MemOp.NONE, MemWidth.WORD, Bits(1)(0), WB.NO, BranchType.NO_BRANCH),
+    ('ebreak', OP_SYSTEM, 0x0,  0, ImmType.I, ALUOp.SYS, RsUse.NO,  RsUse.NO,  Op1Sel.RS1, Op2Sel.IMM, MemOp.NONE, MemWidth.WORD, Bits(1)(0), WB.NO, BranchType.NO_BRANCH),
 ]

@@ -113,6 +113,11 @@ class Execution(Module):
         # 无符号比较小于
         sltu_res = (alu_op1 < alu_op2).bitcast(Bits(32))
 
+        # ebreak 停机
+        with Condition(ctrl.alu_func == ALUOp.SYS):
+            log("EBREAK encountered at PC=0x{:x}, halting simulation.", pc)
+            finish()
+            
         # 2. 结果选择
         alu_result = ctrl.alu_func.select1hot(
             add_res,  # ADD
@@ -125,7 +130,7 @@ class Execution(Module):
             sra_res,  # SRA
             or_res,  # OR
             and_res,  # AND
-            alu_op2,  # NOP (直接输出操作数2)
+            alu_op2,  # SYS
             alu_op2,  # 占位
             alu_op2,  # 占位
             alu_op2,  # 占位
