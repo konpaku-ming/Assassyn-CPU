@@ -234,10 +234,12 @@ class Execution(Module):
             log("EX: Load Address: 0x{:x}", alu_result)
 
         # 直接调用 dcache.build 处理 SRAM 操作
+        # 将字节地址转换为字索引（除以4或右移2位）
+        word_addr = alu_result >> UInt(32)(2)
         dcache.build(
             we=is_store,  # 写使能信号（对于Store指令）
             wdata=real_rs2,  # 写入数据（经过Forwarding的rs2）
-            addr=alu_result,  # 地址（ALU计算结果）
+            addr=word_addr,  # 地址（字索引，字节地址除以4）
             re=is_load,  # 读使能信号（对于Load指令）
         )
 
