@@ -231,7 +231,7 @@ def build_cpu(depth_log=16):
 
 if __name__ == "__main__":
     # 构建 CPU 模块
-    load_test_case("multiply")
+    load_test_case("my0to100")
     sys_builder = build_cpu(depth_log=16)
 
     circ_path = os.path.join(workspace, f"circ.txt")
