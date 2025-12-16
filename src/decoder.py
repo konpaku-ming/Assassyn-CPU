@@ -192,16 +192,16 @@ class DecoderImpl(Downstream):
 
     @downstream.combinational
     def build(
-        self,
-        # --- 1. 来自 Decoder Shell 的静态数据 (Record) ---
-        pre: Record,
-        # --- 2. 外部模块引用 ---
-        executor: Module,
-        # --- 3. DataHazardUnit 反馈信号 ---
-        rs1_sel: Bits(4),
-        rs2_sel: Bits(4),
-        stall_if: Bits(1),
-        branch_target_reg: Array,
+            self,
+            # --- 1. 来自 Decoder Shell 的静态数据 (Record) ---
+            pre: Record,
+            # --- 2. 外部模块引用 ---
+            executor: Module,
+            # --- 3. DataHazardUnit 反馈信号 ---
+            rs1_sel: Bits(4),
+            rs2_sel: Bits(4),
+            stall_if: Bits(1),
+            branch_target_reg: Array,
     ):
         mem_ctrl = mem_ctrl_signals.view(pre.mem_ctrl)
 

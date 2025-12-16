@@ -31,18 +31,22 @@ class FetcherImpl(Downstream):
 
     @downstream.combinational
     def build(
-        self,
-        # --- 资源引用 ---
-        pc_reg: Array,  # 引用 Fetcher 的 PC
-        pc_addr: Bits(32),  # 引用 Fetcher 的 PC 地址
-        last_pc_reg: Array,  # 引用 Fetcher 的 Last PC
-        icache: SRAM,  # 引用 ICache
-        decoder: Module,  # 下一级模块 (用于发送指令)
-        # --- 反馈控制信号 (来自 DataHazardUnit/ControlHazardReg) ---
-        stall_if: Value,  # 暂停取指 (保持当前 PC)
-        branch_target: Array,  # 不为0时，根据目标地址冲刷流水线
+            self,
+            # --- 资源引用 ---
+            pc_reg: Array,  # 引用 Fetcher 的 PC
+            pc_addr: Bits(32),  # 引用 Fetcher 的 PC 地址
+            last_pc_reg: Array,  # 引用 Fetcher 的 Last PC
+            icache: SRAM,  # 引用 ICache
+            decoder: Module,  # 下一级模块 (用于发送指令)
+            # --- 反馈控制信号 (来自 DataHazardUnit/ControlHazardReg) ---
+            stall_if: Value,  # 暂停取指 (保持当前 PC)
+            branch_target: Array,  # 不为0时，根据目标地址冲刷流水线
+            # --- BTB 分支预测 ---
+            btb_impl: "BTBImpl",  # BTB 实现逻辑
+            btb_valid: Array,  # BTB 有效位数组
+            btb_tags: Array,  # BTB 标签数组
+            btb_targets: Array,  # BTB 目标地址数组
     ):
-
         current_stall_if = stall_if.optional(Bits(1)(0))
 
         with Condition(current_stall_if == Bits(1)(1)):
@@ -70,13 +74,24 @@ class FetcherImpl(Downstream):
         log("IF: SRAM Addr=0x{:x}", sram_addr)
 
         # --- 2. 计算 Next PC (时序逻辑输入) ---
-        # 默认：PC + 4
-        final_next_pc = final_current_pc + UInt(32)(4)
+        # 使用 BTB 进行分支预测
+        btb_hit, btb_predicted_target = btb_impl.predict(
+            pc=final_current_pc,
+            btb_valid=btb_valid,
+            btb_tags=btb_tags,
+            btb_targets=btb_targets,
+        )
+        
+        # 如果 BTB 命中，使用预测目标；否则默认 PC + 4
+        predicted_next_pc = btb_hit.select(btb_predicted_target, final_current_pc + UInt(32)(4))
+        
+        # 最终的 Next PC
+        final_next_pc = predicted_next_pc
 
         # 更新 PC 寄存器
         pc_reg[0] <= final_next_pc
         last_pc_reg[0] <= final_current_pc
-        log("IF: Next PC=0x{:x} Next Last PC={:x}", final_next_pc, final_current_pc)
+        log("IF: Next PC=0x{:x} (BTB_hit={}) Next Last PC={:x}", final_next_pc, btb_hit, final_current_pc)
 
         # --- 3. 驱动下游 Decoder (流控) ---
         # 发送到下一级，只传递 PC 值

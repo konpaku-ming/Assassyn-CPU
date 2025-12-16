@@ -19,10 +19,10 @@ class MemoryAccess(Module):
 
     @module.combinational
     def build(
-        self,
-        wb_module: Module,  # 下一级流水线 (writeback.py)
-        sram_dout: Array,  # SRAM 的输出端口 (Ref)
-        mem_bypass_reg: Array,  # 全局 Bypass 寄存器 (数据)
+            self,
+            wb_module: Module,  # 下一级流水线 (writeback.py)
+            sram_dout: Array,  # SRAM 的输出端口 (Ref)
+            mem_bypass_reg: Array,  # 全局 Bypass 寄存器 (数据)
     ):
         # 1. 弹出并解包
         ctrl, alu_result = self.pop_all_ports(False)
@@ -31,21 +31,21 @@ class MemoryAccess(Module):
         mem_opcode = ctrl.mem_opcode
         mem_width = ctrl.mem_width
         mem_unsigned = ctrl.mem_unsigned
-        
+
         with Condition(mem_opcode == MemOp.NONE):
             log("MEM: OP NONE.")
         with Condition(mem_opcode == MemOp.LOAD):
             log("MEM: OP LOAD.")
         with Condition(mem_opcode == MemOp.STORE):
             log("MEM: OP STORE.")
-            
+
         with Condition(mem_width == MemWidth.BYTE):
             log("MEM: WIDTH BYTE.")
         with Condition(mem_width == MemWidth.HALF):
             log("MEM: WIDTH HALF.")
         with Condition(mem_width == MemWidth.WORD):
             log("MEM: WIDTH WORD.")
-        
+
         with Condition(mem_unsigned == Bits(1)(1)):
             log("MEM: UNSIGNED.")
         with Condition(mem_unsigned == Bits(1)(0)):

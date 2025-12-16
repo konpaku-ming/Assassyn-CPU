@@ -24,15 +24,20 @@ class Execution(Module):
 
     @module.combinational
     def build(
-        self,
-        mem_module: Module,  # 下一级流水线 (MEM)
-        # --- 旁路数据源 (Forwarding Sources) ---
-        ex_bypass: Array,  # 来自 EX-MEM 旁路寄存器的数据（上条指令结果）
-        mem_bypass: Array,  # 来自 MEM-WB 旁路寄存器的数据 (上上条指令结果)
-        wb_bypass: Array,  # 来自 WB 旁路寄存器的数据 (当前写回数据)
-        # --- 分支反馈 ---
-        branch_target_reg: Array,  # 用于通知 IF 跳转目标的全局寄存器
-        dcache: SRAM,  # SRAM 模块引用 (用于Store操作)
+            self,
+            mem_module: Module,  # 下一级流水线 (MEM)
+            # --- 旁路数据源 (Forwarding Sources) ---
+            ex_bypass: Array,  # 来自 EX-MEM 旁路寄存器的数据（上条指令结果）
+            mem_bypass: Array,  # 来自 MEM-WB 旁路寄存器的数据 (上上条指令结果)
+            wb_bypass: Array,  # 来自 WB 旁路寄存器的数据 (当前写回数据)
+            # --- 分支反馈 ---
+            branch_target_reg: Array,  # 用于通知 IF 跳转目标的全局寄存器
+            dcache: SRAM,  # SRAM 模块引用 (用于Store操作)
+            # --- BTB 更新 (可选) ---
+            btb_impl: "BTBImpl" = None,  # BTB 实现逻辑
+            btb_valid: Array = None,  # BTB 有效位数组
+            btb_tags: Array = None,  # BTB 标签数组
+            btb_targets: Array = None,  # BTB 目标地址数组
     ):
         # 1. 弹出所有端口数据
         # 根据 __init__ 定义顺序解包
@@ -213,7 +218,7 @@ class Execution(Module):
             log("EX: ALU Operation: SYS")
         with Condition(ctrl.alu_func == ALUOp.NOP):
             log("EX: ALU Operation: NOP or Reserved")
-            
+
         # 3. 更新本级 Bypass 寄存器
         ex_bypass[0] = alu_result
         log("EX: ALU Result: 0x{:x}", alu_result)
@@ -237,7 +242,7 @@ class Execution(Module):
         dcache.build(
             we=is_store,  # 写使能信号（对于Store指令）
             wdata=real_rs2,  # 写入数据（经过Forwarding的rs2）
-            addr=alu_result,  # 地址（ALU计算结果）
+            addr=alu_result,  # 地址（ALU计算结果转换为字地址）
             re=is_load,  # 读使能信号（对于Load指令）
         )
 
@@ -304,14 +309,14 @@ class Execution(Module):
         is_taken_geu = (ctrl.branch_type == BranchType.BGEU) & ~is_lt
 
         is_taken = (
-            is_taken_eq
-            | is_taken_ne
-            | is_taken_lt
-            | is_taken_ge
-            | is_taken_ltu
-            | is_taken_geu
-            | (ctrl.branch_type == BranchType.JAL)
-            | is_jalr
+                is_taken_eq
+                | is_taken_ne
+                | is_taken_lt
+                | is_taken_ge
+                | is_taken_ltu
+                | is_taken_geu
+                | (ctrl.branch_type == BranchType.JAL)
+                | is_jalr
         )
 
         final_next_pc = flush_if.select(
@@ -336,6 +341,19 @@ class Execution(Module):
         with Condition(is_branch):
             log("EX: Branch Target: 0x{:x}", calc_target)
             log("EX: Branch Taken: {}", is_taken == Bits(1)(1))
+
+        # 5. 更新 BTB (如果提供了 BTB 引用)
+        # 当分支指令 taken 时，更新 BTB 存储 PC -> Target 的映射
+        if btb_impl is not None and btb_valid is not None:
+            should_update_btb = is_branch & is_taken & ~flush_if
+            btb_impl.update(
+                pc=pc,
+                target=calc_target,
+                should_update=should_update_btb,
+                btb_valid=btb_valid,
+                btb_tags=btb_tags,
+                btb_targets=btb_targets,
+            )
 
         # --- 下一级绑定与状态反馈 ---
         # 构造发送给 MEM 的包

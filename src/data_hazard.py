@@ -19,18 +19,18 @@ class DataHazardUnit(Downstream):
 
     @downstream.combinational
     def build(
-        self,
-        # --- 1. 来自 ID 级 (当前指令需求) ---
-        rs1_idx: Value,  # 源寄存器 1 索引 (Value)
-        rs2_idx: Value,  # 源寄存器 2 索引 (Value)
-        rs1_used: Value,  # 是否需要读取 rs1 (Value) - 避免 LUI 等指令的虚假冒险
-        rs2_used: Value,  # 是否需要读取 rs2 (Value)
-        # --- 2. 来自流水线各级 (实时状态回传) ---
-        # 各级 Module build() 的返回值
-        ex_rd: Value,  # EX 级目标寄存器索引
-        ex_is_load: Value,  # EX 级是否为 Load 指令
-        mem_rd: Value,  # MEM 级目标寄存器索引
-        wb_rd: Value,  # WB 级目标寄存器索引
+            self,
+            # --- 1. 来自 ID 级 (当前指令需求) ---
+            rs1_idx: Value,  # 源寄存器 1 索引 (Value)
+            rs2_idx: Value,  # 源寄存器 2 索引 (Value)
+            rs1_used: Value,  # 是否需要读取 rs1 (Value) - 避免 LUI 等指令的虚假冒险
+            rs2_used: Value,  # 是否需要读取 rs2 (Value)
+            # --- 2. 来自流水线各级 (实时状态回传) ---
+            # 各级 Module build() 的返回值
+            ex_rd: Value,  # EX 级目标寄存器索引
+            ex_is_load: Value,  # EX 级是否为 Load 指令
+            mem_rd: Value,  # MEM 级目标寄存器索引
+            wb_rd: Value,  # WB 级目标寄存器索引
     ):
         # 使用 optional() 处理 Value 接口，如果无效则使用默认值 Bits(x)(0)
         rs1_idx_val = rs1_idx.optional(Bits(5)(0))
