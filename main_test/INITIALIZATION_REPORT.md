@@ -16,11 +16,12 @@
 ### 功能描述
 该脚本用于从二进制文件生成 dcache 和 icache 的初始化文件：
 - **输入**：
-  - `my0to100_text.bin`（指令段二进制文件）
-  - `my0to100_data.bin`（数据段二进制文件）
+  - `*_text.bin`（指令段二进制文件）
+  - `*_data.bin`（数据段二进制文件）
+  - 支持三个程序：0to100、multiply、vvadd
 - **输出**：
-  - `my0to100.exe`（用于 icache 初始化）
-  - `my0to100.data`（用于 dcache 初始化）
+  - `*.exe`（用于 icache 初始化）
+  - `*.data`（用于 dcache 初始化）
 
 ### 基本用法
 
@@ -36,7 +37,7 @@ python3 generate_workloads.py
 - 自动填充到 32-bit 字对齐
 - 不含 `0x` 前缀
 
-**示例输出** (`my0to100.exe` 的前几行)：
+**示例输出** (`0to100.exe` 的前几行)：
 ```
 fe010113
 00812e23
@@ -138,7 +139,7 @@ icache = SRAM(width=32, depth=1 << depth_log, init_file=ins_path)
 
 ### 问题根源
 
-从 `my0to100_text.bin` 反汇编可以看到，程序使用标准的 RISC-V 函数调用约定：
+从反汇编可以看到，程序使用标准的 RISC-V 函数调用约定：
 
 ```assembly
 fe010113    # addi sp, sp, -32      ; 分配栈帧（需要 SP 已初始化）
@@ -179,7 +180,7 @@ fe010113    # addi sp, sp, -32      ; 分配栈帧（需要 SP 已初始化）
    riscv32-unknown-elf-objcopy -O binary program.elf program.bin
    ```
 
-3. **更新 `my0to100_text.bin`**，使其包含启动代码。
+3. **更新二进制文件**，使其包含启动代码。
 
 **优点**：
 - ✅ 符合标准实践，程序自包含
@@ -278,9 +279,9 @@ fe010113    # addi sp, sp, -32      ; 分配栈帧（需要 SP 已初始化）
 **综合考虑用户约束（不修改 main.py）和最佳实践，推荐采用方案 1**：
 
 1. **添加启动代码到程序**：
-   - 在 `my0to100_text.bin` 的源程序中添加 `_start` 标签
+   - 在源程序中添加 `_start` 标签
    - 设置 SP 为 `0x80010000`（或根据实际内存映射调整）
-   - 跳转到原始的 `accumulate` 函数
+   - 跳转到原始的主函数
 
 2. **确定 SP 初始值**：
    根据 `src/main.py` 中的 SRAM 配置：
@@ -345,8 +346,8 @@ _halt:
 riscv32-unknown-elf-gcc -march=rv32i -mabi=ilp32 -nostdlib -T link.ld \
     -o program.elf boot.S accumulate.c
 
-riscv32-unknown-elf-objcopy -O binary -j .text program.elf my0to100_text.bin
-riscv32-unknown-elf-objcopy -O binary -j .data program.elf my0to100_data.bin
+riscv32-unknown-elf-objcopy -O binary -j .text program.elf program_text.bin
+riscv32-unknown-elf-objcopy -O binary -j .data program.elf program_data.bin
 ```
 
 **链接脚本示例** (`link.ld`)：
@@ -381,17 +382,25 @@ python3 generate_workloads.py
 **预期输出**：
 ```
 ============================================================
-生成 dcache/icache 初始化文件
+批量生成工作负载文件
 ============================================================
-输入文件（指令段）: my0to100_text.bin
-输入文件（数据段）: my0to100_data.bin
-输出文件（指令段）: my0to100.exe
-输出文件（数据段）: my0to100.data
-输出格式: 文本十六进制 (32-bit, little-endian)
-============================================================
-[SUCCESS] Wrote 22 words to my0to100.exe
+
+脚本目录: /home/runner/work/Assassyn-CPU/Assassyn-CPU/main_test
+输出目录: ../workloads
+
+发现 3 个工作负载需要生成
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[1/3] 正在生成: 0to100
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[SUCCESS] Wrote 22 words to ../workloads/0to100.exe
           Format: 32-bit hex, little-endian
-[INFO] Input file my0to100_data.bin is empty, created empty my0to100.data
+[INFO] Input file 0to100_data.bin is empty, created empty ../workloads/0to100.data
+✅ 成功生成 0to100
+   → ../workloads/0to100.exe (22 words)
+   → ../workloads/0to100.data (0 words)
+
+成功: 3 / 3
 ============================================================
 ✅ 生成完成！
 ============================================================
@@ -401,7 +410,7 @@ python3 generate_workloads.py
 
 ```bash
 # 查看指令文件前几行
-head -5 my0to100.exe
+head -5 ../workloads/0to100.exe
 ```
 
 **预期输出**（示例）：
@@ -417,8 +426,8 @@ fe042423
 
 ```bash
 # 对比原始二进制和生成的十六进制
-xxd -l 16 my0to100_text.bin
-head -4 my0to100.exe
+xxd -l 16 0to100_text.bin
+head -4 ../workloads/0to100.exe
 ```
 
 **验证方法**：
@@ -433,9 +442,8 @@ head -4 my0to100.exe
 # 如果 workloads 目录不存在，创建它
 mkdir -p ../workloads
 
-# 复制文件
-cp my0to100.exe ../workloads/
-cp my0to100.data ../workloads/
+# 文件已自动生成到 workloads 目录
+# 无需手动复制
 ```
 
 ### 5. 运行仿真器
