@@ -16,7 +16,7 @@ set -e
 # 辅助函数：获取工作负载描述
 function get_description() {
     case "$1" in
-        my0to100)
+        0to100)
             echo "0到100累加程序"
             ;;
         multiply)
@@ -58,7 +58,7 @@ mkdir -p "$OUTPUT_DIR"
 
 # 定义所有工作负载（格式：名称）
 # 脚本会自动查找 {name}_text.bin 和 {name}_data.bin
-WORKLOADS=("my0to100" "multiply" "vvadd")
+WORKLOADS=("0to100" "multiply" "vvadd")
 
 # 统计信息
 TOTAL=${#WORKLOADS[@]}

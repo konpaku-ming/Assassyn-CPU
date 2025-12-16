@@ -5,7 +5,7 @@
 ## 文件清单
 
 ### 输入文件（二进制格式）
-- `my0to100_text.bin` / `my0to100_data.bin` - 0到100累加程序
+- `0to100_text.bin` / `0to100_data.bin` - 0到100累加程序
 - `multiply_text.bin` / `multiply_data.bin` - 乘法测试程序
 - `vvadd_text.bin` / `vvadd_data.bin` - 向量加法测试程序
 
@@ -27,15 +27,19 @@ bash generate_all_workloads.sh
 ```
 
 这将一次性生成所有工作负载文件到 `../workloads/` 目录：
-- `my0to100.exe` / `my0to100.data` - 0到100累加程序
+- `0to100.exe` / `0to100.data` - 0到100累加程序
 - `multiply.exe` / `multiply.data` - 乘法测试程序
 - `vvadd.exe` / `vvadd.data` - 向量加法测试程序
 
 ### 生成单个工作负载
 
 ```bash
-# 生成 my0to100 工作负载（默认）
-python3 generate_workloads.py
+# 生成 0to100 工作负载
+python3 generate_workloads.py \
+    --text-in 0to100_text.bin \
+    --data-in 0to100_data.bin \
+    --text-out ../workloads/0to100.exe \
+    --data-out ../workloads/0to100.data
 
 # 生成 multiply 工作负载
 python3 generate_workloads.py \
@@ -102,7 +106,7 @@ _start:
 
 ```python
 # 在 src/main.py 中选择要运行的测试用例
-load_test_case("my0to100")   # 0到100累加程序
+load_test_case("0to100")     # 0到100累加程序
 load_test_case("multiply")   # 乘法测试程序
 load_test_case("vvadd")      # 向量加法测试程序
 ```
@@ -118,7 +122,7 @@ python3 main.py
 ```
 
 期望结果（取决于加载的测试用例）：
-- **my0to100**: 累加 0 到 100 的结果为 **5050** (0x13BA)
+- **0to100**: 累加 0 到 100 的结果为 **5050** (0x13BA)
 - **multiply**: 执行乘法运算测试
 - **vvadd**: 执行向量加法运算测试
 

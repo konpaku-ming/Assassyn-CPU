@@ -3,8 +3,9 @@
 工具脚本：从二进制文件生成 dcache/icache 初始化文件
 
 功能：
-- 读取 my0to100_text.bin（指令段）生成 my0to100.exe（用于 icache 初始化）
-- 读取 my0to100_data.bin（数据段）生成 my0to100.data（用于 dcache 初始化）
+- 读取 *_text.bin（指令段）生成 *.exe（用于 icache 初始化）
+- 读取 *_data.bin（数据段）生成 *.data（用于 dcache 初始化）
+- 支持三个测试程序：0to100、multiply、vvadd
 
 默认输出格式：
 - 文本文件，每行一个 32-bit 十六进制数（8 位十六进制字符，不带 0x 前缀）
@@ -12,7 +13,7 @@
 - 自动填充到 32-bit 字对齐
 
 使用方法：
-  python3 generate_workloads.py                    # 使用默认参数
+  python3 generate_workloads.py                    # 使用默认参数（生成 0to100）
   python3 generate_workloads.py --binary           # 输出原始二进制文件（如果需要）
   python3 generate_workloads.py --word-size 4      # 指定字宽（2 或 4 字节）
   python3 generate_workloads.py --endian big       # 指定大端序
@@ -112,25 +113,25 @@ def main():
     # 输入文件参数
     parser.add_argument(
         '--text-in',
-        default='my0to100_text.bin',
-        help='指令段二进制文件（默认：my0to100_text.bin）'
+        default='0to100_text.bin',
+        help='指令段二进制文件（默认：0to100_text.bin）'
     )
     parser.add_argument(
         '--data-in',
-        default='my0to100_data.bin',
-        help='数据段二进制文件（默认：my0to100_data.bin）'
+        default='0to100_data.bin',
+        help='数据段二进制文件（默认：0to100_data.bin）'
     )
     
     # 输出文件参数
     parser.add_argument(
         '--text-out',
-        default='my0to100.exe',
-        help='指令段输出文件，用于 icache（默认：my0to100.exe）'
+        default='../workloads/0to100.exe',
+        help='指令段输出文件，用于 icache（默认：../workloads/0to100.exe）'
     )
     parser.add_argument(
         '--data-out',
-        default='my0to100.data',
-        help='数据段输出文件，用于 dcache（默认：my0to100.data）'
+        default='../workloads/0to100.data',
+        help='数据段输出文件，用于 dcache（默认：../workloads/0to100.data）'
     )
     
     # 格式选项
