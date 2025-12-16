@@ -38,20 +38,20 @@ class BTB(Module):
         return btb_valid, btb_tags, btb_targets
 
 
-class BTBImpl(Downstream):
+class BTBImpl:
     """
     BTB Implementation logic for prediction and update.
+    This is a helper class with pure combinational logic methods,
+    not a Downstream module, to avoid circular dependencies.
     """
     
     def __init__(self, num_entries=64, index_bits=6):
-        super().__init__()
         self.name = "BTB_Impl"
         self.num_entries = num_entries
         self.index_bits = index_bits
         # Mask for extracting index from PC
         self.index_mask = (1 << index_bits) - 1
         
-    @downstream.combinational
     def predict(
         self,
         pc: Bits(32),  # Current PC to predict
@@ -85,7 +85,6 @@ class BTBImpl(Downstream):
         
         return hit, entry_target
         
-    @downstream.combinational  
     def update(
         self,
         pc: Bits(32),  # Branch PC
