@@ -239,12 +239,10 @@ class Execution(Module):
             log("EX: Load Address: 0x{:x}", alu_result)
 
         # 直接调用 dcache.build 处理 SRAM 操作
-        # Convert byte address to word address (divide by 4 / right shift by 2)
-        dcache_addr = alu_result >> UInt(32)(2)
         dcache.build(
             we=is_store,  # 写使能信号（对于Store指令）
             wdata=real_rs2,  # 写入数据（经过Forwarding的rs2）
-            addr=dcache_addr,  # 地址（ALU计算结果转换为字地址）
+            addr=alu_result,  # 地址（ALU计算结果转换为字地址）
             re=is_load,  # 读使能信号（对于Load指令）
         )
 
@@ -343,7 +341,7 @@ class Execution(Module):
         with Condition(is_branch):
             log("EX: Branch Target: 0x{:x}", calc_target)
             log("EX: Branch Taken: {}", is_taken == Bits(1)(1))
-            
+
         # 5. 更新 BTB (如果提供了 BTB 引用)
         # 当分支指令 taken 时，更新 BTB 存储 PC -> Target 的映射
         if btb_impl is not None and btb_valid is not None:
