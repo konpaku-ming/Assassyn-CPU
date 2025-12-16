@@ -62,9 +62,9 @@ The tools successfully convert binary files for three programs:
 
 | Program | Text Binary | Data Binary | Output .exe | Output .data |
 |---------|------------|-------------|-------------|--------------|
-| my0to100 | `my0to100_text.bin` (88 bytes) | `my0to100_data.bin` (0 bytes) | `my0to100.exe` (22 words) | `my0to100.data` (empty) |
-| multiply | `multiply_text.bin` (2568 bytes) | `multiply_data.bin` (1200 bytes) | `multiply.exe` (642 words) | `multiply.data` (300 words) |
-| vvadd | `vvadd_text.bin` (2500 bytes) | `vvadd_data.bin` (3600 bytes) | `vvadd.exe` (625 words) | `vvadd.data` (900 words) |
+| my0to100 | `my0to100_text.bin` (88 bytes) | `my0to100_data.bin` (0 bytes) | `my0to100.exe` (22 lines, 198 bytes) | `my0to100.data` (empty) |
+| multiply | `multiply_text.bin` (2568 bytes) | `multiply_data.bin` (1200 bytes) | `multiply.exe` (642 lines, 5778 bytes) | `multiply.data` (300 lines, 2700 bytes) |
+| vvadd | `vvadd_text.bin` (2500 bytes) | `vvadd_data.bin` (3600 bytes) | `vvadd.exe` (625 lines, 5625 bytes) | `vvadd.data` (900 lines, 8100 bytes) |
 
 ## Format Verification
 
@@ -111,14 +111,14 @@ All workload files are successfully generated in the `workloads/` directory:
 
 ```
 workloads/
-├── 0to100.data       (template - 0 bytes)
-├── 0to100.exe        (template - 447 bytes)
-├── multiply.data     (generated - 2700 bytes)
-├── multiply.exe      (generated - 5490 bytes)
-├── my0to100.data     (generated - 0 bytes)
-├── my0to100.exe      (generated - 198 bytes)
-├── vvadd.data        (generated - 8100 bytes)
-└── vvadd.exe         (generated - 5625 bytes)
+├── 0to100.data       (template - 0 bytes, 0 lines)
+├── 0to100.exe        (template - 447 bytes, 12 lines)
+├── multiply.data     (generated - 2700 bytes, 300 lines)
+├── multiply.exe      (generated - 5778 bytes, 642 lines)
+├── my0to100.data     (generated - 0 bytes, 0 lines)
+├── my0to100.exe      (generated - 198 bytes, 22 lines)
+├── vvadd.data        (generated - 8100 bytes, 900 lines)
+└── vvadd.exe         (generated - 5625 bytes, 625 lines)
 ```
 
 ## Integration with CPU
@@ -149,9 +149,9 @@ $ bash generate_all_workloads.sh
 ```
 
 **Results**:
-- ✅ my0to100: Successfully generated (22 instruction words, 0 data words)
-- ✅ multiply: Successfully generated (642 instruction words, 300 data words)
-- ✅ vvadd: Successfully generated (625 instruction words, 900 data words)
+- ✅ my0to100: Successfully generated (22 instruction lines, 0 data lines)
+- ✅ multiply: Successfully generated (642 instruction lines, 300 data lines)
+- ✅ vvadd: Successfully generated (625 instruction lines, 900 data lines)
 
 ### Format Validation
 - ✅ All files use correct 8-digit hexadecimal format
