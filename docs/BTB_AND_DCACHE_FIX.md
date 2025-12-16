@@ -1,77 +1,77 @@
-# BTB Implementation and DCache Fix
+# BTB 实现与 DCache 修复
 
-## Overview
+## 概述
 
-This document describes the fixes and enhancements made to the Assassyn CPU simulator to address a critical dcache panic and implement branch prediction via a Branch Target Buffer (BTB).
+本文档描述了对 Assassyn CPU 模拟器所做的修复和增强，以解决关键的 dcache 崩溃问题，并通过分支目标缓冲器 (BTB) 实现分支预测。
 
-## Issues Addressed
+## 已解决的问题
 
-### 1. DCache Index Out of Bounds Panic
+### 1. DCache 索引越界崩溃
 
-**Problem**: The simulator panicked with:
+**问题描述**：模拟器出现崩溃：
 ```
 thread 'main' panicked at src/modules/dcache.rs:78:27:
 index out of bounds: the len is 65536 but the index is 262120
 ```
 
-**Root Cause**: In `src/execution.py`, the dcache was being accessed with byte addresses directly instead of word indices. The SRAM has 65536 words (4 bytes each), supporting byte addresses from 0x00000000 to 0x0003FFFF. However, byte address 262120 (0x0003FFE8) was used directly as an index into a 65536-element array, causing the panic.
+**根本原因**：在 `src/execution.py` 中，dcache 使用字节地址直接访问，而不是字索引。SRAM 有 65536 个字（每个 4 字节），支持从 0x00000000 到 0x0003FFFF 的字节地址。然而，字节地址 262120 (0x0003FFE8) 被直接用作 65536 元素数组的索引，导致崩溃。
 
-**Fix**: Convert byte addresses to word addresses by right-shifting by 2 bits:
+**修复方案**：通过右移 2 位将字节地址转换为字地址：
 ```python
-# Before (WRONG):
-dcache.build(addr=alu_result, ...)  # alu_result is byte address
+# 修复前（错误）：
+dcache.build(addr=alu_result, ...)  # alu_result 是字节地址
 
-# After (CORRECT):
-dcache_addr = alu_result >> UInt(32)(2)  # Convert to word address
+# 修复后（正确）：
+dcache_addr = alu_result >> UInt(32)(2)  # 转换为字地址
 dcache.build(addr=dcache_addr, ...)
 ```
 
-This matches the addressing scheme used in the instruction cache (see `src/fetch.py` line 67).
+这与指令缓存中使用的地址方案相匹配（参见 `src/fetch.py` 第 67 行）。
 
-### 2. Missing Branch Prediction
+### 2. 缺少分支预测
 
-**Problem**: The CPU had no branch prediction mechanism, causing performance penalties on branch-heavy code like loops.
+**问题描述**：CPU 没有分支预测机制，在分支密集型代码（如循环）上造成性能损失。
 
-**Solution**: Implemented a direct-mapped Branch Target Buffer (BTB) that provides one-cycle branch target predictions.
+**解决方案**：实现了直接映射的分支目标缓冲器 (BTB)，提供单周期分支目标预测。
 
-## BTB Implementation Details
+## BTB 实现细节
 
-### Architecture
+### 架构
 
-The BTB is a **direct-mapped** cache with the following characteristics:
-- **64 entries** (configurable)
-- **6 index bits** (log2(64))
-- **Word-aligned PC addressing** (skip lowest 2 bits)
-- Stores: valid bit, full PC as tag, and target address
+BTB 是一个**直接映射**缓存，具有以下特征：
+- **64 个条目**（可配置）
+- **6 位索引位**（log2(64)）
+- **字对齐的 PC 地址**（跳过最低 2 位）
+- 存储：有效位、完整 PC 作为标签和目标地址
 
-### Components
+### 组件
 
-#### 1. BTB Module (`src/btb.py`)
+#### 1. BTB 模块 (`src/btb.py`)
 
-Two classes are implemented:
+实现了两个类：
 
-**BTB (Module)**: 
-- Holds the storage arrays (valid bits, tags, targets)
-- Initialized with all entries invalid
+**BTB (Module)**： 
+- 保存存储数组（有效位、标签、目标地址）
+- 所有条目初始化为无效
 
-**BTBImpl (Downstream)**:
-- **predict()**: Performs one-cycle lookup
-  - Extracts index from PC[7:2] (bits 7-2 for 64 entries)
-  - Extracts tag from PC[31:8] (upper bits)
-  - Returns (hit, target) where hit indicates valid prediction
+**BTBImpl (Downstream)**：
+- **predict()**：执行单周期查找
+  - 从 PC[7:2] 提取索引（64 个条目的第 7-2 位）
+  - 从 PC[31:8] 提取标签（高位）
+  - 返回 (hit, target)，其中 hit 表示有效预测
   
-- **update()**: Updates BTB on branch resolution
-  - Called when a branch is taken in the execution stage
-  - Stores the full PC as tag and the branch target
+- **update()**：在分支解析时更新 BTB
+  - 在执行阶段分支跳转时调用
+  - 存储完整的 PC 作为标签和分支目标
 
-### Integration Points
+### 集成点
 
-#### 1. Fetch Stage (`src/fetch.py`)
+#### 1. 取指阶段 (`src/fetch.py`)
 
-The `FetcherImpl.build()` method now:
-1. Queries the BTB with the current PC
-2. If BTB hits, uses the predicted target as next_pc
-3. If BTB misses, uses PC+4 (sequential execution)
+`FetcherImpl.build()` 方法现在：
+1. 使用当前 PC 查询 BTB
+2. 如果 BTB 命中，使用预测目标作为 next_pc
+3. 如果 BTB 未命中，使用 PC+4（顺序执行）
 
 ```python
 btb_hit, btb_predicted_target = btb_impl.predict(
@@ -84,12 +84,12 @@ btb_hit, btb_predicted_target = btb_impl.predict(
 predicted_next_pc = btb_hit.select(btb_predicted_target, final_current_pc + UInt(32)(4))
 ```
 
-#### 2. Execution Stage (`src/execution.py`)
+#### 2. 执行阶段 (`src/execution.py`)
 
-The `Execution.build()` method now:
-1. Resolves actual branch behavior
-2. Updates BTB when a branch is taken
-3. Flushes pipeline on misprediction (existing logic)
+`Execution.build()` 方法现在：
+1. 解析实际分支行为
+2. 在分支跳转时更新 BTB
+3. 在预测错误时刷新流水线（现有逻辑）
 
 ```python
 should_update_btb = is_branch & is_taken & ~flush_if
@@ -103,118 +103,118 @@ btb_impl.update(
 )
 ```
 
-#### 3. Top Level (`src/main.py`)
+#### 3. 顶层 (`src/main.py`)
 
-The `build_cpu()` function now:
-1. Instantiates BTB and BTBImpl modules
-2. Builds BTB storage before pipeline stages
-3. Passes BTB references to Fetch and Execution stages
+`build_cpu()` 函数现在：
+1. 实例化 BTB 和 BTBImpl 模块
+2. 在流水线阶段之前构建 BTB 存储
+3. 将 BTB 引用传递给取指和执行阶段
 
-## BTB Addressing Scheme
+## BTB 地址方案
 
-### Index Calculation
+### 索引计算
 ```
-PC (32 bits):  [31...........8][7......2][1:0]
-                                INDEX    OFFSET
+PC (32 位):  [31...........8][7......2][1:0]
+                                索引      偏移
 
-index = (pc >> 2) & 0x3F          # Extract 6 bits (64 entries)
-stored_tag = pc                    # Store full PC for exact matching
+index = (pc >> 2) & 0x3F          # 提取 6 位（64 个条目）
+stored_tag = pc                    # 存储完整 PC 用于精确匹配
 ```
 
-### Tag Matching (Simplified)
-The BTB stores the full PC as the tag and compares full PCs:
+### 标签匹配（简化）
+BTB 将完整的 PC 存储为标签并比较完整的 PC：
 ```python
-# In predict:
-entry_tag = btb_tags[index]       # Full PC stored previously
-tag_match = (entry_tag == pc)     # Exact PC comparison
+# 在 predict 中：
+entry_tag = btb_tags[index]       # 之前存储的完整 PC
+tag_match = (entry_tag == pc)     # 精确的 PC 比较
 hit = valid & tag_match
 
-# In update:
-btb_tags[index] = pc              # Store full PC
+# 在 update 中：
+btb_tags[index] = pc              # 存储完整 PC
 ```
 
-This approach is simpler and avoids bit-manipulation errors while maintaining correctness.
+这种方法更简单，避免了位操作错误，同时保持了正确性。
 
-### Tag Matching
-When looking up a PC:
-1. Extract index to find BTB entry
-2. Check valid bit
-3. Compare stored PC with lookup PC (full PC comparison)
-4. Hit if valid AND PCs match exactly
+### 标签匹配
+查找 PC 时：
+1. 提取索引以找到 BTB 条目
+2. 检查有效位
+3. 比较存储的 PC 与查找的 PC（完整 PC 比较）
+4. 如果有效且 PC 完全匹配则命中
 
-**Note**: The BTB uses full PC comparison for simplicity and correctness. This means:
-- Each BTB index can hold one unique PC
-- Different PCs mapping to the same index will cause replacements (conflict misses)
-- No aliasing issues - only exact PC matches result in hits
+**注意**：BTB 使用完整的 PC 比较以保证简单性和正确性。这意味着：
+- 每个 BTB 索引可以保存一个唯一的 PC
+- 映射到同一索引的不同 PC 将导致替换（冲突缺失）
+- 没有别名问题 - 只有精确的 PC 匹配才会导致命中
 
-## Testing and Validation
+## 测试与验证
 
-### Unit Testing
-A validation script (`validate_fixes.py`) verifies:
-1. DCache address conversion correctness
-2. BTB indexing produces correct indices
-3. BTB tag matching correctly identifies hits/misses
+### 单元测试
+验证脚本 (`validate_fixes.py`) 验证：
+1. DCache 地址转换的正确性
+2. BTB 索引产生正确的索引
+3. BTB 标签匹配正确识别命中/未命中
 
-### Expected Results
+### 预期结果
 
-With these changes:
-- **DCache panic is fixed**: Addresses are properly converted to word indices
-- **Branch prediction enabled**: BTB provides one-cycle predictions
-- **0to100 and my0to100 should run**: Both workloads should execute without panics
+通过这些更改：
+- **DCache 崩溃已修复**：地址已正确转换为字索引
+- **分支预测已启用**：BTB 提供单周期预测
+- **0to100 和 my0to100 应该能运行**：两个工作负载都应该能够执行而不会崩溃
 
-## Performance Considerations
+## 性能考虑
 
-### BTB Benefits
-- **One-cycle prediction**: No pipeline bubbles for predicted branches
-- **Reduced misprediction penalty**: Correct predictions avoid flush
-- **Simple implementation**: Direct-mapped, minimal complexity
+### BTB 优势
+- **单周期预测**：预测的分支没有流水线气泡
+- **减少预测错误惩罚**：正确的预测避免刷新
+- **简单实现**：直接映射，复杂度最小
 
-### BTB Limitations
-- **Capacity**: Only 64 entries, may thrash on large code
-- **Conflict misses**: Multiple branches mapping to same index
-- **No direction prediction**: Assumes branches taken (unconditional predict)
+### BTB 限制
+- **容量**：只有 64 个条目，在大代码上可能会抖动
+- **冲突缺失**：多个分支映射到同一索引
+- **无方向预测**：假设分支跳转（无条件预测）
 
-### Potential Enhancements
-1. **Larger BTB**: Increase entries to 128 or 256
-2. **2-bit saturating counter**: Add direction prediction
-3. **Set-associative**: Reduce conflict misses
-4. **Return address stack**: Optimize function returns
+### 潜在改进
+1. **更大的 BTB**：将条目增加到 128 或 256
+2. **2 位饱和计数器**：添加方向预测
+3. **组相联**：减少冲突缺失
+4. **返回地址栈**：优化函数返回
 
-## Files Modified
+## 修改的文件
 
-1. **src/btb.py** (NEW): BTB implementation
-   - BTB module with storage arrays
-   - BTBImpl with predict and update methods
+1. **src/btb.py**（新文件）：BTB 实现
+   - 带有存储数组的 BTB 模块
+   - 带有预测和更新方法的 BTBImpl
 
-2. **src/execution.py**: 
-   - Fixed dcache address conversion (line ~240)
-   - Added BTB update on branch resolution
+2. **src/execution.py**： 
+   - 修复了 dcache 地址转换（第 ~240 行）
+   - 在分支解析时添加 BTB 更新
 
-3. **src/fetch.py**:
-   - Added BTB prediction in FetcherImpl
-   - Uses BTB target when hit, else PC+4
+3. **src/fetch.py**：
+   - 在 FetcherImpl 中添加 BTB 预测
+   - 命中时使用 BTB 目标，否则使用 PC+4
 
-4. **src/main.py**:
-   - Import BTB modules
-   - Instantiate BTB in build_cpu
-   - Wire BTB through pipeline stages
+4. **src/main.py**：
+   - 导入 BTB 模块
+   - 在 build_cpu 中实例化 BTB
+   - 将 BTB 连接到流水线各级
 
-## Debugging Notes
+## 调试说明
 
-### If DCache Panic Still Occurs
-1. Check that all memory accesses use word addressing
-2. Verify address space doesn't exceed 256KB (64K words × 4 bytes)
-3. Add bounds checking in execution stage
+### 如果 DCache 崩溃仍然发生
+1. 检查所有内存访问是否使用字地址
+2. 验证地址空间不超过 256KB（64K 字 × 4 字节）
+3. 在执行阶段添加边界检查
 
-### If BTB Doesn't Work
-1. Check BTB logs in simulation output
-2. Verify tag comparison logic matches storage
-3. Ensure branches are updating BTB correctly
-4. Check for off-by-one errors in index calculation
+### 如果 BTB 不工作
+1. 检查模拟输出中的 BTB 日志
+2. 验证标签比较逻辑与存储匹配
+3. 确保分支正确更新 BTB
+4. 检查索引计算中的差一错误
 
-## References
+## 参考
 
-- Original issue: Index out of bounds in dcache.rs:78
-- Panic address: 262120 (0x0003FFE8) → word index 65530 (valid)
-- Solution: Address conversion prevents misuse of byte addresses as indices
-- BTB design follows standard direct-mapped cache architecture
+- 原始问题：dcache.rs:78 中的索引越界
+- 崩溃地址：262120 (0x0003FFE8) → 字索引 65530（有效）
+- 解决方案：地址转换防止将字节地址误用作索引
+- BTB 设计遵循标准的直接映射缓存架构

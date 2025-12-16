@@ -1,62 +1,62 @@
-# Quick Start: BTB and DCache Fix
+# 快速入门：BTB 和 DCache 修复
 
-## Summary of Changes
+## 更改摘要
 
-This PR fixes a critical dcache panic and implements branch prediction via BTB.
+本 PR 修复了一个关键的 dcache 崩溃问题，并通过 BTB 实现了分支预测。
 
-### 🐛 Bug Fix: DCache Index Out of Bounds
-- **File**: `src/execution.py`
-- **Issue**: Byte addresses used directly as word indices → panic at index 262120
-- **Fix**: Convert byte address to word index with right shift by 2
+### 🐛 错误修复：DCache 索引越界
+- **文件**: `src/execution.py`
+- **问题**: 字节地址直接用作字索引 → 在索引 262120 处崩溃
+- **修复**: 通过右移 2 位将字节地址转换为字索引
 
-### 🚀 Feature: Branch Target Buffer (BTB)
-- **Files**: `src/btb.py` (new), `src/fetch.py`, `src/execution.py`, `src/main.py`
-- **Architecture**: Direct-mapped, 64 entries, one-cycle prediction
-- **Integration**: Fetch stage queries BTB, Execution stage updates on branches
+### 🚀 功能：分支目标缓冲器 (BTB)
+- **文件**: `src/btb.py`（新文件）、`src/fetch.py`、`src/execution.py`、`src/main.py`
+- **架构**: 直接映射，64 个条目，单周期预测
+- **集成**: 取指阶段查询 BTB，执行阶段在分支时更新
 
-## Testing
+## 测试
 
-### Without Assassyn Container (Local Validation)
+### 无需 Assassyn 容器（本地验证）
 ```bash
 python3 /tmp/validate_fixes.py
 ```
-This validates the addressing and indexing logic.
+这将验证地址和索引逻辑。
 
-### With Assassyn Container (Full Integration)
+### 使用 Assassyn 容器（完整集成）
 ```bash
 cd src
-# Edit main.py to select workload:
-# load_test_case("0to100")      # or
+# 编辑 main.py 以选择工作负载:
+# load_test_case("0to100")      # 或
 # load_test_case("my0to100")
 
 python3 main.py
 ```
 
-Expected: No panic, successful execution with BTB predictions logged.
+预期结果：无崩溃，成功执行并记录 BTB 预测。
 
-## Documentation
+## 文档
 
-See `docs/BTB_AND_DCACHE_FIX.md` for comprehensive documentation including:
-- Detailed problem analysis
-- BTB architecture and addressing scheme
-- Integration points with code examples
-- Debugging guidance
+参见 `docs/BTB_AND_DCACHE_FIX.md` 获取全面的文档，包括：
+- 详细的问题分析
+- BTB 架构和地址方案
+- 集成点及代码示例
+- 调试指南
 
-## Verification Checklist
+## 验证清单
 
-- [x] DCache addressing fix applied
-- [x] BTB module implemented
-- [x] BTB integrated into Fetch stage
-- [x] BTB integrated into Execution stage
-- [x] Top-level wiring completed
-- [x] Logic validated with unit tests
-- [x] Documentation created
-- [ ] Full integration test (requires Assassyn container)
+- [x] 已应用 DCache 地址修复
+- [x] 已实现 BTB 模块
+- [x] BTB 已集成到取指阶段
+- [x] BTB 已集成到执行阶段
+- [x] 顶层布线已完成
+- [x] 逻辑已通过单元测试验证
+- [x] 文档已创建
+- [ ] 完整集成测试（需要 Assassyn 容器）
 
-## Expected Impact
+## 预期影响
 
-1. **DCache Panic**: ✓ Fixed - addresses properly converted
-2. **Branch Prediction**: ✓ Enabled - one-cycle BTB predictions
-3. **0to100 Workload**: Should run successfully
-4. **my0to100 Workload**: Should run successfully without panic
-5. **Performance**: Improved on branch-heavy code (reduced misprediction penalty)
+1. **DCache 崩溃**: ✓ 已修复 - 地址已正确转换
+2. **分支预测**: ✓ 已启用 - 单周期 BTB 预测
+3. **0to100 工作负载**: 应该成功运行
+4. **my0to100 工作负载**: 应该成功运行而不会崩溃
+5. **性能**: 在分支密集型代码上有所改进（减少了预测错误的惩罚）
