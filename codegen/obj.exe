@@ -5,75 +5,49 @@ cpu.elf:     file format elf32-littleriscv
 Disassembly of section .text:
 
 00000000 <_start>:
-   0:	00002117          	auipc	sp,0x2
+   0:	00001117          	auipc	sp,0x1
    4:	00010113          	mv	sp,sp
-   8:	054000ef          	jal	5c <main>
+   8:	008000ef          	jal	10 <main>
 
 0000000c <loop>:
    c:	0000006f          	j	c <loop>
 
-00000010 <add>:
-  10:	fd010113          	addi	sp,sp,-48 # 1fd0 <result_C+0x1670>
-  14:	02812623          	sw	s0,44(sp)
-  18:	03010413          	addi	s0,sp,48
-  1c:	fca42e23          	sw	a0,-36(s0)
-  20:	fcb42c23          	sw	a1,-40(s0)
-  24:	fe042623          	sw	zero,-20(s0)
-  28:	fec42703          	lw	a4,-20(s0)
-  2c:	fdc42783          	lw	a5,-36(s0)
+00000010 <main>:
+  10:	fe010113          	addi	sp,sp,-32 # fe0 <result_C+0x680>
+  14:	00812e23          	sw	s0,28(sp)
+  18:	02010413          	addi	s0,sp,32
+  1c:	fe042623          	sw	zero,-20(s0)
+  20:	0540006f          	j	74 <main+0x64>
+  24:	00000713          	li	a4,0
+  28:	fec42783          	lw	a5,-20(s0)
+  2c:	00279793          	slli	a5,a5,0x2
   30:	00f707b3          	add	a5,a4,a5
-  34:	fef42623          	sw	a5,-20(s0)
-  38:	fec42703          	lw	a4,-20(s0)
-  3c:	fd842783          	lw	a5,-40(s0)
-  40:	00f707b3          	add	a5,a4,a5
-  44:	fef42623          	sw	a5,-20(s0)
-  48:	fec42783          	lw	a5,-20(s0)
-  4c:	00078513          	mv	a0,a5
-  50:	02c12403          	lw	s0,44(sp)
-  54:	03010113          	addi	sp,sp,48
-  58:	00008067          	ret
-
-0000005c <main>:
-  5c:	fe010113          	addi	sp,sp,-32
-  60:	00112e23          	sw	ra,28(sp)
-  64:	00812c23          	sw	s0,24(sp)
-  68:	02010413          	addi	s0,sp,32
-  6c:	fe042623          	sw	zero,-20(s0)
-  70:	0600006f          	j	d0 <main+0x74>
-  74:	00000713          	li	a4,0
-  78:	fec42783          	lw	a5,-20(s0)
-  7c:	00279793          	slli	a5,a5,0x2
-  80:	00f707b3          	add	a5,a4,a5
-  84:	0007a683          	lw	a3,0(a5)
-  88:	4b000713          	li	a4,1200
-  8c:	fec42783          	lw	a5,-20(s0)
-  90:	00279793          	slli	a5,a5,0x2
-  94:	00f707b3          	add	a5,a4,a5
-  98:	0007a783          	lw	a5,0(a5)
-  9c:	00078593          	mv	a1,a5
-  a0:	00068513          	mv	a0,a3
-  a4:	f6dff0ef          	jal	10 <add>
-  a8:	00050693          	mv	a3,a0
-  ac:	000017b7          	lui	a5,0x1
-  b0:	96078713          	addi	a4,a5,-1696 # 960 <result_C>
-  b4:	fec42783          	lw	a5,-20(s0)
-  b8:	00279793          	slli	a5,a5,0x2
-  bc:	00f707b3          	add	a5,a4,a5
-  c0:	00d7a023          	sw	a3,0(a5)
-  c4:	fec42783          	lw	a5,-20(s0)
-  c8:	00178793          	addi	a5,a5,1
-  cc:	fef42623          	sw	a5,-20(s0)
-  d0:	fec42703          	lw	a4,-20(s0)
-  d4:	12b00793          	li	a5,299
-  d8:	f8e7dee3          	bge	a5,a4,74 <main+0x18>
-  dc:	000017b7          	lui	a5,0x1
-  e0:	96078793          	addi	a5,a5,-1696 # 960 <result_C>
-  e4:	4ac7a783          	lw	a5,1196(a5)
-  e8:	00078513          	mv	a0,a5
-  ec:	01c12083          	lw	ra,28(sp)
-  f0:	01812403          	lw	s0,24(sp)
-  f4:	02010113          	addi	sp,sp,32
-  f8:	00008067          	ret
+  34:	0007a703          	lw	a4,0(a5)
+  38:	4b000693          	li	a3,1200
+  3c:	fec42783          	lw	a5,-20(s0)
+  40:	00279793          	slli	a5,a5,0x2
+  44:	00f687b3          	add	a5,a3,a5
+  48:	0007a783          	lw	a5,0(a5)
+  4c:	00f70733          	add	a4,a4,a5
+  50:	000017b7          	lui	a5,0x1
+  54:	96078693          	addi	a3,a5,-1696 # 960 <result_C>
+  58:	fec42783          	lw	a5,-20(s0)
+  5c:	00279793          	slli	a5,a5,0x2
+  60:	00f687b3          	add	a5,a3,a5
+  64:	00e7a023          	sw	a4,0(a5)
+  68:	fec42783          	lw	a5,-20(s0)
+  6c:	00178793          	addi	a5,a5,1
+  70:	fef42623          	sw	a5,-20(s0)
+  74:	fec42703          	lw	a4,-20(s0)
+  78:	12b00793          	li	a5,299
+  7c:	fae7d4e3          	bge	a5,a4,24 <main+0x14>
+  80:	000017b7          	lui	a5,0x1
+  84:	96078793          	addi	a5,a5,-1696 # 960 <result_C>
+  88:	4ac7a783          	lw	a5,1196(a5)
+  8c:	00078513          	mv	a0,a5
+  90:	01c12403          	lw	s0,28(sp)
+  94:	02010113          	addi	sp,sp,32
+  98:	00008067          	ret
 
 Disassembly of section .data:
 
@@ -177,7 +151,7 @@ Disassembly of section .data:
   de:	0000                	.insn	2, 0x
   e0:	00b5                	.insn	2, 0x00b5
   e2:	0000                	.insn	2, 0x
-  e4:	0000006f          	j	e4 <main+0x88>
+  e4:	0000006f          	j	e4 <main+0xd4>
   e8:	0000035b          	.insn	4, 0x035b
   ec:	0041                	.insn	2, 0x0041
   ee:	0000                	.insn	2, 0x
@@ -230,7 +204,7 @@ Disassembly of section .data:
  15a:	0000                	.insn	2, 0x
  15c:	0116                	.insn	2, 0x0116
  15e:	0000                	.insn	2, 0x
- 160:	0000016f          	jal	sp,160 <main+0x104>
+ 160:	0000016f          	jal	sp,160 <main+0x150>
  164:	0166                	.insn	2, 0x0166
  166:	0000                	.insn	2, 0x
  168:	0248                	.insn	2, 0x0248
@@ -513,7 +487,7 @@ Disassembly of section .data:
  402:	0000                	.insn	2, 0x
  404:	00000323          	sb	zero,6(zero) # 6 <input_A+0x6>
  408:	00000333          	add	t1,zero,zero
- 40c:	000002ef          	jal	t0,40c <main+0x3b0>
+ 40c:	000002ef          	jal	t0,40c <main+0x3fc>
  410:	0118                	.insn	2, 0x0118
  412:	0000                	.insn	2, 0x
  414:	0055                	.insn	2, 0x0055
@@ -989,7 +963,7 @@ Disassembly of section .data:
  852:	0000                	.insn	2, 0x
  854:	000c                	.insn	2, 0x000c
  856:	0000                	.insn	2, 0x
- 858:	000001e3          	beqz	zero,105a <result_C+0x6fa>
+ 858:	000001e3          	beqz	zero,105a <__stack_top+0x5a>
  85c:	008e                	.insn	2, 0x008e
  85e:	0000                	.insn	2, 0x
  860:	00000153          	.insn	4, 0x0153
@@ -1109,7 +1083,7 @@ Disassembly of section .riscv.attributes:
    2:	0000                	.insn	2, 0x
    4:	7200                	.insn	2, 0x7200
    6:	7369                	.insn	2, 0x7369
-   8:	01007663          	bgeu	zero,a6,14 <add+0x4>
+   8:	01007663          	bgeu	zero,a6,14 <main+0x4>
    c:	0011                	.insn	2, 0x0011
    e:	0000                	.insn	2, 0x
   10:	1004                	.insn	2, 0x1004

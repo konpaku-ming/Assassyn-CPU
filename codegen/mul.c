@@ -45,14 +45,6 @@ int input_B[DATA_SIZE] = {
 
 int result_C[DATA_SIZE] = {0}; // 存放结果
 
-__attribute__((noinline))
-int add(int a, int b) {
-    int res = 0;
-    res += a;
-    res += b;
-    return res;
-}
-
 // =========================================================
 // 主函数
 // =========================================================
@@ -62,7 +54,7 @@ int main() {
     // 向量加法
     for (i = 0; i < DATA_SIZE; i++) {
         // C[i] = A[i] + B[i]
-        result_C[i] = add(input_A[i], input_B[i]);
+        result_C[i] = input_A[i] + input_B[i];
     }
 
     // 结束
