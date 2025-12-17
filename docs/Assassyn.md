@@ -196,12 +196,12 @@
 
 ### 1. `signal[high:low]`
 *   **作用**：位截取 (Bit Slicing)。
-    > Assassyn 使用 **[高位:低位]** 的闭区间格式（类似 Verilog），与 Python 原生的 `[start:end]`（左闭右开）不同。
+    > Assassyn 使用 **[低位:高位]** 的闭区间格式（类似 Verilog），与 Python 原生的 `[start:end]`（左闭右开）不同。
 *   **物理含义**：从总线中引出部分导线。
 *   **示例**：
     ```python
     # 提取低 8 位
-    byte = word[7:0] 
+    byte = word[0:7] 
     # 提取第 31 位 (符号位)
     sign = word[31:31]
     ```

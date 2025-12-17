@@ -81,10 +81,10 @@ class FetcherImpl(Downstream):
             btb_tags=btb_tags,
             btb_targets=btb_targets,
         )
-        
+
         # 如果 BTB 命中，使用预测目标；否则默认 PC + 4
         predicted_next_pc = btb_hit.select(btb_predicted_target, final_current_pc + UInt(32)(4))
-        
+
         # 最终的 Next PC
         final_next_pc = predicted_next_pc
 
