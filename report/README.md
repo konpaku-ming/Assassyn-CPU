@@ -1,15 +1,20 @@
-# BTB Performance Analysis Report
+# Performance Analysis Reports
 
-This folder contains the performance analysis report comparing BTB (Branch Target Buffer) performance with a theoretical 50% branch prediction error rate.
+This folder contains performance analysis reports for the Assassyn-CPU.
 
 ## Contents
 
-- **BTB性能分析报告.md** - Complete performance analysis report in Chinese
-- **performance_data.json** - Raw performance metrics extracted from log files
+### 1. BTB Performance Analysis
+- **BTB性能分析报告.md** - Complete BTB performance analysis report in Chinese
+- **performance_data.json** - Raw BTB performance metrics extracted from log files
+
+### 2. Bypass Performance Analysis
+- **Bypass性能分析报告.md** - Complete Bypass mechanism performance analysis report in Chinese
+- **bypass_performance_data.json** - Raw Bypass performance metrics extracted from log files
 
 ## Quick Summary
 
-### Performance Improvement with BTB
+### 1. Performance Improvement with BTB
 
 | Workload | Actual Cycles (BTB) | Theoretical Cycles (50% Error) | Improvement | BTB Hit Rate on Branches |
 |----------|---------------------|--------------------------------|-------------|--------------------------|
@@ -17,12 +22,25 @@ This folder contains the performance analysis report comparing BTB (Branch Targe
 | multiply | 4,640               | 5,372                          | 13.63%      | 78.77%                  |
 | vvadd    | 8,433               | 8,874                          | 4.97%       | 98.68%                  |
 
-### Key Findings
-
+**Key Findings**:
 1. **High BTB Hit Rate on Branch Instructions**: BTB achieves 78.77% to 99% hit rate on actual branch instructions
 2. **Performance Gain Varies by Workload**: From **5%** to **26%** improvement depending on branch instruction density
 3. **Low Misprediction Rate**: Actual pipeline flushes are extremely low (2-8 times) compared to theoretical expectations
 4. **Effective for Loop-Intensive Programs**: Simple loop programs achieve near-perfect BTB hit rates (99%)
+
+### 2. Performance Improvement with Bypass
+
+| Workload | With Bypass | Without Bypass (Theory) | Improvement | Improvement % |
+|----------|-------------|-------------------------|-------------|---------------|
+| 0to100   | 412         | 616                     | 204         | **33.12%**   |
+| multiply | 4,640       | 7,756                   | 3,116       | **40.18%**   |
+| vvadd    | 8,433       | 15,949                  | 7,516       | **47.13%**   |
+
+**Key Findings**:
+1. **Significant Performance Gains**: Bypass mechanism provides 33-47% performance improvement across all workloads
+2. **Eliminates Pipeline Stalls**: Bypass eliminates thousands of cycles that would be wasted on data hazard stalls
+3. **Most Effective for Compute-Intensive Programs**: vvadd shows the highest improvement (47.13%) due to dense data dependencies
+4. **Multi-level Bypass Essential**: All three bypass types (EX-MEM, MEM-WB, WB) are heavily used and necessary
 
 ## Data Sources
 
