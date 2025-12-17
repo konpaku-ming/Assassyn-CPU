@@ -3,17 +3,17 @@
     "actual": {
       "total_cycles": 412,
       "btb_hits": 99,
-      "btb_misses": 311,
-      "total_branches": 410,
-      "btb_accuracy": 24.146341463414632,
+      "btb_misses_all_instructions": 311,
+      "total_branches": 100,
+      "btb_hit_rate_on_branches": 99.0,
       "flushes": 2,
       "branches_taken": 0,
       "branches_not_taken": 0
     },
     "theoretical": {
-      "theoretical_cycles": 1021,
-      "theoretical_mispredictions": 205,
-      "theoretical_penalty_cycles": 615,
+      "theoretical_cycles": 556,
+      "theoretical_mispredictions": 50,
+      "theoretical_penalty_cycles": 150,
       "actual_penalty_cycles": 6,
       "base_cycles": 406
     }
@@ -22,17 +22,17 @@
     "actual": {
       "total_cycles": 4640,
       "btb_hits": 397,
-      "btb_misses": 4241,
-      "total_branches": 4638,
-      "btb_accuracy": 8.559724018973695,
+      "btb_misses_all_instructions": 4241,
+      "total_branches": 504,
+      "btb_hit_rate_on_branches": 78.77,
       "flushes": 8,
       "branches_taken": 0,
       "branches_not_taken": 0
     },
     "theoretical": {
-      "theoretical_cycles": 11573,
-      "theoretical_mispredictions": 2319,
-      "theoretical_penalty_cycles": 6957,
+      "theoretical_cycles": 5372,
+      "theoretical_mispredictions": 252,
+      "theoretical_penalty_cycles": 756,
       "actual_penalty_cycles": 24,
       "base_cycles": 4616
     }
@@ -41,17 +41,17 @@
     "actual": {
       "total_cycles": 8433,
       "btb_hits": 300,
-      "btb_misses": 8131,
-      "total_branches": 8431,
-      "btb_accuracy": 3.5582967619499466,
+      "btb_misses_all_instructions": 8131,
+      "total_branches": 304,
+      "btb_hit_rate_on_branches": 98.68,
       "flushes": 5,
       "branches_taken": 0,
       "branches_not_taken": 0
     },
     "theoretical": {
-      "theoretical_cycles": 21063,
-      "theoretical_mispredictions": 4215,
-      "theoretical_penalty_cycles": 12645,
+      "theoretical_cycles": 8874,
+      "theoretical_mispredictions": 152,
+      "theoretical_penalty_cycles": 456,
       "actual_penalty_cycles": 15,
       "base_cycles": 8418
     }
