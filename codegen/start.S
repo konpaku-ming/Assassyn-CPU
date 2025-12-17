@@ -8,6 +8,5 @@ _start:
     # 跳转到 C 的 main
     call main
 
-    # 死循环
-loop:
-    j loop
+    # 停机指令 (用于模拟器)
+    ebreak
