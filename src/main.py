@@ -141,7 +141,7 @@ def build_cpu(depth_log=16):
         driver = Driver()
 
         # 3. 逆序构建
-        
+
         # --- Step 0: BTB 构建（需要在使用前构建） ---
         btb_valid, btb_tags, btb_targets = btb.build()
 
@@ -231,7 +231,7 @@ def build_cpu(depth_log=16):
 
 if __name__ == "__main__":
     # 构建 CPU 模块
-    load_test_case("0to100")
+    load_test_case("multiply")
     sys_builder = build_cpu(depth_log=16)
 
     circ_path = os.path.join(workspace, f"circ.txt")

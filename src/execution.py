@@ -253,12 +253,12 @@ class Execution(Module):
 
         # 专用加法器永远做 Base + Imm
         imm_signed = imm.bitcast(Int(32))
-        log("EX: Branch Target Base: 0x{:x}", target_base)
-        target_base_signed = target_base.bitcast(Int(32))
         log("EX: Branch Immediate: 0x{:x}", imm)
+        target_base_signed = target_base.bitcast(Int(32))
+        log("EX: Branch Target Base: 0x{:x}", target_base)
         raw_calc_target = (target_base_signed + imm_signed).bitcast(Bits(32))
         calc_target = is_jalr.select(
-            concat(raw_calc_target[0:30], Bits(1)(0)),  # JALR: 目标地址最低位清0
+            concat(raw_calc_target[1:31], Bits(1)(0)),  # JALR: 目标地址最低位清0
             raw_calc_target,  # Branch / JAL: 直接使用计算结果
         )
 
@@ -294,7 +294,7 @@ class Execution(Module):
 
         # 根据不同的分支类型判断分支条件
         is_eq = alu_result == Bits(32)(0)
-        is_lt = alu_result[31:31] == Bits(1)(1)  # 符号位为1表示小于
+        is_lt = alu_result[0:0] == Bits(1)(1)  # 符号位为1表示小于
 
         # BEQ, BNE 使用等于判断
         is_taken_eq = (ctrl.branch_type == BranchType.BEQ) & is_eq
