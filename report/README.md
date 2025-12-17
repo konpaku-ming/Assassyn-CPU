@@ -14,7 +14,7 @@ This folder contains performance analysis reports for the Assassyn-CPU.
 
 ## Quick Summary
 
-### 1. Performance Improvement with BTB
+### BTB Performance Improvement
 
 | Workload | Actual Cycles (BTB) | Theoretical Cycles (50% Error) | Improvement | BTB Hit Rate on Branches |
 |----------|---------------------|--------------------------------|-------------|--------------------------|
@@ -28,7 +28,7 @@ This folder contains performance analysis reports for the Assassyn-CPU.
 3. **Low Misprediction Rate**: Actual pipeline flushes are extremely low (2-8 times) compared to theoretical expectations
 4. **Effective for Loop-Intensive Programs**: Simple loop programs achieve near-perfect BTB hit rates (99%)
 
-### 2. Performance Improvement with Bypass
+### Bypass Performance Improvement
 
 | Workload | With Bypass | Without Bypass (Theory) | Improvement | Improvement % |
 |----------|-------------|-------------------------|-------------|---------------|

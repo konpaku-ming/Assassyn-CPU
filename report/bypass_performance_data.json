@@ -7,7 +7,7 @@
     "total_stalls_without_bypass": 204,
     "theoretical_cycles_no_bypass": 616,
     "performance_improvement": 204,
-    "improvement_percentage": 33.116883116883116
+    "improvement_percentage": 33.12
   },
   "multiply": {
     "total_cycles_with_bypass": 4640,
@@ -17,7 +17,7 @@
     "total_stalls_without_bypass": 3116,
     "theoretical_cycles_no_bypass": 7756,
     "performance_improvement": 3116,
-    "improvement_percentage": 40.17534811758638
+    "improvement_percentage": 40.18
   },
   "vvadd": {
     "total_cycles_with_bypass": 8433,
@@ -27,6 +27,6 @@
     "total_stalls_without_bypass": 7516,
     "theoretical_cycles_no_bypass": 15949,
     "performance_improvement": 7516,
-    "improvement_percentage": 47.12521161201329
+    "improvement_percentage": 47.13
   }
 }
