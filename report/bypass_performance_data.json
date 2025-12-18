@@ -17,7 +17,7 @@
     "total_stalls_without_bypass": 1005,
     "theoretical_cycles_no_bypass": 5645,
     "performance_improvement": 1005,
-    "improvement_percentage": 17.8
+    "improvement_percentage": 17.80
   },
   "vvadd": {
     "total_cycles_with_bypass": 8433,
