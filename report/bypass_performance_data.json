@@ -4,29 +4,29 @@
     "ex_mem_bypass": 2,
     "mem_wb_bypass": 200,
     "wb_bypass": 301,
-    "total_stalls_without_bypass": 204,
-    "theoretical_cycles_no_bypass": 616,
-    "performance_improvement": 204,
-    "improvement_percentage": 33.12
+    "total_stalls_without_bypass": 2,
+    "theoretical_cycles_no_bypass": 414,
+    "performance_improvement": 2,
+    "improvement_percentage": 0.48
   },
   "multiply": {
     "total_cycles_with_bypass": 4640,
     "ex_mem_bypass": 1005,
     "mem_wb_bypass": 1106,
     "wb_bypass": 1311,
-    "total_stalls_without_bypass": 3116,
-    "theoretical_cycles_no_bypass": 7756,
-    "performance_improvement": 3116,
-    "improvement_percentage": 40.18
+    "total_stalls_without_bypass": 1005,
+    "theoretical_cycles_no_bypass": 5645,
+    "performance_improvement": 1005,
+    "improvement_percentage": 17.8
   },
   "vvadd": {
     "total_cycles_with_bypass": 8433,
     "ex_mem_bypass": 2706,
     "mem_wb_bypass": 2104,
     "wb_bypass": 2706,
-    "total_stalls_without_bypass": 7516,
-    "theoretical_cycles_no_bypass": 15949,
-    "performance_improvement": 7516,
-    "improvement_percentage": 47.13
+    "total_stalls_without_bypass": 2706,
+    "theoretical_cycles_no_bypass": 11139,
+    "performance_improvement": 2706,
+    "improvement_percentage": 24.29
   }
 }

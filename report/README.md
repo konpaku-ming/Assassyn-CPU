@@ -32,15 +32,15 @@ This folder contains performance analysis reports for the Assassyn-CPU.
 
 | Workload | With Bypass | Without Bypass (Theory) | Improvement | Improvement % |
 |----------|-------------|-------------------------|-------------|---------------|
-| 0to100   | 412         | 616                     | 204         | **33.12%**   |
-| multiply | 4,640       | 7,756                   | 3,116       | **40.18%**   |
-| vvadd    | 8,433       | 15,949                  | 7,516       | **47.13%**   |
+| 0to100   | 412         | 414                     | 2           | **0.48%**    |
+| multiply | 4,640       | 5,645                   | 1,005       | **17.80%**   |
+| vvadd    | 8,433       | 11,139                  | 2,706       | **24.29%**   |
 
-**Key Findings**:
-1. **Significant Performance Gains**: Bypass mechanism provides 33-47% performance improvement across all workloads
-2. **Eliminates Pipeline Stalls**: Bypass eliminates thousands of cycles that would be wasted on data hazard stalls
-3. **Most Effective for Compute-Intensive Programs**: vvadd shows the highest improvement (47.13%) due to dense data dependencies
-4. **Multi-level Bypass Essential**: All three bypass types (EX-MEM, MEM-WB, WB) are heavily used and necessary
+**Key Findings** (Half-Cycle Timing Design):
+1. **EX-MEM Bypass is Critical**: Only EX-MEM Bypass (distance-1 dependencies) actually saves cycles (1 cycle per use)
+2. **Half-Cycle Timing Advantage**: MEM-WB and WB Bypass provide correct data routing but save 0 cycles due to half-cycle register writes
+3. **Performance Varies by Dependency Pattern**: 0.48%-24.29% improvement depending on distance-1 dependency density
+4. **Architecture Success**: Half-cycle timing design inherently avoids most stalls, reducing Bypass necessity
 
 ## Data Sources
 
