@@ -208,6 +208,35 @@ WB Bypass: 301 次 × 1 周期 = 301 周期
 性能提升百分比 = (707 / 1,119) × 100% = 63.18%
 ```
 
+### 5.4 WB Bypass 为何必要：实例说明
+
+考虑以下指令序列：
+
+```assembly
+Cycle T:   IF  |  ID  |  EX  | MEM  |  WB     # 指令 a: ADD x10, x1, x2
+Cycle T+1: IF  |  ID  |  EX  | MEM  |  WB     # 指令 b: 无关指令
+Cycle T+2: IF  |  ID  |  EX  | MEM  |  WB     # 指令 c: 无关指令
+Cycle T+3: IF  |  ID  |  EX  | MEM  |  WB     # 指令 d: ADD x11, x10, x3（使用 x10）
+```
+
+**场景分析**：
+
+**有 WB Bypass（实际情况）**：
+- Cycle T+3: 指令 d 在 ID 阶段读取 x10
+- Cycle T+4: 指令 d 在 EX 阶段，通过 WB Bypass 从指令 a（已在 WB 阶段的旁路寄存器）获取 x10 的值
+- **总周期**：正常执行，无停顿
+
+**无 WB Bypass（假设场景）**：
+- Cycle T+3: 指令 d 在 ID 阶段读取 x10，但 x10 的新值尚未写入寄存器文件（指令 a 刚完成 WB）
+- 由于寄存器文件不支持同周期写后读，x10 的新值要到 Cycle T+4 才能从寄存器文件读取
+- Cycle T+4: 指令 d 在 EX 阶段，但必须等待 x10 从寄存器文件读取
+- **需要停顿 1 个周期**
+
+**关键点**：
+- 即使指令 a 和指令 d 之间隔了 2 条指令（距离为 3），由于寄存器文件的硬件限制，仍然需要 WB Bypass
+- 如果寄存器文件支持同周期写后读（上升沿写、下降沿读），则可以在 Cycle T+3 的 WB 阶段写入 x10，同时在 ID 阶段读取 x10，此时不需要 WB Bypass
+- **但 Assassyn 不支持这种操作**，因此 WB Bypass 可以避免 1 个周期的停顿
+
 ---
 
 ## 6. 总结
