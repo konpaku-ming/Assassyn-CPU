@@ -107,13 +107,6 @@ def build_cpu(depth_log=32):
         icache.name = "icache"
 
         # 寄存器堆
-        # Initialize register file with stack pointer (x2/sp) set to a valid stack base
-        # Stack grows downward from the top of the 64K word address space
-        # dcache has 2^depth_log words, each 4 bytes
-        # Valid byte addresses: 0x0 to ((2^depth_log - 1) * 4)
-        # x2 = sp (stack pointer) points to the last valid word address
-        # reg_init = [0] * 32
-        # reg_init[2] = ((1 << depth_log) - 1) * 4  # Set sp to top of addressable memory
         reg_file = RegArray(Bits(32), 32)
 
         # 全局状态寄存器
