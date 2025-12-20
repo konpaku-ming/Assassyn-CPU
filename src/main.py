@@ -90,7 +90,7 @@ class Driver(Module):
         fetcher.async_called()
 
 
-def build_cpu(depth_log=16):
+def build_cpu(depth_log=32):
     sys_name = "rv32i_cpu"
     sys = SysBuilder(sys_name)
 
@@ -107,13 +107,6 @@ def build_cpu(depth_log=16):
         icache.name = "icache"
 
         # 寄存器堆
-        # Initialize register file with stack pointer (x2/sp) set to a valid stack base
-        # Stack grows downward from the top of the 64K word address space
-        # dcache has 2^depth_log words, each 4 bytes
-        # Valid byte addresses: 0x0 to ((2^depth_log - 1) * 4)
-        # x2 = sp (stack pointer) points to the last valid word address
-        # reg_init = [0] * 32
-        # reg_init[2] = ((1 << depth_log) - 1) * 4  # Set sp to top of addressable memory
         reg_file = RegArray(Bits(32), 32)
 
         # 全局状态寄存器
@@ -232,7 +225,7 @@ def build_cpu(depth_log=16):
 if __name__ == "__main__":
     # 构建 CPU 模块
     load_test_case("multiply")
-    sys_builder = build_cpu(depth_log=16)
+    sys_builder = build_cpu(depth_log=32)
 
     circ_path = os.path.join(workspace, f"circ.txt")
     with open(circ_path, "w") as f:
@@ -242,7 +235,7 @@ if __name__ == "__main__":
 
     # 配置
     cfg = config(
-        verilog=False,
+        verilog=True,
         sim_threshold=600000,
         resource_base="",
         idle_threshold=600000,
@@ -262,11 +255,19 @@ if __name__ == "__main__":
         raise e
 
     # 运行模拟器，捕获输出
-    print(f"🏃 Running simulation (Direct Output Mode)...")
+    print(f"🏃 Running simulation...")
+    print(simulator_path)
+    print(verilog_path)
     raw = utils.run_simulator(binary_path=binary_path)
-
     log_path = os.path.join(workspace, f"raw.log")
     with open(log_path, "w") as f:
         print(raw, file=f)
-    print(raw)
-    print("🔍 Verifying output...")
+
+    # 运行verilog模拟器，捕获输出
+    print(f"🏃 Running simulation(verilog)...")
+    raw = utils.run_verilator(verilog_path)
+    log_path = os.path.join(workspace, f"verilalog_raw.log")
+    with open(log_path, "w") as f:
+        print(raw, file=f)
+        
+    print("Done.")
