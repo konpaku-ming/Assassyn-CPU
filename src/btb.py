@@ -4,15 +4,15 @@ from assassyn.frontend import *
 class BTB(Module):
     """
     Branch Target Buffer (BTB) - Direct-mapped, one-cycle prediction
-    
+
     Provides fast branch target prediction by storing previously seen
     branch target addresses indexed by PC.
     """
-    
+
     def __init__(self, num_entries=64, index_bits=6):
         """
         Initialize BTB with configurable size.
-        
+
         Args:
             num_entries: Number of BTB entries (should be power of 2)
             index_bits: Number of bits to use for indexing (log2(num_entries))
@@ -23,7 +23,7 @@ class BTB(Module):
         self.index_bits = index_bits
         # Each entry contains: valid (1 bit) + tag (full 32-bit PC) + target (32 bits)
         # We'll use separate arrays for simplicity
-        
+
     @module.combinational
     def build(self):
         # BTB storage arrays
@@ -33,7 +33,7 @@ class BTB(Module):
         btb_tags = RegArray(Bits(32), self.num_entries, initializer=[0] * self.num_entries)
         # Target address storage
         btb_targets = RegArray(Bits(32), self.num_entries, initializer=[0] * self.num_entries)
-        
+
         # Expose BTB storage for BTBImpl to use
         return btb_valid, btb_tags, btb_targets
 
@@ -44,20 +44,20 @@ class BTBImpl:
     This is a helper class with pure combinational logic methods,
     not a Downstream module, to avoid circular dependencies.
     """
-    
+
     def __init__(self, num_entries=64, index_bits=6):
         self.name = "BTB_Impl"
         self.num_entries = num_entries
         self.index_bits = index_bits
         # Mask for extracting index from PC
         self.index_mask = (1 << index_bits) - 1
-        
+
     def predict(
-        self,
-        pc: Bits(32),  # Current PC to predict
-        btb_valid: Array,  # BTB valid bits
-        btb_tags: Array,  # BTB tags
-        btb_targets: Array,  # BTB targets
+            self,
+            pc: Bits(32),  # Current PC to predict
+            btb_valid: Array,  # BTB valid bits
+            btb_tags: Array,  # BTB tags
+            btb_targets: Array,  # BTB targets
     ):
         """
         Predict branch target for given PC.
@@ -65,41 +65,45 @@ class BTBImpl:
         """
         # Extract index from PC (word-aligned, so skip lowest 2 bits)
         # For 64 entries (6 index bits): bits [7:2] of PC
-        index = (pc >> UInt(32)(2)) & Bits(32)(self.index_mask)
-        
+        index_32 = (pc >> UInt(32)(2)) & Bits(32)(self.index_mask)
+        # Cast to proper bit width for array indexing
+        index = index_32[0:self.index_bits - 1].bitcast(Bits(self.index_bits))
+
         # Look up BTB entry
         entry_valid = btb_valid[index]
         entry_tag = btb_tags[index]
         entry_target = btb_targets[index]
-        
+
         # Check for hit: valid bit set AND PC matches (stored PC is full PC)
         # We compare full PCs to avoid bit manipulation issues
         tag_match = entry_tag == pc
         hit = entry_valid & tag_match
-        
+
         # Debug logging
         with Condition(hit == Bits(1)(1)):
             log("BTB: HIT at PC=0x{:x}, Index={}, Target=0x{:x}", pc, index, entry_target)
         with Condition(hit == Bits(1)(0)):
             log("BTB: MISS at PC=0x{:x}, Index={}", pc, index)
-        
+
         return hit, entry_target
-        
+
     def update(
-        self,
-        pc: Bits(32),  # Branch PC
-        target: Bits(32),  # Branch target
-        should_update: Value,  # Whether to update (branch taken)
-        btb_valid: Array,  # BTB valid bits
-        btb_tags: Array,  # BTB tags
-        btb_targets: Array,  # BTB targets
+            self,
+            pc: Bits(32),  # Branch PC
+            target: Bits(32),  # Branch target
+            should_update: Value,  # Whether to update (branch taken)
+            btb_valid: Array,  # BTB valid bits
+            btb_tags: Array,  # BTB tags
+            btb_targets: Array,  # BTB targets
     ):
         """
         Update BTB with resolved branch information.
         """
         # Extract index same as predict
-        index = (pc >> UInt(32)(2)) & Bits(32)(self.index_mask)
-        
+        index_32 = (pc >> UInt(32)(2)) & Bits(32)(self.index_mask)
+        # Cast to proper bit width for array indexing
+        index = index_32[0:self.index_bits - 1].bitcast(Bits(self.index_bits))
+
         with Condition(should_update == Bits(1)(1)):
             log("BTB: UPDATE at PC=0x{:x}, Index={}, Target=0x{:x}", pc, index, target)
             # Update entry: store full PC as tag for exact comparison
