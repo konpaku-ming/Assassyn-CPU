@@ -90,7 +90,7 @@ class Driver(Module):
         fetcher.async_called()
 
 
-def build_cpu(depth_log=16):
+def build_cpu(depth_log=32):
     sys_name = "rv32i_cpu"
     sys = SysBuilder(sys_name)
 
@@ -232,7 +232,7 @@ def build_cpu(depth_log=16):
 if __name__ == "__main__":
     # 构建 CPU 模块
     load_test_case("multiply")
-    sys_builder = build_cpu(depth_log=16)
+    sys_builder = build_cpu(depth_log=32)
 
     circ_path = os.path.join(workspace, f"circ.txt")
     with open(circ_path, "w") as f:
@@ -242,7 +242,7 @@ if __name__ == "__main__":
 
     # 配置
     cfg = config(
-        verilog=False,
+        verilog=True,
         sim_threshold=600000,
         resource_base="",
         idle_threshold=600000,
@@ -262,11 +262,19 @@ if __name__ == "__main__":
         raise e
 
     # 运行模拟器，捕获输出
-    print(f"🏃 Running simulation (Direct Output Mode)...")
+    print(f"🏃 Running simulation...")
+    print(simulator_path)
+    print(verilog_path)
     raw = utils.run_simulator(binary_path=binary_path)
-
     log_path = os.path.join(workspace, f"raw.log")
     with open(log_path, "w") as f:
         print(raw, file=f)
-    print(raw)
-    print("🔍 Verifying output...")
+
+    # 运行verilog模拟器，捕获输出
+    print(f"🏃 Running simulation(verilog)...")
+    raw = utils.run_verilator(verilog_path)
+    log_path = os.path.join(workspace, f"verilalog_raw.log")
+    with open(log_path, "w") as f:
+        print(raw, file=f)
+        
+    print("Done.")
