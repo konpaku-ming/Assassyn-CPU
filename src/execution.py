@@ -324,7 +324,7 @@ class Execution(Module):
             is_branch.select(
                 is_taken.select(
                     calc_target,  # Taken
-                    pc + Bits(32)(4),  # Not Taken
+                    (pc.bitcast(UInt(32)) + UInt(32)(4)).bitcast(Bits(32)),  # Not Taken
                 ),
                 ctrl.next_pc_addr,
             ),
