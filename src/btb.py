@@ -65,7 +65,9 @@ class BTBImpl:
         """
         # Extract index from PC (word-aligned, so skip lowest 2 bits)
         # For 64 entries (6 index bits): bits [7:2] of PC
-        index = (pc >> UInt(32)(2)) & Bits(32)(self.index_mask)
+        index_32 = (pc >> UInt(32)(2)) & Bits(32)(self.index_mask)
+        # Cast to proper bit width for array indexing
+        index = index_32[0:self.index_bits-1].bitcast(Bits(self.index_bits))
 
         # Look up BTB entry
         entry_valid = btb_valid[index]
@@ -98,7 +100,9 @@ class BTBImpl:
         Update BTB with resolved branch information.
         """
         # Extract index same as predict
-        index = (pc >> UInt(32)(2)) & Bits(32)(self.index_mask)
+        index_32 = (pc >> UInt(32)(2)) & Bits(32)(self.index_mask)
+        # Cast to proper bit width for array indexing
+        index = index_32[0:self.index_bits-1].bitcast(Bits(self.index_bits))
 
         with Condition(should_update == Bits(1)(1)):
             log("BTB: UPDATE at PC=0x{:x}, Index={}, Target=0x{:x}", pc, index, target)
