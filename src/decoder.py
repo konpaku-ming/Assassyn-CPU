@@ -68,7 +68,7 @@ class Decoder(Module):
         acc_alu_func = Bits(16)(0)
         acc_op1_sel = Bits(3)(0)
         acc_op2_sel = Bits(3)(0)
-        acc_imm = Bits(32)(0)
+        acc_imm_type = Bits(6)(0)
         acc_br_type = Bits(16)(0)
 
         acc_mem_op = Bits(3)(0)
@@ -121,15 +121,16 @@ class Decoder(Module):
             acc_mem_uns |= match_if.select(t_mem_sgn, Bits(1)(0))
             acc_wb_en |= match_if.select(Bits(1)(t_wb), Bits(1)(0))
             acc_br_type |= match_if.select(t_br, Bits(16)(0))
-            imm = t_imm_type.select1hot(
-                Bits(32)(0),
-                imm_i,
-                imm_s,
-                imm_b,
-                imm_u,
-                imm_j,
-            )
-            acc_imm |= match_if.select(imm, Bits(32)(0))
+            acc_imm_type |= match_if.select(t_imm_type, Bits(6)(0))
+
+        acc_imm = acc_imm_type.select1hot(
+            Bits(32)(0),
+            imm_i,
+            imm_s,
+            imm_b,
+            imm_u,
+            imm_j,
+        )
 
         # 5. 读取寄存器堆 & 打包
         raw_rs1_data = reg_file[rs1]
@@ -192,16 +193,16 @@ class DecoderImpl(Downstream):
 
     @downstream.combinational
     def build(
-            self,
-            # --- 1. 来自 Decoder Shell 的静态数据 (Record) ---
-            pre: Record,
-            # --- 2. 外部模块引用 ---
-            executor: Module,
-            # --- 3. DataHazardUnit 反馈信号 ---
-            rs1_sel: Bits(4),
-            rs2_sel: Bits(4),
-            stall_if: Bits(1),
-            branch_target_reg: Array,
+        self,
+        # --- 1. 来自 Decoder Shell 的静态数据 (Record) ---
+        pre: Record,
+        # --- 2. 外部模块引用 ---
+        executor: Module,
+        # --- 3. DataHazardUnit 反馈信号 ---
+        rs1_sel: Bits(4),
+        rs2_sel: Bits(4),
+        stall_if: Bits(1),
+        branch_target_reg: Array,
     ):
         mem_ctrl = mem_ctrl_signals.view(pre.mem_ctrl)
 
