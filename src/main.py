@@ -90,7 +90,7 @@ class Driver(Module):
         fetcher.async_called()
 
 
-def build_cpu(depth_log=32):
+def build_cpu(depth_log):
     sys_name = "rv32i_cpu"
     sys = SysBuilder(sys_name)
 
@@ -225,7 +225,7 @@ def build_cpu(depth_log=32):
 if __name__ == "__main__":
     # 构建 CPU 模块
     load_test_case("multiply")
-    sys_builder = build_cpu(depth_log=32)
+    sys_builder = build_cpu(depth_log=16)
 
     circ_path = os.path.join(workspace, f"circ.txt")
     with open(circ_path, "w") as f:

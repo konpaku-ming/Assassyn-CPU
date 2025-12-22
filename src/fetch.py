@@ -69,7 +69,7 @@ class FetcherImpl(Downstream):
         # 如果 Flush，为了让下一拍 ID 能拿到新指令，必须立刻喂 Target
         # 如果 Stall，必须输入上一周期地址以稳住输出
         # 如果 Normal，喂 Current 读取当前指令
-        sram_addr = (final_current_pc) >> UInt(32)(2)
+        sram_addr = ((final_current_pc) >> UInt(32)(2))[0:15]
         icache.build(we=Bits(1)(0), re=Bits(1)(1), addr=sram_addr, wdata=Bits(32)(0))
         log("IF: SRAM Addr=0x{:x}", sram_addr)
 
@@ -85,7 +85,7 @@ class FetcherImpl(Downstream):
         # 如果 BTB 命中，使用预测目标；否则默认 PC + 4
         btb_miss_target = (final_current_pc.bitcast(UInt(32)) + UInt(32)(4)).bitcast(Bits(32))
         predicted_next_pc = btb_hit.select(btb_predicted_target, btb_miss_target)
-
+    
         # 最终的 Next PC
         final_next_pc = predicted_next_pc
 
@@ -93,9 +93,9 @@ class FetcherImpl(Downstream):
         pc_reg[0] <= final_next_pc
         last_pc_reg[0] <= final_current_pc
         log(
-            "IF: Next PC=0x{:x} (BTB_hit={}) Next Last PC={:x}",
+            "IF: Next PC=0x{:x}  Next Last PC={:x}",
             final_next_pc,
-            btb_hit,
+            # btb_hit,
             final_current_pc,
         )
 
