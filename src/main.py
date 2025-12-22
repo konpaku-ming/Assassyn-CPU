@@ -120,8 +120,8 @@ def build_cpu(depth_log):
         fetcher_impl = FetcherImpl()
 
         # BTB for branch prediction
-        ''' btb = BTB(num_entries=64, index_bits=6)
-        btb_impl = BTBImpl(num_entries=64, index_bits=6) '''
+        btb = BTB(num_entries=64, index_bits=6)
+        btb_impl = BTBImpl(num_entries=64, index_bits=6)
 
         decoder = Decoder()
         decoder_impl = DecoderImpl()
@@ -136,7 +136,7 @@ def build_cpu(depth_log):
         # 3. 逆序构建
 
         # --- Step 0: BTB 构建（需要在使用前构建） ---
-        # btb_valid, btb_tags, btb_targets = btb.build()
+        btb_valid, btb_tags, btb_targets = btb.build()
 
         # --- Step A: WB 阶段 ---
         wb_rd = writeback.build(
@@ -159,10 +159,10 @@ def build_cpu(depth_log):
             wb_bypass=wb_bypass_reg,
             branch_target_reg=branch_target_reg,
             dcache=dcache,
-           # btb_impl=btb_impl,
-           # btb_valid=btb_valid,
-           # btb_tags=btb_tags,
-           # btb_targets=btb_targets,
+            btb_impl=btb_impl,
+            btb_valid=btb_valid,
+            btb_tags=btb_tags,
+            btb_targets=btb_targets,
         )
 
         # --- Step D: ID 阶段 (Shell) ---
@@ -203,10 +203,10 @@ def build_cpu(depth_log):
             decoder=decoder,
             stall_if=stall_if,
             branch_target=branch_target_reg,
-            # btb_impl=btb_impl,
-            # btb_valid=btb_valid,
-            # btb_tags=btb_tags,
-            # btb_targets=btb_targets,
+            btb_impl=btb_impl,
+            btb_valid=btb_valid,
+            btb_tags=btb_tags,
+            btb_targets=btb_targets,
         )
 
         # --- Step H: 辅助驱动 ---

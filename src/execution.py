@@ -34,10 +34,10 @@ class Execution(Module):
             branch_target_reg: Array,  # 用于通知 IF 跳转目标的全局寄存器
             dcache: SRAM,  # SRAM 模块引用 (用于Store操作)
             # --- BTB 更新 (可选) ---
-            # btb_impl: "BTBImpl" = None,  # BTB 实现逻辑
-            # btb_valid: Array = None,  # BTB 有效位数组
-            # btb_tags: Array = None,  # BTB 标签数组
-            # btb_targets: Array = None,  # BTB 目标地址数组
+            btb_impl: "BTBImpl" = None,  # BTB 实现逻辑
+            btb_valid: Array = None,  # BTB 有效位数组
+            btb_tags: Array = None,  # BTB 标签数组
+            btb_targets: Array = None,  # BTB 目标地址数组
     ):
         # 1. 弹出所有端口数据
         # 根据 __init__ 定义顺序解包
@@ -344,7 +344,7 @@ class Execution(Module):
 
         # 5. 更新 BTB (如果提供了 BTB 引用)
         # 当分支指令 taken 时，更新 BTB 存储 PC -> Target 的映射
-        ''' if btb_impl is not None and btb_valid is not None:
+        if btb_impl is not None and btb_valid is not None:
             should_update_btb = is_branch & is_taken & ~flush_if
             btb_impl.update(
                 pc=pc,
@@ -353,7 +353,7 @@ class Execution(Module):
                 btb_valid=btb_valid,
                 btb_tags=btb_tags,
                 btb_targets=btb_targets,
-            ) '''
+            )
 
         # --- 下一级绑定与状态反馈 ---
         # 构造发送给 MEM 的包

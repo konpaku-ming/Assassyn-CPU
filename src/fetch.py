@@ -42,10 +42,10 @@ class FetcherImpl(Downstream):
         stall_if: Value,  # 暂停取指 (保持当前 PC)
         branch_target: Array,  # 不为0时，根据目标地址冲刷流水线
         # --- BTB 分支预测 ---
-        # btb_impl: "BTBImpl",  # BTB 实现逻辑
-        # btb_valid: Array,  # BTB 有效位数组
-        # btb_tags: Array,  # BTB 标签数组
-        # btb_targets: Array,  # BTB 目标地址数组
+        btb_impl: "BTBImpl",  # BTB 实现逻辑
+        btb_valid: Array,  # BTB 有效位数组
+        btb_tags: Array,  # BTB 标签数组
+        btb_targets: Array,  # BTB 目标地址数组
     ):
         current_stall_if = stall_if.optional(Bits(1)(0))
 
@@ -75,20 +75,17 @@ class FetcherImpl(Downstream):
 
         # --- 2. 计算 Next PC (时序逻辑输入) ---
         # 使用 BTB 进行分支预测
-        '''
         btb_hit, btb_predicted_target = btb_impl.predict(
             pc=final_current_pc,
             btb_valid=btb_valid,
             btb_tags=btb_tags,
             btb_targets=btb_targets,
-        )'''
+        )
 
         # 如果 BTB 命中，使用预测目标；否则默认 PC + 4
-        '''
         btb_miss_target = (final_current_pc.bitcast(UInt(32)) + UInt(32)(4)).bitcast(Bits(32))
         predicted_next_pc = btb_hit.select(btb_predicted_target, btb_miss_target)
-        '''    
-        predicted_next_pc = (final_current_pc.bitcast(UInt(32)) + UInt(32)(4)).bitcast(Bits(32))
+    
         # 最终的 Next PC
         final_next_pc = predicted_next_pc
 
