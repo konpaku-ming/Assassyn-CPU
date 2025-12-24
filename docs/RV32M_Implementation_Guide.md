@@ -216,7 +216,7 @@ rd = inst[7:11]
 funct3 = inst[12:14]
 rs1 = inst[15:19]
 rs2 = inst[20:24]
-funct7 = inst[25:31]  # 新增: 提取完整的 funct7 字段
+funct7 = inst[25:31]  # 新增: 提取完整的 funct7 字段 (7 bits: [31:25])
 bit30 = inst[30:30]   # 保留用于向后兼容检查
 ```
 
@@ -333,13 +333,17 @@ log("MULH result (high 32): 0x{:x}", mulh_res)
 ```python
 # ============== 新增: M Extension - 除法与取模运算 ==============
 
-# 除零检测（所有除法/取模共用）
+# 除零检测（所有除法/取模共用）- 必须在除法运算之前检测
 is_div_zero = alu_op2 == Bits(32)(0)
 
 # DIV: 有符号除法
 # 规范: x/0 = -1, -2^31/-1 = -2^31 (溢出保持)
 is_overflow = (alu_op1 == Bits(32)(0x80000000)) & (alu_op2 == Bits(32)(0xFFFFFFFF))
-div_normal = (op1_signed / op2_signed).bitcast(Bits(32))
+# 只在非除零时才执行除法运算，避免综合时的除零异常
+div_normal = is_div_zero.select(
+    Bits(32)(0),  # 除零时不执行除法，返回默认值
+    (op1_signed / op2_signed).bitcast(Bits(32))
+)
 div_res = is_div_zero.select(
     Bits(32)(0xFFFFFFFF),  # 除零 → -1
     is_overflow.select(
@@ -350,7 +354,11 @@ div_res = is_div_zero.select(
 
 # DIVU: 无符号除法
 # 规范: x/0 = 2^32-1
-divu_normal = (alu_op1.bitcast(UInt(32)) / alu_op2.bitcast(UInt(32))).bitcast(Bits(32))
+# 只在非除零时才执行除法运算
+divu_normal = is_div_zero.select(
+    Bits(32)(0),  # 除零时不执行除法
+    (alu_op1.bitcast(UInt(32)) / alu_op2.bitcast(UInt(32))).bitcast(Bits(32))
+)
 divu_res = is_div_zero.select(
     Bits(32)(0xFFFFFFFF),  # 除零 → 全1
     divu_normal
@@ -358,7 +366,11 @@ divu_res = is_div_zero.select(
 
 # REM: 有符号取模
 # 规范: x%0 = x, -2^31%-1 = 0
-rem_normal = (op1_signed % op2_signed).bitcast(Bits(32))
+# 只在非除零时才执行取模运算
+rem_normal = is_div_zero.select(
+    Bits(32)(0),  # 除零时不执行取模
+    (op1_signed % op2_signed).bitcast(Bits(32))
+)
 rem_res = is_div_zero.select(
     alu_op1,  # 除零 → 被除数
     is_overflow.select(
@@ -369,7 +381,11 @@ rem_res = is_div_zero.select(
 
 # REMU: 无符号取模
 # 规范: x%0 = x
-remu_normal = (alu_op1.bitcast(UInt(32)) % alu_op2.bitcast(UInt(32))).bitcast(Bits(32))
+# 只在非除零时才执行取模运算
+remu_normal = is_div_zero.select(
+    Bits(32)(0),  # 除零时不执行取模
+    (alu_op1.bitcast(UInt(32)) % alu_op2.bitcast(UInt(32))).bitcast(Bits(32))
+)
 remu_res = is_div_zero.select(
     alu_op1,  # 除零 → 被除数
     remu_normal
