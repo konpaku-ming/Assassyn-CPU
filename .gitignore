@@ -1,4 +1,6 @@
 *.log
+.venv
+.idea
 workspace/
 */__pycache__
 */.workspace/
