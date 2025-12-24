@@ -216,9 +216,11 @@ rd = inst[7:11]
 funct3 = inst[12:14]
 rs1 = inst[15:19]
 rs2 = inst[20:24]
-funct7 = inst[25:31]  # 新增: 提取完整的 funct7 字段 (7 bits: [31:25])
+funct7 = inst[25:31]  # 新增: 提取 funct7 字段 (7 bits, Assassyn使用[低位:高位]闭区间语法)
 bit30 = inst[30:30]   # 保留用于向后兼容检查
 ```
+
+**注意**: Assassyn使用`[low:high]`闭区间语法，与Verilog类似。`inst[25:31]`提取第25位到第31位（共7位），对应RISC-V标准的funct7字段。
 
 #### 3.2 修改查表匹配逻辑
 
