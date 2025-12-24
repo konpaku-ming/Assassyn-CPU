@@ -224,7 +224,7 @@ def build_cpu(depth_log):
 
 if __name__ == "__main__":
     # 构建 CPU 模块
-    load_test_case("multiply")
+    load_test_case("0to100")
     sys_builder = build_cpu(depth_log=16)
 
     circ_path = os.path.join(workspace, f"circ.txt")
@@ -264,10 +264,10 @@ if __name__ == "__main__":
         print(raw, file=f)
 
     # 运行verilog模拟器，捕获输出
-    print(f"🏃 Running simulation(verilog)...")
-    raw = utils.run_verilator(verilog_path)
-    log_path = os.path.join(workspace, f"verilalog_raw.log")
-    with open(log_path, "w") as f:
-        print(raw, file=f)
-        
-    print("Done.")
+    # print(f"🏃 Running simulation(verilog)...")
+    # raw = utils.run_verilator(verilog_path)
+    # log_path = os.path.join(workspace, f"verilalog_raw.log")
+    # with open(log_path, "w") as f:
+    #    print(raw, file=f)
+    #
+    print("\nDone.")
