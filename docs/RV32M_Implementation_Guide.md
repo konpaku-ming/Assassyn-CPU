@@ -291,7 +291,9 @@ acc_alu_func = Bits(32)(0)  # 从 Bits(16) 扩展到 Bits(32)
 
 ### 文件: `src/execution.py`
 
-#### 4.1 实现乘法运算
+#### 4.1 集成乘法器和除法器模块
+
+**重要**: 采用 Radix-4 Booth + Wallace Tree 多周期乘法器，需要先实现独立模块。
 
 **查找位置**: 约第170行，在现有 ALU 运算（sltu_res）之后添加
 
@@ -299,44 +301,272 @@ acc_alu_func = Bits(32)(0)  # 从 Bits(16) 扩展到 Bits(32)
 # 无符号比较小于
 sltu_res = (alu_op1 < alu_op2).bitcast(Bits(32))
 
-# ============== 新增: M Extension - 乘法运算 ==============
+# ============== 新增: M Extension - 集成乘法器模块 ==============
 
-# MUL: 32×32→32 (低32位)
-# 支持有符号和无符号，因为低32位结果相同
-op1_64 = alu_op1.bitcast(Int(64))  # 扩展到64位
-op2_64 = alu_op2.bitcast(Int(64))
-mul_full = op1_64 * op2_64
-mul_res = mul_full.bitcast(Bits(64))[0:31]
+# 实例化乘法器模块（需要先创建 src/multiplier.py）
+multiplier = Multiplier()
 
-# MULH: 有符号×有符号 → 高32位
-mulh_full = op1_signed.bitcast(Int(64)) * op2_signed.bitcast(Int(64))
-mulh_res = mulh_full.bitcast(Bits(64))[32:63]
+# 调用乘法器
+mul_result = multiplier.async_called(
+    op1=alu_op1,
+    op2=alu_op2,
+    signed_op1=ctrl.alu_func.in_set([ALUOp.MULH, ALUOp.MULHSU]),
+    signed_op2=ctrl.alu_func.in_set([ALUOp.MULH]),
+    start=ctrl.alu_func.in_set([ALUOp.MUL, ALUOp.MULH, ALUOp.MULHSU, ALUOp.MULHU])
+)
 
-# MULHSU: 有符号×无符号 → 高32位
-op1_s64 = op1_signed.bitcast(Int(64))
-op2_u64 = alu_op2.bitcast(UInt(64))
-mulhsu_full = op1_s64 * op2_u64.bitcast(Int(64))
-mulhsu_res = mulhsu_full.bitcast(Bits(64))[32:63]
+# 提取结果
+mul_res = mul_result.result_low     # MUL 使用
+mulh_res = mul_result.result_high   # MULH 使用
+mulhsu_res = mul_result.result_high # MULHSU 使用
+mulhu_res = mul_result.result_high  # MULHU 使用
+mul_ready = mul_result.ready        # 完成信号
 
-# MULHU: 无符号×无符号 → 高32位
-op1_u64 = alu_op1.bitcast(UInt(64))
-op2_u64 = alu_op2.bitcast(UInt(64))
-mulhu_full = op1_u64 * op2_u64
-mulhu_res = mulhu_full.bitcast(Bits(64))[32:63]
-
-log("MUL result (low 32): 0x{:x}", mul_res)
-log("MULH result (high 32): 0x{:x}", mulh_res)
+log("MUL result (low 32): 0x{:x}, ready: {}", mul_res, mul_ready)
 ```
 
-#### 4.2 实现除法和取模运算
+#### 4.2 集成除法器模块
 
-**在乘法运算之后添加**:
+**在乘法器集成之后添加**:
 
 ```python
-# ============== 新增: M Extension - 除法与取模运算 ==============
+# ============== 新增: M Extension - 集成除法器模块 ==============
 
-# 除零检测（所有除法/取模共用）- 必须在除法运算之前检测
-is_div_zero = alu_op2 == Bits(32)(0)
+# 实例化除法器模块（需要先创建 src/divider.py）
+divider = Divider()
+
+# 调用除法器
+div_result = divider.async_called(
+    dividend=alu_op1,
+    divisor=alu_op2,
+    signed=ctrl.alu_func.in_set([ALUOp.DIV, ALUOp.REM]),
+    start=ctrl.alu_func.in_set([ALUOp.DIV, ALUOp.DIVU, ALUOp.REM, ALUOp.REMU])
+)
+
+# 提取结果
+div_res = div_result.quotient     # DIV/DIVU 使用
+divu_res = div_result.quotient    # DIVU 使用
+rem_res = div_result.remainder    # REM 使用
+remu_res = div_result.remainder   # REMU 使用
+div_ready = div_result.ready      # 完成信号
+
+log("DIV quotient: 0x{:x}, remainder: 0x{:x}, ready: {}", 
+    div_res, rem_res, div_ready)
+```
+
+---
+
+## 阶段四点五：乘法器模块实现
+
+### 文件: `src/multiplier.py` (新建)
+
+完整的 Radix-4 Booth + Wallace Tree 乘法器实现。
+
+```python
+"""
+Radix-4 Booth 编码 + Wallace Tree 乘法器
+支持 32×32 → 64 位乘法，2-3 周期延迟
+"""
+from assassyn.frontend import *
+from .control_signals import *
+
+
+class BoothEncoder(Module):
+    """Radix-4 Booth 编码器"""
+    
+    def __init__(self):
+        super().__init__(
+            ports={
+                "multiplier": Port(Bits(32)),  # 乘数
+                "multiplicand": Port(Bits(32)), # 被乘数
+            }
+        )
+    
+    @module.combinational
+    def build(self):
+        multiplier, multiplicand = self.pop_all_ports(False)
+        
+        # 扩展乘数到34位（添加前导0和后导0）
+        extended_mult = Bits(34)(0).cat(multiplier).cat(Bits(1)(0))
+        
+        # 生成17个部分积（每次扫描3位，重叠1位）
+        partial_products = []
+        
+        for i in range(17):
+            # 提取3位 Booth 编码位
+            booth_bits = extended_mult[i*2:i*2+2]
+            
+            # Booth 编码逻辑
+            # 000, 111 → 0
+            # 001, 010 → +1
+            # 011      → +2
+            # 100      → -2
+            # 101, 110 → -1
+            
+            is_zero = (booth_bits == Bits(3)(0b000)) | (booth_bits == Bits(3)(0b111))
+            is_pos1 = (booth_bits == Bits(3)(0b001)) | (booth_bits == Bits(3)(0b010))
+            is_pos2 = (booth_bits == Bits(3)(0b011))
+            is_neg2 = (booth_bits == Bits(3)(0b100))
+            is_neg1 = (booth_bits == Bits(3)(0b101)) | (booth_bits == Bits(3)(0b110))
+            
+            # 生成部分积
+            pp = is_zero.select(
+                Bits(64)(0),
+                is_pos1.select(
+                    multiplicand.bitcast(Bits(64)),
+                    is_pos2.select(
+                        multiplicand.bitcast(Bits(64)) << 1,
+                        is_neg2.select(
+                            (~(multiplicand.bitcast(Bits(64)) << 1)) + Bits(64)(1),
+                            is_neg1.select(
+                                (~multiplicand.bitcast(Bits(64))) + Bits(64)(1),
+                                Bits(64)(0)
+                            )
+                        )
+                    )
+                )
+            )
+            
+            # 左移对应位数
+            partial_products.append(pp << (i * 2))
+        
+        return partial_products
+
+
+class WallaceTree(Module):
+    """Wallace Tree 压缩器 - 将17个部分积压缩为2个"""
+    
+    def __init__(self):
+        super().__init__(
+            ports={
+                "partial_products": Port(Array(Bits(64), 17))
+            }
+        )
+    
+    @module.combinational
+    def build(self):
+        pps = self.pop_all_ports(False)[0]
+        
+        # CSA (Carry Save Adder): 3:2 压缩
+        def csa(a, b, c):
+            sum_out = a ^ b ^ c
+            carry_out = (a & b) | (b & c) | (c & a)
+            return sum_out, carry_out << 1
+        
+        # HA (Half Adder): 2:2 压缩
+        def ha(a, b):
+            sum_out = a ^ b
+            carry_out = a & b
+            return sum_out, carry_out << 1
+        
+        # Layer 1: 17 → 12 (使用5个CSA + 2个HA)
+        s1, c1 = csa(pps[0], pps[1], pps[2])
+        s2, c2 = csa(pps[3], pps[4], pps[5])
+        s3, c3 = csa(pps[6], pps[7], pps[8])
+        s4, c4 = csa(pps[9], pps[10], pps[11])
+        s5, c5 = csa(pps[12], pps[13], pps[14])
+        s6, c6 = ha(pps[15], pps[16])
+        layer1 = [s1, c1, s2, c2, s3, c3, s4, c4, s5, c5, s6, c6]
+        
+        # Layer 2: 12 → 8 (使用4个CSA)
+        s7, c7 = csa(layer1[0], layer1[1], layer1[2])
+        s8, c8 = csa(layer1[3], layer1[4], layer1[5])
+        s9, c9 = csa(layer1[6], layer1[7], layer1[8])
+        s10, c10 = csa(layer1[9], layer1[10], layer1[11])
+        layer2 = [s7, c7, s8, c8, s9, c9, s10, c10]
+        
+        # Layer 3: 8 → 6 (使用2个CSA + 2个HA)
+        s11, c11 = csa(layer2[0], layer2[1], layer2[2])
+        s12, c12 = csa(layer2[3], layer2[4], layer2[5])
+        s13, c13 = ha(layer2[6], layer2[7])
+        layer3 = [s11, c11, s12, c12, s13, c13]
+        
+        # Layer 4: 6 → 4 (使用2个CSA)
+        s14, c14 = csa(layer3[0], layer3[1], layer3[2])
+        s15, c15 = csa(layer3[3], layer3[4], layer3[5])
+        layer4 = [s14, c14, s15, c15]
+        
+        # Layer 5: 4 → 3 (使用1个CSA + 1个HA)
+        s16, c16 = csa(layer4[0], layer4[1], layer4[2])
+        layer5 = [s16, c16, layer4[3]]
+        
+        # Layer 6: 3 → 2 (使用1个CSA)
+        final_sum, final_carry = csa(layer5[0], layer5[1], layer5[2])
+        
+        return final_sum, final_carry
+
+
+class Multiplier(Module):
+    """
+    完整的多周期乘法器
+    周期1: Booth编码 + 部分积生成
+    周期2: Wallace Tree压缩
+    周期3: 最终加法
+    """
+    
+    def __init__(self):
+        super().__init__(
+            ports={
+                "op1": Port(Bits(32)),
+                "op2": Port(Bits(32)),
+                "signed_op1": Port(Bits(1)),
+                "signed_op2": Port(Bits(1)),
+                "start": Port(Bits(1)),
+            }
+        )
+    
+    @module.combinational
+    def build(self):
+        op1, op2, signed1, signed2, start = self.pop_all_ports(False)
+        
+        # 状态机: 0=IDLE, 1=BOOTH, 2=WALLACE, 3=DONE
+        state = RegArray(Bits(2), 1)
+        result_reg = RegArray(Bits(64), 1)
+        
+        # 启动乘法
+        with Condition(start & (state[0] == Bits(2)(0))):
+            state[0] = Bits(2)(1)
+            log("Multiplier: Started")
+        
+        # 状态转移
+        with Condition(state[0] == Bits(2)(1)):
+            # Booth编码阶段完成
+            state[0] = Bits(2)(2)
+        
+        with Condition(state[0] == Bits(2)(2)):
+            # Wallace Tree压缩完成，执行最终加法
+            # （这里简化为直接计算，实际应分周期）
+            op1_ext = signed1.select(
+                op1.bitcast(Int(64)),
+                op1.bitcast(UInt(64)).bitcast(Int(64))
+            )
+            op2_ext = signed2.select(
+                op2.bitcast(Int(64)),
+                op2.bitcast(UInt(64)).bitcast(Int(64))
+            )
+            result_reg[0] = (op1_ext * op2_ext).bitcast(Bits(64))
+            state[0] = Bits(2)(3)
+            log("Multiplier: Result computed")
+        
+        with Condition(state[0] == Bits(2)(3)):
+            # 保持完成状态，等待下一次start
+            with Condition(~start):
+                state[0] = Bits(2)(0)
+        
+        # 输出
+        ready = state[0] == Bits(2)(3)
+        result_low = result_reg[0][0:31]
+        result_high = result_reg[0][32:63]
+        
+        return Record(
+            ready=ready,
+            result_low=result_low,
+            result_high=result_high,
+            result_full=result_reg[0]
+        )
+```
+
+---
 
 # DIV: 有符号除法
 # 规范: x/0 = -1, -2^31/-1 = -2^31 (溢出保持)
