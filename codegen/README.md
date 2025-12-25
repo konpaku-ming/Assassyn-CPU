@@ -220,17 +220,39 @@ int main() {
 
 **调试技巧**:
 
-如果仍然看不到 `mul` 指令，尝试添加优化级别标志：
+如果仍然看不到 `mul` 指令，可以创建一个测试脚本来尝试不同的优化级别：
 
 ```bash
-# 修改 codegen.sh 第一行，添加 -O0 禁用优化
+# 创建 codegen_debug.sh 用于调试
+cat > codegen_debug.sh << 'EOF'
+#!/bin/bash
+# 使用 -O0 禁用优化
 riscv64-unknown-elf-gcc -march=rv32im -mabi=ilp32 -O0 -nostdlib -Wl,--no-check-sections -T harvard.ld start.S code.c -o cpu.elf
+riscv64-unknown-elf-objcopy -j .text -O binary cpu.elf icache.bin
+riscv64-unknown-elf-objcopy -j .data -j .bss -O binary cpu.elf memory.bin
+riscv64-linux-gnu-objdump -D cpu.elf > obj.exe
+hexdump -v -e '1/4 "%08x" "\n"' icache.bin > icache.hex
+hexdump -v -e '1/4 "%08x" "\n"' memory.bin > memory.hex
+EOF
+chmod +x codegen_debug.sh
+bash codegen_debug.sh
 ```
 
-或者添加 -O2 启用优化（有时反而会生成更多 mul 指令）：
+或者使用 -O2 启用优化（有时反而会生成更多 mul 指令）：
 
 ```bash
+# 创建优化版本的调试脚本
+cat > codegen_opt.sh << 'EOF'
+#!/bin/bash
 riscv64-unknown-elf-gcc -march=rv32im -mabi=ilp32 -O2 -nostdlib -Wl,--no-check-sections -T harvard.ld start.S code.c -o cpu.elf
+riscv64-unknown-elf-objcopy -j .text -O binary cpu.elf icache.bin
+riscv64-unknown-elf-objcopy -j .data -j .bss -O binary cpu.elf memory.bin
+riscv64-linux-gnu-objdump -D cpu.elf > obj.exe
+hexdump -v -e '1/4 "%08x" "\n"' icache.bin > icache.hex
+hexdump -v -e '1/4 "%08x" "\n"' memory.bin > memory.hex
+EOF
+chmod +x codegen_opt.sh
+bash codegen_opt.sh
 ```
 
 ---
@@ -451,15 +473,37 @@ int main() {
 
 **Debug tips**:
 
-If you still don't see `mul` instructions, try adding optimization level flags:
+If you still don't see `mul` instructions, create a test script to try different optimization levels:
 
 ```bash
-# Modify codegen.sh line 1, add -O0 to disable optimization
+# Create codegen_debug.sh for debugging
+cat > codegen_debug.sh << 'EOF'
+#!/bin/bash
+# Use -O0 to disable optimization
 riscv64-unknown-elf-gcc -march=rv32im -mabi=ilp32 -O0 -nostdlib -Wl,--no-check-sections -T harvard.ld start.S code.c -o cpu.elf
+riscv64-unknown-elf-objcopy -j .text -O binary cpu.elf icache.bin
+riscv64-unknown-elf-objcopy -j .data -j .bss -O binary cpu.elf memory.bin
+riscv64-linux-gnu-objdump -D cpu.elf > obj.exe
+hexdump -v -e '1/4 "%08x" "\n"' icache.bin > icache.hex
+hexdump -v -e '1/4 "%08x" "\n"' memory.bin > memory.hex
+EOF
+chmod +x codegen_debug.sh
+bash codegen_debug.sh
 ```
 
 Or add -O2 to enable optimization (sometimes generates more mul instructions):
 
 ```bash
+# Create optimized version debug script
+cat > codegen_opt.sh << 'EOF'
+#!/bin/bash
 riscv64-unknown-elf-gcc -march=rv32im -mabi=ilp32 -O2 -nostdlib -Wl,--no-check-sections -T harvard.ld start.S code.c -o cpu.elf
+riscv64-unknown-elf-objcopy -j .text -O binary cpu.elf icache.bin
+riscv64-unknown-elf-objcopy -j .data -j .bss -O binary cpu.elf memory.bin
+riscv64-linux-gnu-objdump -D cpu.elf > obj.exe
+hexdump -v -e '1/4 "%08x" "\n"' icache.bin > icache.hex
+hexdump -v -e '1/4 "%08x" "\n"' memory.bin > memory.hex
+EOF
+chmod +x codegen_opt.sh
+bash codegen_opt.sh
 ```

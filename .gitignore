@@ -10,3 +10,7 @@ codegen/*.elf
 codegen/*.bin
 codegen/*.hex
 codegen/*.exe
+
+# Debug scripts
+codegen/codegen_debug.sh
+codegen/codegen_opt.sh
