@@ -25,22 +25,30 @@ class ImmType:
 
 
 # 2. 执行阶段控制信号 (EX Control)
-# ALU 功能码 (One-hot 映射, 假设 Bits(16))
+# ALU 功能码 (One-hot 映射, 扩展到 Bits(32) 以支持 M 扩展)
 # 顺序对应 alu_func[i]
 class ALUOp:
-    ADD = Bits(16)(0b0000000000000001)
-    SUB = Bits(16)(0b0000000000000010)
-    SLL = Bits(16)(0b0000000000000100)
-    SLT = Bits(16)(0b0000000000001000)
-    SLTU = Bits(16)(0b0000000000010000)
-    XOR = Bits(16)(0b0000000000100000)
-    SRL = Bits(16)(0b0000000001000000)
-    SRA = Bits(16)(0b0000000010000000)
-    OR = Bits(16)(0b0000000100000000)
-    AND = Bits(16)(0b0000001000000000)
-    # 占位/直通/特殊用途
-    SYS = Bits(16)(0b0000010000000000)
-    NOP = Bits(16)(0b1000000000000000)
+    # 基础整数运算 (Bits 0-10)
+    ADD = Bits(32)(0b00000000000000000000000000000001)  # Bit 0
+    SUB = Bits(32)(0b00000000000000000000000000000010)  # Bit 1
+    SLL = Bits(32)(0b00000000000000000000000000000100)  # Bit 2
+    SLT = Bits(32)(0b00000000000000000000000000001000)  # Bit 3
+    SLTU = Bits(32)(0b00000000000000000000000000010000)  # Bit 4
+    XOR = Bits(32)(0b00000000000000000000000000100000)  # Bit 5
+    SRL = Bits(32)(0b00000000000000000000000001000000)  # Bit 6
+    SRA = Bits(32)(0b00000000000000000000000010000000)  # Bit 7
+    OR = Bits(32)(0b00000000000000000000000100000000)  # Bit 8
+    AND = Bits(32)(0b00000000000000000000001000000000)  # Bit 9
+    SYS = Bits(32)(0b00000000000000000000010000000000)  # Bit 10
+    
+    # M Extension - 乘法运算 (Bits 11-14)
+    MUL = Bits(32)(0b00000000000000000000100000000000)     # Bit 11
+    MULH = Bits(32)(0b00000000000000000001000000000000)    # Bit 12
+    MULHSU = Bits(32)(0b00000000000000000010000000000000)  # Bit 13
+    MULHU = Bits(32)(0b00000000000000000100000000000000)   # Bit 14
+    
+    # 占位与特殊操作 (Bit 31)
+    NOP = Bits(32)(0b10000000000000000000000000000000)     # Bit 31
 
 
 class BranchType:
@@ -132,8 +140,8 @@ mem_ctrl_signals = Record(
 
 # 执行域 (ExCtrl)
 ex_ctrl_signals = Record(
-    # ALU 功能码，使用 Bits(16) 静态定义 (ADD:Bits(16)(0b0000000000000001), SUB:Bits(16)(0b0000000000000010), ...)
-    alu_func=Bits(16),
+    # ALU 功能码，使用 Bits(32) 静态定义 (扩展以支持 M 扩展)
+    alu_func=Bits(32),
     # rs1结果来源，使用 Bits(4) 静态定义 (RS1:Bits(4)(0b0001), EX_BYPASS:Bits(4)(0b0010), MEM_BYPASS:Bits(4)(0b0100), WB_BYPASS: Bits(4)(0b1000))
     rs1_sel=Bits(4),
     # rs2结果来源，使用 Bits(4) 静态定义 (RS2:Bits(4)(0b0001), EX_BYPASS:Bits(4)(0b0010), MEM_BYPASS:Bits(4)(0b0100), WB_BYPASS:Bits(4)(0b1000))
@@ -149,7 +157,7 @@ ex_ctrl_signals = Record(
 
 pre_decode_t = Record(
     # 原始控制信号
-    alu_func=Bits(16),
+    alu_func=Bits(32),
     op1_sel=Bits(3),
     op2_sel=Bits(3),
     branch_type=Bits(16),  # Branch 指令功能码

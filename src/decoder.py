@@ -35,7 +35,8 @@ class Decoder(Module):
         funct3 = inst[12:14]
         rs1 = inst[15:19]
         rs2 = inst[20:24]
-        bit30 = inst[30:30]
+        funct7 = inst[25:31]  # 新增: 提取完整的 funct7 字段 (7 bits)
+        bit30 = inst[30:30]   # 保留用于向后兼容检查
 
         # 3. 立即数并行生成
         sign = inst[31:31]
@@ -65,7 +66,7 @@ class Decoder(Module):
         # 4. 查表译码 (Signal Accumulation Loop)
 
         # 初始化累加器
-        acc_alu_func = Bits(16)(0)
+        acc_alu_func = Bits(32)(0)  # 从 Bits(16) 扩展到 Bits(32)
         acc_op1_sel = Bits(3)(0)
         acc_op2_sel = Bits(3)(0)
         acc_imm_type = Bits(6)(0)
@@ -86,7 +87,7 @@ class Decoder(Module):
                 _,
                 t_op,
                 t_f3,
-                t_b30,
+                t_f7,  # 改为 funct7
                 t_imm_type,
                 t_alu,
                 t_rs1_use,
@@ -106,12 +107,13 @@ class Decoder(Module):
             if t_f3 is not None:
                 match_if &= funct3 == Bits(3)(t_f3)
 
-            if t_b30 is not None:
-                match_if &= bit30 == Bits(1)(t_b30)
+            # 新增: funct7 匹配逻辑
+            if t_f7 is not None:
+                match_if &= funct7 == Bits(7)(t_f7)
 
             # --- B. 信号累加 (Mux Logic) ---
             # 使用 select 实现 OR 逻辑
-            acc_alu_func |= match_if.select(t_alu, Bits(16)(0))
+            acc_alu_func |= match_if.select(t_alu, Bits(32)(0))  # 从 Bits(16) 改为 Bits(32)
             acc_rs1_used |= match_if.select(Bits(1)(t_rs1_use), Bits(1)(0))
             acc_rs2_used |= match_if.select(Bits(1)(t_rs2_use), Bits(1)(0))
             acc_op1_sel |= match_if.select(t_op1, Bits(3)(0))
