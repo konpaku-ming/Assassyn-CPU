@@ -170,25 +170,39 @@ class Execution(Module):
         sltu_res = (alu_op1 < alu_op2).bitcast(Bits(32))
 
         # ============== M Extension - 乘法运算 ==============
-        # MUL: 返回 rs1 × rs2 的低32位
-        # 使用64位乘法，然后提取低32位
-        mul_result_signed = (op1_signed.bitcast(Int(64)) * op2_signed.bitcast(Int(64)))
-        mul_res = mul_result_signed[0:31].bitcast(Bits(32))
+        # 手动进行符号扩展/零扩展到64位
         
-        # MULH: 有符号×有符号，返回高32位
-        mulh_res = mul_result_signed[32:63].bitcast(Bits(32))
+        # 有符号扩展：取符号位，然后用concat扩展
+        op1_sign_bit = alu_op1[31:31]
+        op1_sign_ext = op1_sign_bit.select(Bits(32)(0xFFFFFFFF), Bits(32)(0))
+        op1_extended = concat(op1_sign_ext, alu_op1)  # 64-bit signed extended
         
-        # MULHSU: 有符号×无符号，返回高32位
-        # rs1 有符号扩展，rs2 无符号扩展
-        op1_signed_64 = op1_signed.bitcast(Int(64))
-        op2_unsigned_64 = alu_op2.bitcast(UInt(64))
-        mulhsu_result = (op1_signed_64 * op2_unsigned_64.bitcast(Int(64)))
-        mulhsu_res = mulhsu_result[32:63].bitcast(Bits(32))
+        op2_sign_bit = alu_op2[31:31]
+        op2_sign_ext = op2_sign_bit.select(Bits(32)(0xFFFFFFFF), Bits(32)(0))
+        op2_extended = concat(op2_sign_ext, alu_op2)  # 64-bit signed extended
         
-        # MULHU: 无符号×无符号，返回高32位
-        op1_unsigned_64 = alu_op1.bitcast(UInt(64))
-        mulhu_result = (op1_unsigned_64 * op2_unsigned_64)
-        mulhu_res = mulhu_result[32:63].bitcast(Bits(32))
+        # 无符号扩展：高位填0
+        op1_zero_ext = concat(Bits(32)(0), alu_op1)  # 64-bit zero extended
+        op2_zero_ext = concat(Bits(32)(0), alu_op2)  # 64-bit zero extended
+        
+        # MUL: 有符号 × 有符号，返回低32位
+        # 使用无符号乘法，然后提取结果
+        mul_result_signed = op1_extended.bitcast(UInt(64)) * op2_extended.bitcast(UInt(64))
+        mul_result_bits = mul_result_signed.bitcast(Bits(64))
+        mul_res = mul_result_bits[0:31].bitcast(Bits(32))
+        
+        # MULH: 有符号 × 有符号，返回高32位
+        mulh_res = mul_result_bits[32:63].bitcast(Bits(32))
+        
+        # MULHSU: 有符号 × 无符号，返回高32位
+        mulhsu_result = op1_extended.bitcast(UInt(64)) * op2_zero_ext.bitcast(UInt(64))
+        mulhsu_result_bits = mulhsu_result.bitcast(Bits(64))
+        mulhsu_res = mulhsu_result_bits[32:63].bitcast(Bits(32))
+        
+        # MULHU: 无符号 × 无符号，返回高32位
+        mulhu_result = op1_zero_ext.bitcast(UInt(64)) * op2_zero_ext.bitcast(UInt(64))
+        mulhu_result_bits = mulhu_result.bitcast(Bits(64))
+        mulhu_res = mulhu_result_bits[32:63].bitcast(Bits(32))
 
         # ebreak 停机
         with Condition((ctrl.alu_func == ALUOp.SYS) & ~flush_if):
