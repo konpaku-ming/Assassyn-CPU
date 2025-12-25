@@ -13,32 +13,55 @@ Disassembly of section .text:
    c:	0000006f          	j	c <loop>
 
 00000010 <main>:
-  10:	fe010113          	addi	sp,sp,-32 # fe0 <main+0xfd0>
+  10:	fe010113          	addi	sp,sp,-32 # fe0 <result+0xfb8>
   14:	00812e23          	sw	s0,28(sp)
   18:	02010413          	addi	s0,sp,32
-  1c:	00100793          	li	a5,1
-  20:	fef42623          	sw	a5,-20(s0)
-  24:	0200006f          	j	44 <main+0x34>
-  28:	00002703          	lw	a4,0(zero) # 0 <_start>
-  2c:	fec42783          	lw	a5,-20(s0)
-  30:	02f70733          	mul	a4,a4,a5
-  34:	00e02023          	sw	a4,0(zero) # 0 <_start>
-  38:	fec42783          	lw	a5,-20(s0)
-  3c:	00178793          	addi	a5,a5,1
-  40:	fef42623          	sw	a5,-20(s0)
-  44:	fec42703          	lw	a4,-20(s0)
-  48:	06400793          	li	a5,100
-  4c:	fce7dee3          	bge	a5,a4,28 <main+0x18>
-  50:	00002783          	lw	a5,0(zero) # 0 <_start>
-  54:	00078513          	mv	a0,a5
-  58:	01c12403          	lw	s0,28(sp)
-  5c:	02010113          	addi	sp,sp,32
-  60:	00008067          	ret
+  1c:	fe042623          	sw	zero,-20(s0)
+  20:	0300006f          	j	50 <result+0x28>
+  24:	00000713          	li	a4,0
+  28:	fec42783          	lw	a5,-20(s0)
+  2c:	00279793          	slli	a5,a5,0x2
+  30:	00f707b3          	add	a5,a4,a5
+  34:	0007a703          	lw	a4,0(a5)
+  38:	02802783          	lw	a5,40(zero) # 28 <result>
+  3c:	02f70733          	mul	a4,a4,a5
+  40:	02e02423          	sw	a4,40(zero) # 28 <result>
+  44:	fec42783          	lw	a5,-20(s0)
+  48:	00178793          	addi	a5,a5,1
+  4c:	fef42623          	sw	a5,-20(s0)
+  50:	fec42703          	lw	a4,-20(s0)
+  54:	00900793          	li	a5,9
+  58:	fce7d6e3          	bge	a5,a4,24 <main+0x14>
+  5c:	02802783          	lw	a5,40(zero) # 28 <result>
+  60:	00078513          	mv	a0,a5
+  64:	01c12403          	lw	s0,28(sp)
+  68:	02010113          	addi	sp,sp,32
+  6c:	00008067          	ret
 
 Disassembly of section .data:
 
-00000000 <result>:
+00000000 <input_1>:
    0:	0001                	.insn	2, 0x0001
+   2:	0000                	.insn	2, 0x
+   4:	0002                	.insn	2, 0x0002
+   6:	0000                	.insn	2, 0x
+   8:	00000003          	lb	zero,0(zero) # 0 <input_1>
+   c:	0004                	.insn	2, 0x0004
+   e:	0000                	.insn	2, 0x
+  10:	0005                	.insn	2, 0x0005
+  12:	0000                	.insn	2, 0x
+  14:	0006                	.insn	2, 0x0006
+  16:	0000                	.insn	2, 0x
+  18:	00000007          	.insn	4, 0x0007
+  1c:	0008                	.insn	2, 0x0008
+  1e:	0000                	.insn	2, 0x
+  20:	0009                	.insn	2, 0x0009
+  22:	0000                	.insn	2, 0x
+  24:	000a                	.insn	2, 0x000a
+	...
+
+00000028 <result>:
+  28:	0001                	.insn	2, 0x0001
 	...
 
 Disassembly of section .riscv.attributes:
