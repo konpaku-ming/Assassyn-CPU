@@ -117,7 +117,7 @@ def test_mul_extension():
     
     with sys:
         # 实例化模块
-        dcache = MockSRAM(width=32, depth=256)
+        dcache = MockSRAM()
         ex_mem_bypass = RegArray(Bits(32), 1)
         mem_wb_bypass = RegArray(Bits(32), 1)
         wb_bypass = RegArray(Bits(32), 1)
