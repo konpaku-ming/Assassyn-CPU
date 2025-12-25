@@ -49,13 +49,14 @@ mul_result = op1_extended.bitcast(UInt(64)) * op2_extended.bitcast(UInt(64))
 ```
 
 ### Separate Operations
-Split bitcast and slicing into separate statements:
+Split bitcast and slicing into separate statements with explicit type casts:
 
 ```python
 mul_result_bits = mul_result.bitcast(Bits(64))
-mul_res = mul_result_bits[0:31]   # Low 32 bits
-mulh_res = mul_result_bits[32:63]  # High 32 bits
+mul_res = mul_result_bits[0:31].bitcast(Bits(32))   # Low 32 bits, explicit type
 ```
+
+This follows the pattern used elsewhere in the codebase (e.g., BTB) where slicing is followed by an explicit bitcast for type safety.
 
 ## Implementation Details
 
@@ -64,13 +65,13 @@ Returns the lower 32 bits of rs1 × rs2:
 ```python
 mul_result_signed = op1_extended.bitcast(UInt(64)) * op2_extended.bitcast(UInt(64))
 mul_result_bits = mul_result_signed.bitcast(Bits(64))
-mul_res = mul_result_bits[0:31]
+mul_res = mul_result_bits[0:31].bitcast(Bits(32))
 ```
 
 ### MULH (Multiply High Signed × Signed)
 Returns the upper 32 bits of signed rs1 × signed rs2:
 ```python
-mulh_res = mul_result_bits[32:63]  # Reuse same result as MUL
+mulh_res = mul_result_bits[32:63].bitcast(Bits(32))  # Reuse same result as MUL
 ```
 
 ### MULHSU (Multiply High Signed × Unsigned)
@@ -78,7 +79,7 @@ Returns the upper 32 bits of signed rs1 × unsigned rs2:
 ```python
 mulhsu_result = op1_extended.bitcast(UInt(64)) * op2_zero_ext.bitcast(UInt(64))
 mulhsu_result_bits = mulhsu_result.bitcast(Bits(64))
-mulhsu_res = mulhsu_result_bits[32:63]
+mulhsu_res = mulhsu_result_bits[32:63].bitcast(Bits(32))
 ```
 
 ### MULHU (Multiply High Unsigned × Unsigned)
@@ -86,7 +87,7 @@ Returns the upper 32 bits of unsigned rs1 × unsigned rs2:
 ```python
 mulhu_result = op1_zero_ext.bitcast(UInt(64)) * op2_zero_ext.bitcast(UInt(64))
 mulhu_result_bits = mulhu_result.bitcast(Bits(64))
-mulhu_res = mulhu_result_bits[32:63]
+mulhu_res = mulhu_result_bits[32:63].bitcast(Bits(32))
 ```
 
 ## Why This Works
@@ -94,7 +95,8 @@ mulhu_res = mulhu_result_bits[32:63]
 1. **Manual Extension**: Using `concat` with conditional selection properly extends values according to their sign bit
 2. **UInt(64) Multiplication**: Unsigned multiplication on sign-extended values produces mathematically correct results for signed multiplication (due to two's complement arithmetic)
 3. **Separate Operations**: Breaking down complex expressions prevents code generation issues
-4. **Bit Slicing**: Extracting specific bit ranges from the 64-bit result gives us the required high/low 32 bits
+4. **Explicit Type Casts**: Adding `.bitcast(Bits(32))` after slicing ensures type safety and consistency with codebase patterns
+5. **Bit Slicing**: Extracting specific bit ranges from the 64-bit result gives us the required high/low 32 bits
 
 ## Files Changed
 
@@ -143,4 +145,4 @@ The chosen approach (manual extension + UInt(64) multiplication) provides the be
 
 **Status**: ✅ Ready for Testing  
 **Date**: 2025-12-25  
-**Commits**: 82c9f41, ca2618c, c5da113
+**Commits**: e789179, 82c9f41, ca2618c, c5da113
