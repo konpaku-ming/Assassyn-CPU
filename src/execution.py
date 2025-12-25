@@ -186,18 +186,19 @@ class Execution(Module):
         op2_zero_ext = concat(Bits(32)(0), alu_op2)  # 64-bit zero extended
         
         # MUL: 有符号 × 有符号，返回低32位
-        mul_result_signed = (op1_extended.bitcast(Int(64)) * op2_extended.bitcast(Int(64)))
+        # 使用无符号乘法，然后提取结果
+        mul_result_signed = op1_extended.bitcast(UInt(64)) * op2_extended.bitcast(UInt(64))
         mul_res = mul_result_signed.bitcast(Bits(64))[0:31]
         
         # MULH: 有符号 × 有符号，返回高32位
         mulh_res = mul_result_signed.bitcast(Bits(64))[32:63]
         
         # MULHSU: 有符号 × 无符号，返回高32位
-        mulhsu_result = (op1_extended.bitcast(Int(64)) * op2_zero_ext.bitcast(Int(64)))
+        mulhsu_result = op1_extended.bitcast(UInt(64)) * op2_zero_ext.bitcast(UInt(64))
         mulhsu_res = mulhsu_result.bitcast(Bits(64))[32:63]
         
         # MULHU: 无符号 × 无符号，返回高32位
-        mulhu_result = (op1_zero_ext.bitcast(UInt(64)) * op2_zero_ext.bitcast(UInt(64)))
+        mulhu_result = op1_zero_ext.bitcast(UInt(64)) * op2_zero_ext.bitcast(UInt(64))
         mulhu_res = mulhu_result.bitcast(Bits(64))[32:63]
 
         # ebreak 停机
