@@ -4,3 +4,9 @@
 workspace/
 */__pycache__
 */.workspace/
+
+# Generated files from codegen
+codegen/*.elf
+codegen/*.bin
+codegen/*.hex
+codegen/*.exe
