@@ -150,6 +150,89 @@ int main() {
 1. 编辑 `harvard.ld`，增加 IMEM 或 DMEM 的 LENGTH
 2. 优化你的 C 代码，减少内存使用
 
+#### 问题: 编译成功但没有生成乘法指令
+
+**症状**: 运行 `cat obj.exe | grep mul` 没有找到 `mul` 指令
+
+**可能原因和解决方案**:
+
+1. **编译器优化消除了乘法**
+   - GCC 可能会将常量乘法优化掉（常量折叠）
+   - 将乘数改为变量而不是常量
+   
+   ```c
+   // 不好：编译器可能优化掉
+   int x = 5 * 10;  // 编译时直接计算为 50
+   
+   // 好：强制运行时计算
+   volatile int a = 5;
+   int x = a * 10;  // 生成 mul 指令
+   ```
+
+2. **乘法被优化为移位操作**
+   - 当乘数是 2 的幂时，GCC 会用左移代替乘法（更快）
+   - 使用非 2 的幂的乘数来强制生成 `mul` 指令
+   
+   ```c
+   // 不好：会被优化为左移
+   int x = a * 4;   // 优化为 a << 2
+   int y = a * 16;  // 优化为 a << 4
+   
+   // 好：无法优化为移位
+   int x = a * 3;   // 生成 mul 指令
+   int y = a * 7;   // 生成 mul 指令
+   ```
+
+3. **代码中没有实际的乘法运算**
+   - 检查你的 C 代码是否真的包含乘法运算符 `*`
+   - 确保乘法操作没有被条件语句跳过
+
+4. **使用了错误的编译标志**
+   - 确保使用 `-march=rv32im`（包含 M 扩展）
+   - 不要使用 `-march=rv32i`（不包含 M 扩展）
+   - 检查 `codegen.sh` 中的编译命令
+
+**验证方法**:
+
+```bash
+# 1. 检查 ELF 文件的架构属性
+riscv64-unknown-elf-readelf -A cpu.elf
+# 应该显示: Tag_RISCV_arch: "rv32i2p1_m2p0_zmmul1p0"
+
+# 2. 查看完整的反汇编
+cat obj.exe | less
+# 在 main 函数中查找 mul 指令
+
+# 3. 使用示例代码测试
+# 将 code.c 内容替换为：
+#define DATA_SIZE 100
+int result = 1;
+int main() {
+    int i;
+    for (i = 1; i <= DATA_SIZE; i++) {
+        result = result * i;
+    }
+    return result;
+}
+# 然后运行 bash codegen.sh
+# 应该在 obj.exe 中看到 mul 指令
+```
+
+**调试技巧**:
+
+如果仍然看不到 `mul` 指令，尝试添加优化级别标志：
+
+```bash
+# 修改 codegen.sh 第一行，添加 -O0 禁用优化
+riscv64-unknown-elf-gcc -march=rv32im -mabi=ilp32 -O0 -nostdlib -Wl,--no-check-sections -T harvard.ld start.S code.c -o cpu.elf
+```
+
+或者添加 -O2 启用优化（有时反而会生成更多 mul 指令）：
+
+```bash
+riscv64-unknown-elf-gcc -march=rv32im -mabi=ilp32 -O2 -nostdlib -Wl,--no-check-sections -T harvard.ld start.S code.c -o cpu.elf
+```
+
 ---
 
 ## English
@@ -297,3 +380,86 @@ This code will generate `mul` instructions, proving that the RV32IM extension is
 **Solution**: 
 1. Edit `harvard.ld` and increase the LENGTH of IMEM or DMEM
 2. Optimize your C code to reduce memory usage
+
+#### Issue: Compilation succeeds but no multiplication instructions generated
+
+**Symptom**: Running `cat obj.exe | grep mul` finds no `mul` instruction
+
+**Possible causes and solutions**:
+
+1. **Compiler optimization eliminated multiplication**
+   - GCC may optimize away constant multiplication (constant folding)
+   - Change the multiplier to a variable instead of a constant
+   
+   ```c
+   // Bad: compiler may optimize away
+   int x = 5 * 10;  // Computed at compile time as 50
+   
+   // Good: forces runtime calculation
+   volatile int a = 5;
+   int x = a * 10;  // Generates mul instruction
+   ```
+
+2. **Multiplication optimized to shift operation**
+   - When the multiplier is a power of 2, GCC uses left shift instead of multiplication (faster)
+   - Use non-power-of-2 multipliers to force `mul` instruction generation
+   
+   ```c
+   // Bad: optimized to left shift
+   int x = a * 4;   // Optimized to a << 2
+   int y = a * 16;  // Optimized to a << 4
+   
+   // Good: cannot be optimized to shift
+   int x = a * 3;   // Generates mul instruction
+   int y = a * 7;   // Generates mul instruction
+   ```
+
+3. **No actual multiplication in the code**
+   - Check if your C code actually contains multiplication operator `*`
+   - Ensure multiplication operation is not skipped by conditional statements
+
+4. **Wrong compilation flags used**
+   - Ensure you're using `-march=rv32im` (includes M extension)
+   - Don't use `-march=rv32i` (excludes M extension)
+   - Check the compile command in `codegen.sh`
+
+**Verification methods**:
+
+```bash
+# 1. Check ELF file architecture attributes
+riscv64-unknown-elf-readelf -A cpu.elf
+# Should show: Tag_RISCV_arch: "rv32i2p1_m2p0_zmmul1p0"
+
+# 2. View complete disassembly
+cat obj.exe | less
+# Look for mul instruction in the main function
+
+# 3. Test with example code
+# Replace code.c content with:
+#define DATA_SIZE 100
+int result = 1;
+int main() {
+    int i;
+    for (i = 1; i <= DATA_SIZE; i++) {
+        result = result * i;
+    }
+    return result;
+}
+# Then run bash codegen.sh
+# Should see mul instruction in obj.exe
+```
+
+**Debug tips**:
+
+If you still don't see `mul` instructions, try adding optimization level flags:
+
+```bash
+# Modify codegen.sh line 1, add -O0 to disable optimization
+riscv64-unknown-elf-gcc -march=rv32im -mabi=ilp32 -O0 -nostdlib -Wl,--no-check-sections -T harvard.ld start.S code.c -o cpu.elf
+```
+
+Or add -O2 to enable optimization (sometimes generates more mul instructions):
+
+```bash
+riscv64-unknown-elf-gcc -march=rv32im -mabi=ilp32 -O2 -nostdlib -Wl,--no-check-sections -T harvard.ld start.S code.c -o cpu.elf
+```
