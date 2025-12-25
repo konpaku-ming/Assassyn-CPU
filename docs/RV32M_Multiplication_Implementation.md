@@ -115,17 +115,17 @@ mulhu_res = mulhu_result[32:63].bitcast(Bits(32))
 
 ## 测试说明
 
-由于测试需要在 Apptainer 容器环境中运行，请使用以下命令：
+在 Python 虚拟环境中运行测试，请使用以下命令：
 
 ```bash
 # 在 Assassyn-CPU 项目根目录
-apptainer exec --bind $(pwd) /assassyn.sif python tests/test_mul_extension.py
+python tests/test_mul_extension.py
 ```
 
 或者运行所有测试：
 
 ```bash
-apptainer exec --bind $(pwd) /assassyn.sif python -m pytest tests/
+python -m pytest tests/
 ```
 
 ## 性能特性
@@ -161,7 +161,7 @@ apptainer exec --bind $(pwd) /assassyn.sif python -m pytest tests/
 
 1. **除法指令未实现**: 本次只实现了乘法指令，DIV、DIVU、REM、REMU 将在后续实现
 2. **多周期支持**: 当前为单周期实现，如需多周期乘法器需要额外的暂停控制
-3. **测试环境**: 测试需要在 Apptainer 容器中运行
+3. **测试环境**: 测试在 Python 虚拟环境中运行，需要安装 assassyn 包及其依赖
 
 ## 验证建议
 
