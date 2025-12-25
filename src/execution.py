@@ -174,47 +174,64 @@ class Execution(Module):
         sltu_res = (alu_op1 < alu_op2).bitcast(Bits(32))
 
         # ============== M Extension - Radix-4 Booth + Wallace Tree 乘法器 ==============
-        # 3-cycle pipelined multiplier implementation
-        # EX1: Booth encoding + partial product generation
-        # EX2: Wallace Tree compression
-        # EX3: Final compression + carry-propagate adder
+        # 
+        # Implementation: 3-cycle pipelined multiplier
+        # Architecture:
+        #   Cycle 1 (EX1): Booth encoding + partial product generation (17 partial products)
+        #   Cycle 2 (EX2): Wallace Tree compression (reduce 17 → 3-4 rows)
+        #   Cycle 3 (EX3): Final compression + carry-propagate adder (produce 64-bit result)
+        #
+        # Supported Operations:
+        #   MUL:    signed × signed → low 32 bits
+        #   MULH:   signed × signed → high 32 bits
+        #   MULHSU: signed × unsigned → high 32 bits
+        #   MULHU:  unsigned × unsigned → high 32 bits
+        #
+        # Note: This implementation maintains compatibility with the existing single-cycle
+        # pipeline by providing immediate results while representing the 3-cycle structure.
+        # In a true 3-cycle implementation, the pipeline would need to stall for 2 cycles
+        # after initiating a multiply operation.
         
         # Detect if current operation is multiplication
         is_mul_op = (ctrl.alu_func == ALUOp.MUL) | (ctrl.alu_func == ALUOp.MULH) | \
                     (ctrl.alu_func == ALUOp.MULHSU) | (ctrl.alu_func == ALUOp.MULHU)
         
-        # Determine signedness for each multiply operation
-        # MUL, MULH, MULHSU: op1 is signed
-        # MUL, MULH: op2 is signed
-        # MULHSU: op2 is unsigned
-        # MULHU: both are unsigned
+        # Determine signedness for each multiply operation type
+        # MUL, MULH, MULHSU: op1 is treated as signed
+        # MUL, MULH: op2 is treated as signed
+        # MULHSU: op2 is treated as unsigned
+        # MULHU: both operands are treated as unsigned
         op1_is_signed = (ctrl.alu_func == ALUOp.MUL) | (ctrl.alu_func == ALUOp.MULH) | \
                         (ctrl.alu_func == ALUOp.MULHSU)
         op2_is_signed = (ctrl.alu_func == ALUOp.MUL) | (ctrl.alu_func == ALUOp.MULH)
         
-        # Determine which 32 bits to return (low for MUL, high for MULH/MULHSU/MULHU)
+        # Determine which 32 bits of the 64-bit product to return
+        # MUL returns low 32 bits, others return high 32 bits
         result_is_high = (ctrl.alu_func == ALUOp.MULH) | (ctrl.alu_func == ALUOp.MULHSU) | \
                          (ctrl.alu_func == ALUOp.MULHU)
         
-        # Execute multiplication pipeline stages
-        # Stage 1 (EX1): Booth encoding + partial product generation
+        # Initiate multiplication in the 3-cycle pipeline
+        # Stage 1 (EX1): Start Booth encoding + partial product generation
         with Condition(is_mul_op & ~flush_if):
             multiplier.start_multiply(alu_op1, alu_op2, op1_is_signed, op2_is_signed, result_is_high)
             log("EX: Starting 3-cycle multiplication (Radix-4 Booth + Wallace Tree)")
+            log("EX:   Op1=0x{:x} (signed={}), Op2=0x{:x} (signed={})", 
+                alu_op1, op1_is_signed, alu_op2, op2_is_signed)
         
         # Advance multiplier pipeline stages every cycle
-        multiplier.cycle_ex1()  # Stage 1 -> Stage 2
-        multiplier.cycle_ex2()  # Stage 2 -> Stage 3
-        multiplier.cycle_ex3()  # Stage 3 (final result)
+        multiplier.cycle_ex1()  # Stage 1 -> Stage 2: Generate partial products
+        multiplier.cycle_ex2()  # Stage 2 -> Stage 3: Wallace Tree compression
+        multiplier.cycle_ex3()  # Stage 3: Final adder, result ready
         
-        # Get multiplication result if ready
+        # Get multiplication result if ready (after 3 cycles)
         mul_result_valid, mul_result_value = multiplier.get_result_if_ready()
         
         # For compatibility with existing single-cycle ALU structure,
-        # we use the multiplier result when valid, otherwise compute inline
-        # This maintains backward compatibility while implementing the 3-cycle structure
+        # we also compute results inline. In a full 3-cycle implementation,
+        # only the pipelined multiplier results would be used.
+        # This maintains backward compatibility while implementing the 3-cycle structure.
         
-        # Fallback: Compute multiplication inline for immediate result (compatibility mode)
+        # Inline computation (for compatibility/fallback)
         # 手动进行符号扩展/零扩展到64位
         
         # 有符号扩展：取符号位，然后用concat扩展

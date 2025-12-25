@@ -1,6 +1,64 @@
 """
 Radix-4 Booth + Wallace Tree Multiplier with 3-cycle pipeline
 
+Architecture Overview:
+=====================
+
+This module implements a 32×32-bit multiplier using Radix-4 Booth encoding
+and Wallace Tree reduction, spread across 3 pipeline stages.
+
+## Radix-4 Booth Encoding
+
+Radix-4 Booth encoding reduces the number of partial products by examining
+3 bits of the multiplier at a time (with 1-bit overlap):
+
+For bits [i+1, i, i-1]:
+- 000, 111 → multiply by 0
+- 001, 010 → multiply by +1
+- 011      → multiply by +2
+- 100      → multiply by -2
+- 101, 110 → multiply by -1
+
+For a 32-bit multiplier, this produces 17 partial products instead of 32.
+
+## Wallace Tree Compression
+
+The Wallace Tree uses 3:2 compressors (full adders) to reduce multiple
+partial products to two numbers that can be added by a final adder.
+
+A 3:2 compressor takes 3 inputs (a, b, c) and produces:
+- sum   = a ⊕ b ⊕ c
+- carry = (a&b) | (b&c) | (a&c)
+
+The carry output is shifted left by 1 bit position.
+
+Reduction levels for 17 partial products:
+- Level 0: 17 rows (initial partial products)
+- Level 1: 12 rows (reduce 15 → 10, keep 2)
+- Level 2:  8 rows (reduce 12 → 8)
+- Level 3:  6 rows (reduce 8 → 6, or 9 → 6)
+- Level 4:  4 rows (reduce 6 → 4)
+- Level 5:  3 rows (reduce 4 → 3, or keep 3)
+- Level 6:  2 rows (final reduction)
+
+## 3-Cycle Pipeline Structure
+
+### Cycle 1 (EX1): Booth Encoding + Partial Product Generation
+- Recode multiplier into Radix-4 digits
+- Generate 17 partial products
+- Each partial product is: 0, ±multiplicand, or ±2×multiplicand
+- Sign-extend partial products to 65 bits
+
+### Cycle 2 (EX2): Wallace Tree Compression
+- Apply 4-5 levels of 3:2 compressors
+- Reduce 17 partial products down to 3-4 rows
+- Most of the reduction work happens here
+
+### Cycle 3 (EX3): Final Compression + CPA
+- Apply remaining compression levels to get 2 rows
+- Use Carry-Propagate Adder (CPA) to sum final 2 rows
+- Output final 64-bit product (select high or low 32 bits)
+
 Implementation:
 - EX1 (Cycle 1): Booth encoding + partial product generation
 - EX2 (Cycle 2): Wallace Tree compression (most layers)  
@@ -67,12 +125,30 @@ class BoothWallaceMul:
         """
         Execute EX1 stage: Booth encoding + partial product generation
         
-        In real hardware, this stage would:
-        1. Perform Radix-4 Booth recoding of the multiplier (op2)
-        2. Generate 17 partial products (each is 0, ±op1, or ±2*op1)
-        3. Sign-extend partial products appropriately
+        === Hardware Implementation Details ===
         
-        For simulation, we compute the full product here and pass to next stage.
+        In real hardware, this stage performs:
+        
+        1. Radix-4 Booth Recoding:
+           - Append a 0 to LSB of multiplier: {op2, 0}
+           - Examine 3 bits at a time: [i+1, i, i-1]
+           - Generate 17 Booth digits for 32-bit multiplier
+           - Each digit encodes: -2, -1, 0, +1, +2
+        
+        2. Partial Product Generation:
+           - For each Booth digit, generate a partial product
+           - PP[i] = multiplicand × booth_digit[i] × 2^(2i)
+           - Use multiplexers to select: 0, ±op1, ±2×op1
+           - 2×op1 is computed by left shift (op1 << 1)
+           - Sign-extend each partial product to 65 bits
+        
+        3. Partial Product Array:
+           - Output: 17 partial products, each 65 bits wide
+           - These form the input to the Wallace Tree
+        
+        === Simulation ===
+        For simulation, we compute the full product directly and pass to next stage.
+        This is mathematically equivalent to the sum of all Booth partial products.
         """
         # Only process if stage 1 is valid
         with Condition(self.ex1_valid[0] == Bits(1)(1)):
@@ -93,7 +169,8 @@ class BoothWallaceMul:
             op2_ext_high = op2_signed.select(op2_sign_ext, Bits(32)(0))
             op2_extended = concat(op2_ext_high, op2)
             
-            # Perform multiplication (representing Booth-encoded partial products)
+            # Perform multiplication (representing sum of Booth-encoded partial products)
+            # In hardware: This would be the array of 17 partial products
             product_64 = op1_extended.bitcast(UInt(64)) * op2_extended.bitcast(UInt(64))
             product_bits = product_64.bitcast(Bits(64))
             
@@ -114,22 +191,53 @@ class BoothWallaceMul:
         """
         Execute EX2 stage: Wallace Tree compression
         
-        In real hardware, this stage would:
-        1. Use multiple layers of 3:2 compressors (full adders)
-        2. Reduce 17 partial products down to ~3-4 rows
-        3. Each level reduces the number of rows by ~1/3
+        === Hardware Implementation Details ===
         
-        For simulation, we pass through the computed partial sums.
+        In real hardware, this stage performs Wallace Tree reduction using
+        3:2 compressors (full adders):
+        
+        1. Wallace Tree Structure:
+           - Input: 17 partial products (from EX1)
+           - Uses ~50-70 full adders organized in layers
+           - Each layer reduces the number of rows
+        
+        2. Compression Levels (most done in EX2):
+           Level 1: 17 → 12 rows
+           - Use 5 compressors to reduce 15 rows to 10
+           - Keep 2 rows unchanged
+           
+           Level 2: 12 → 8 rows
+           - Use 4 compressors to reduce 12 rows to 8
+           
+           Level 3: 8 → 6 rows
+           - Use 2-3 compressors
+           
+           Level 4: 6 → 4 rows
+           - Use 2 compressors
+        
+        3. 3:2 Compressor Operation:
+           For each bit position:
+           - sum[i]   = a[i] ⊕ b[i] ⊕ c[i]
+           - carry[i+1] = (a[i] & b[i]) | (b[i] & c[i]) | (a[i] & c[i])
+        
+        4. Output:
+           - Typically 3-4 rows remaining
+           - Passed to EX3 for final reduction
+        
+        === Simulation ===
+        The partial products from EX1 already represent the summed result.
+        We pass them through to EX3.
         """
         # Only process if stage 2 is valid
         with Condition(self.ex2_valid[0] == Bits(1)(1)):
-            # In real hardware, Wallace Tree compression happens here
+            # In real hardware, multiple levels of Wallace Tree compression happen here
             # For simulation, partial products are already summed
+            # Hardware would have: compressed_rows = wallace_tree_compress(partial_products)
             
-            # Select which 32 bits to return
+            # Select which 32 bits to return based on operation type
             result = self.ex2_result_high[0].select(
-                self.ex2_partial_high[0],
-                self.ex2_partial_low[0]
+                self.ex2_partial_high[0],  # High 32 bits for MULH/MULHSU/MULHU
+                self.ex2_partial_low[0]    # Low 32 bits for MUL
             )
             
             # Advance to stage 3
@@ -143,17 +251,45 @@ class BoothWallaceMul:
         """
         Execute EX3 stage: Final compression + carry-propagate adder
         
-        In real hardware, this stage would:
-        1. Perform final 3:2 compression to get 2 rows
-        2. Use a carry-propagate adder (CPA) to sum the final 2 rows
-        3. The CPA produces the final 64-bit product
+        === Hardware Implementation Details ===
         
-        For simulation, the result is already computed and we just output it.
+        In real hardware, this stage performs:
+        
+        1. Final Wallace Tree Compression:
+           - Input: 3-4 rows from EX2
+           - Use 1-2 more compression levels
+           - Output: 2 rows (sum and carry)
+           
+           Level 5: 4 → 3 rows (if needed)
+           Level 6: 3 → 2 rows (final)
+        
+        2. Carry-Propagate Adder (CPA):
+           - Adds the final two rows
+           - Can use various architectures:
+             a) Ripple-Carry Adder (simple, area-efficient, slower)
+             b) Carry-Lookahead Adder (faster, more area)
+             c) Carry-Select Adder (balanced)
+             d) Kogge-Stone Adder (fastest, most area)
+           - For 64-bit addition
+        
+        3. Result Selection:
+           - Extract high or low 32 bits based on operation
+           - MUL: bits [31:0]
+           - MULH/MULHSU/MULHU: bits [63:32]
+        
+        4. Output:
+           - Final 32-bit result
+           - Valid signal for result consumption
+        
+        === Simulation ===
+        The result is already computed and stored in ex3_result.
+        This stage just maintains it for one cycle for the execution stage to read.
         """
         # Only process if stage 3 is valid
         with Condition(self.ex3_valid[0] == Bits(1)(1)):
             # Result is already in ex3_result[0]
-            # In real hardware, final CPA would complete here
+            # In real hardware, the final CPA (Carry-Propagate Adder) completes here:
+            # final_product = carry_propagate_add(sum_row, carry_row)
             
             # Keep result valid for one cycle for execution stage to read
             # The execution stage will clear ex3_valid after reading
