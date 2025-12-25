@@ -169,6 +169,27 @@ class Execution(Module):
         # 无符号比较小于
         sltu_res = (alu_op1 < alu_op2).bitcast(Bits(32))
 
+        # ============== M Extension - 乘法运算 ==============
+        # MUL: 返回 rs1 × rs2 的低32位
+        # 使用64位乘法，然后提取低32位
+        mul_result_signed = (op1_signed.bitcast(Int(64)) * op2_signed.bitcast(Int(64)))
+        mul_res = mul_result_signed[0:31].bitcast(Bits(32))
+        
+        # MULH: 有符号×有符号，返回高32位
+        mulh_res = mul_result_signed[32:63].bitcast(Bits(32))
+        
+        # MULHSU: 有符号×无符号，返回高32位
+        # rs1 有符号扩展，rs2 无符号扩展
+        op1_signed_64 = op1_signed.bitcast(Int(64))
+        op2_unsigned_64 = alu_op2.bitcast(UInt(64))
+        mulhsu_result = (op1_signed_64 * op2_unsigned_64.bitcast(Int(64)))
+        mulhsu_res = mulhsu_result[32:63].bitcast(Bits(32))
+        
+        # MULHU: 无符号×无符号，返回高32位
+        op1_unsigned_64 = alu_op1.bitcast(UInt(64))
+        mulhu_result = (op1_unsigned_64 * op2_unsigned_64)
+        mulhu_res = mulhu_result[32:63].bitcast(Bits(32))
+
         # ebreak 停机
         with Condition((ctrl.alu_func == ALUOp.SYS) & ~flush_if):
             log("EBREAK encountered at PC=0x{:x}, halting simulation.", pc)
@@ -176,22 +197,38 @@ class Execution(Module):
 
         # 2. 结果选择
         alu_result = ctrl.alu_func.select1hot(
-            add_res,  # ADD
-            sub_res,  # SUB
-            sll_res,  # SLL
-            slt_res,  # SLT
-            sltu_res,  # SLTU
-            xor_res,  # XOR
-            srl_res,  # SRL
-            sra_res,  # SRA
-            or_res,  # OR
-            and_res,  # AND
-            alu_op2,  # SYS
-            alu_op2,  # 占位
-            alu_op2,  # 占位
-            alu_op2,  # 占位
-            alu_op2,  # 占位
-            alu_op2,  # 占位
+            add_res,     # 0:  ADD
+            sub_res,     # 1:  SUB
+            sll_res,     # 2:  SLL
+            slt_res,     # 3:  SLT
+            sltu_res,    # 4:  SLTU
+            xor_res,     # 5:  XOR
+            srl_res,     # 6:  SRL
+            sra_res,     # 7:  SRA
+            or_res,      # 8:  OR
+            and_res,     # 9:  AND
+            alu_op2,     # 10: SYS
+            mul_res,     # 11: MUL (新增)
+            mulh_res,    # 12: MULH (新增)
+            mulhsu_res,  # 13: MULHSU (新增)
+            mulhu_res,   # 14: MULHU (新增)
+            alu_op2,     # 15: 占位
+            alu_op2,     # 16: 占位
+            alu_op2,     # 17: 占位
+            alu_op2,     # 18: 占位
+            alu_op2,     # 19-31: 占位（为未来扩展预留）
+            alu_op2,
+            alu_op2,
+            alu_op2,
+            alu_op2,
+            alu_op2,
+            alu_op2,
+            alu_op2,
+            alu_op2,
+            alu_op2,
+            alu_op2,
+            alu_op2,
+            alu_op2,
         )
 
         with Condition(ctrl.alu_func == ALUOp.ADD):
@@ -218,6 +255,16 @@ class Execution(Module):
             log("EX: ALU Operation: SYS")
         with Condition(ctrl.alu_func == ALUOp.NOP):
             log("EX: ALU Operation: NOP or Reserved")
+        
+        # M Extension 操作日志
+        with Condition(ctrl.alu_func == ALUOp.MUL):
+            log("EX: ALU Operation: MUL")
+        with Condition(ctrl.alu_func == ALUOp.MULH):
+            log("EX: ALU Operation: MULH")
+        with Condition(ctrl.alu_func == ALUOp.MULHSU):
+            log("EX: ALU Operation: MULHSU")
+        with Condition(ctrl.alu_func == ALUOp.MULHU):
+            log("EX: ALU Operation: MULHU")
 
         # 3. 更新本级 Bypass 寄存器
         ex_bypass[0] = alu_result
