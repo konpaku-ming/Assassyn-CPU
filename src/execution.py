@@ -188,18 +188,21 @@ class Execution(Module):
         # MUL: 有符号 × 有符号，返回低32位
         # 使用无符号乘法，然后提取结果
         mul_result_signed = op1_extended.bitcast(UInt(64)) * op2_extended.bitcast(UInt(64))
-        mul_res = mul_result_signed.bitcast(Bits(64))[0:31]
+        mul_result_bits = mul_result_signed.bitcast(Bits(64))
+        mul_res = mul_result_bits[0:31]
         
         # MULH: 有符号 × 有符号，返回高32位
-        mulh_res = mul_result_signed.bitcast(Bits(64))[32:63]
+        mulh_res = mul_result_bits[32:63]
         
         # MULHSU: 有符号 × 无符号，返回高32位
         mulhsu_result = op1_extended.bitcast(UInt(64)) * op2_zero_ext.bitcast(UInt(64))
-        mulhsu_res = mulhsu_result.bitcast(Bits(64))[32:63]
+        mulhsu_result_bits = mulhsu_result.bitcast(Bits(64))
+        mulhsu_res = mulhsu_result_bits[32:63]
         
         # MULHU: 无符号 × 无符号，返回高32位
         mulhu_result = op1_zero_ext.bitcast(UInt(64)) * op2_zero_ext.bitcast(UInt(64))
-        mulhu_res = mulhu_result.bitcast(Bits(64))[32:63]
+        mulhu_result_bits = mulhu_result.bitcast(Bits(64))
+        mulhu_res = mulhu_result_bits[32:63]
 
         # ebreak 停机
         with Condition((ctrl.alu_func == ALUOp.SYS) & ~flush_if):
