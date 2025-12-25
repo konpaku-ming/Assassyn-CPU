@@ -239,11 +239,12 @@ class Execution(Module):
         # This maintains backward compatibility while implementing the 3-cycle structure.
         
         # Inline computation (for compatibility/fallback)
-        # Use helper function for sign/zero extension
-        op1_extended = sign_zero_extend(alu_op1, Bits(1)(1))  # Always sign-extended for signed ops
-        op2_extended = sign_zero_extend(alu_op2, Bits(1)(1))
-        op1_zero_ext = sign_zero_extend(alu_op1, Bits(1)(0))  # Zero-extended
-        op2_zero_ext = sign_zero_extend(alu_op2, Bits(1)(0))
+        # Use helper function for sign/zero extension based on operation type
+        # op1_is_signed and op2_is_signed were computed earlier based on operation
+        op1_extended = sign_zero_extend(alu_op1, op1_is_signed)
+        op2_extended = sign_zero_extend(alu_op2, op2_is_signed)
+        op1_zero_ext = sign_zero_extend(alu_op1, Bits(1)(0))  # Zero-extended for MULHU
+        op2_zero_ext = sign_zero_extend(alu_op2, Bits(1)(0))  # Zero-extended for MULHU/MULHSU
         
         # MUL: 有符号 × 有符号，返回低32位
         # 使用无符号乘法，然后提取结果
