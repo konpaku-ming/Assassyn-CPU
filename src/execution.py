@@ -1,6 +1,6 @@
 from assassyn.frontend import *
 from .control_signals import *
-from .multiplier import BoothWallaceMul
+from .multiplier import BoothWallaceMul, sign_zero_extend
 
 
 class Execution(Module):
@@ -211,8 +211,10 @@ class Execution(Module):
                          (ctrl.alu_func == ALUOp.MULHU)
         
         # Initiate multiplication in the 3-cycle pipeline
+        # Only start if multiplier is not busy to avoid overwriting in-flight operations
         # Stage 1 (EX1): Start Booth encoding + partial product generation
-        with Condition(is_mul_op & ~flush_if):
+        mul_can_start = is_mul_op & ~flush_if & ~multiplier.is_busy()
+        with Condition(mul_can_start):
             multiplier.start_multiply(alu_op1, alu_op2, op1_is_signed, op2_is_signed, result_is_high)
             log("EX: Starting 3-cycle multiplication (Radix-4 Booth + Wallace Tree)")
             log("EX:   Op1=0x{:x} (signed={}), Op2=0x{:x} (signed={})", 
@@ -226,26 +228,22 @@ class Execution(Module):
         # Get multiplication result if ready (after 3 cycles)
         mul_result_valid, mul_result_value = multiplier.get_result_if_ready()
         
+        # Clear result after reading to prevent consuming it multiple times
+        with Condition(mul_result_valid == Bits(1)(1)):
+            log("EX: 3-cycle multiplier result ready: 0x{:x}", mul_result_value)
+            multiplier.clear_result()
+        
         # For compatibility with existing single-cycle ALU structure,
         # we also compute results inline. In a full 3-cycle implementation,
         # only the pipelined multiplier results would be used.
         # This maintains backward compatibility while implementing the 3-cycle structure.
         
         # Inline computation (for compatibility/fallback)
-        # 手动进行符号扩展/零扩展到64位
-        
-        # 有符号扩展：取符号位，然后用concat扩展
-        op1_sign_bit = alu_op1[31:31]
-        op1_sign_ext = op1_sign_bit.select(Bits(32)(0xFFFFFFFF), Bits(32)(0))
-        op1_extended = concat(op1_sign_ext, alu_op1)  # 64-bit signed extended
-        
-        op2_sign_bit = alu_op2[31:31]
-        op2_sign_ext = op2_sign_bit.select(Bits(32)(0xFFFFFFFF), Bits(32)(0))
-        op2_extended = concat(op2_sign_ext, alu_op2)  # 64-bit signed extended
-        
-        # 无符号扩展：高位填0
-        op1_zero_ext = concat(Bits(32)(0), alu_op1)  # 64-bit zero extended
-        op2_zero_ext = concat(Bits(32)(0), alu_op2)  # 64-bit zero extended
+        # Use helper function for sign/zero extension
+        op1_extended = sign_zero_extend(alu_op1, Bits(1)(1))  # Always sign-extended for signed ops
+        op2_extended = sign_zero_extend(alu_op2, Bits(1)(1))
+        op1_zero_ext = sign_zero_extend(alu_op1, Bits(1)(0))  # Zero-extended
+        op2_zero_ext = sign_zero_extend(alu_op2, Bits(1)(0))
         
         # MUL: 有符号 × 有符号，返回低32位
         # 使用无符号乘法，然后提取结果

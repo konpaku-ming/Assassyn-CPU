@@ -70,6 +70,23 @@ This implements a true 3-cycle pipelined multiplier that takes 3 cycles to produ
 from assassyn.frontend import *
 
 
+def sign_zero_extend(op: Bits, signed: Bits) -> Bits:
+    """
+    Helper function to perform sign or zero extension of a 32-bit value to 64 bits.
+    
+    Args:
+        op: 32-bit operand to extend
+        signed: Whether to sign-extend (1) or zero-extend (0)
+    
+    Returns:
+        64-bit extended value
+    """
+    sign_bit = op[31:31]
+    sign_ext = sign_bit.select(Bits(32)(0xFFFFFFFF), Bits(32)(0))
+    ext_high = signed.select(sign_ext, Bits(32)(0))
+    return concat(ext_high, op)
+
+
 class BoothWallaceMul:
     """
     Helper class to manage 3-cycle multiplication using Radix-4 Booth + Wallace Tree.
@@ -158,16 +175,9 @@ class BoothWallaceMul:
             op1_signed = self.ex1_op1_signed[0]
             op2_signed = self.ex1_op2_signed[0]
             
-            # Sign/Zero extension to 64 bits
-            op1_sign_bit = op1[31:31]
-            op1_sign_ext = op1_sign_bit.select(Bits(32)(0xFFFFFFFF), Bits(32)(0))
-            op1_ext_high = op1_signed.select(op1_sign_ext, Bits(32)(0))
-            op1_extended = concat(op1_ext_high, op1)
-            
-            op2_sign_bit = op2[31:31]
-            op2_sign_ext = op2_sign_bit.select(Bits(32)(0xFFFFFFFF), Bits(32)(0))
-            op2_ext_high = op2_signed.select(op2_sign_ext, Bits(32)(0))
-            op2_extended = concat(op2_ext_high, op2)
+            # Use helper function for sign/zero extension to 64 bits
+            op1_extended = sign_zero_extend(op1, op1_signed)
+            op2_extended = sign_zero_extend(op2, op2_signed)
             
             # Perform multiplication (representing sum of Booth-encoded partial products)
             # In hardware: This would be the array of 17 partial products
