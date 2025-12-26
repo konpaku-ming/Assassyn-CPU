@@ -524,5 +524,9 @@ class Execution(Module):
         # rd_addr for scoreboarding/dependency detection
         # is_load for detecting Load-Use hazards
         # mul_busy for detecting MUL multi-cycle occupancy, requires pipeline stall
+        # 
+        # 关键修复：返回实际发送到MEM的rd（mem_rd），而非原始的rd
+        # 当MUL未ready时，mem_rd=0，这样DataHazardUnit就知道没有实际的写回操作
+        # 避免了错误的forwarding路径
         mul_busy = multiplier.is_busy()
-        return final_mem_ctrl.rd_addr, is_load, mul_busy
+        return mem_rd, is_load, mul_busy
