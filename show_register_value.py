@@ -6,6 +6,9 @@ Extract and display the final value of a register from a CPU simulation log.
 import re
 import sys
 
+# Configuration
+RECENT_WRITES_DISPLAY = 10  # Number of recent writes to display
+
 def get_register_history(log_file, register):
     """
     Extract all write operations to a specific register from the log.
@@ -17,13 +20,21 @@ def get_register_history(log_file, register):
     Returns:
         List of (cycle, value) tuples
     """
-    # Map a0-a7 to x10-x17, t0-t6 to x5-x7, x28-x31, etc.
+    # Complete RISC-V ABI register name mapping
     reg_map = {
+        # Argument/return registers
         'a0': 'x10', 'a1': 'x11', 'a2': 'x12', 'a3': 'x13',
         'a4': 'x14', 'a5': 'x15', 'a6': 'x16', 'a7': 'x17',
+        # Temporary registers
         't0': 'x5', 't1': 'x6', 't2': 'x7',
-        's0': 'x8', 's1': 'x9',
+        't3': 'x28', 't4': 'x29', 't5': 'x30', 't6': 'x31',
+        # Saved registers
+        's0': 'x8', 's1': 'x9', 's2': 'x18', 's3': 'x19',
+        's4': 'x20', 's5': 'x21', 's6': 'x22', 's7': 'x23',
+        's8': 'x24', 's9': 'x25', 's10': 'x26', 's11': 'x27',
+        # Special purpose registers
         'zero': 'x0', 'ra': 'x1', 'sp': 'x2', 'gp': 'x3', 'tp': 'x4',
+        'fp': 'x8',  # Frame pointer (alias for s0)
     }
     
     # Convert register alias to x-form if needed
@@ -33,8 +44,8 @@ def get_register_history(log_file, register):
     with open(log_file, 'r') as f:
         content = f.read()
     
-    # Find all writes to the specified register
-    pattern = rf'Cycle @(\d+\.\d+):.*WB: Write {register} <= (0x[0-9a-f]+)'
+    # Use more specific pattern with word boundaries for efficiency
+    pattern = rf'\bCycle @(\d+\.\d+):.*\bWB: Write {register} <= (0x[0-9a-f]+)'
     writes = re.findall(pattern, content)
     
     return writes
@@ -71,11 +82,11 @@ def main():
         print(f"❌ No write operations found for register '{register}'")
         return 1
     
-    print(f"Register Write History (showing last 10 writes):")
+    print(f"Register Write History (showing last {RECENT_WRITES_DISPLAY} writes):")
     print("=" * 70)
     
-    # Show last 10 writes
-    for cycle, value in writes[-10:]:
+    # Show last N writes
+    for cycle, value in writes[-RECENT_WRITES_DISPLAY:]:
         decimal = parse_value(value)
         print(f"  Cycle {cycle:>7}: {value} (decimal: {decimal})")
     
