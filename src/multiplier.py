@@ -182,11 +182,11 @@ class WallaceTreeMul:
             op2_signed = self.m1_op2_signed[0]
             
             log("EX_M1: Generating 32 partial products (Cycle 1/3)")
-            log("EX_M1:   Op1=0x{:x} ({}), Op2=0x{:x} ({})",
+            log("EX_M1:   Op1=0x{:x} (signed={}), Op2=0x{:x} (signed={})",
                 op1, 
-                op1_signed.select("signed", "unsigned"),
+                op1_signed,
                 op2,
-                op2_signed.select("signed", "unsigned"))
+                op2_signed)
             
             # Use helper function for sign/zero extension to 64 bits
             op1_extended = sign_zero_extend(op1, op1_signed)
