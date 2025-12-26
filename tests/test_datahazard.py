@@ -27,19 +27,19 @@ class Driver(Module):
         # --- Test vector definition ---
         # Format: (rs1_idx, rs2_idx, rs1_used, rs2_used, ex_rd, ex_is_load, ex_mul_busy, mem_rd, wb_rd)
         vectors = [
-            # 测试用例1：没有冒险的情况
+            # Test case 1: No hazard
             (0x2, 0x3, 1, 1, 0x4, 0, 0, 0x7, 0xA),
-            # 测试用例2：EX阶段旁路
+            # Test case 2: EX stage bypass (rs2)
             (0x2, 0x4, 1, 1, 0x4, 0, 0, 0x7, 0xA),
-            # 测试用例3：MEM阶段旁路
+            # Test case 3: MEM stage bypass (rs2)
             (0x2, 0x7, 1, 1, 0x4, 0, 0, 0x7, 0xA),
-            # 测试用例4：WB阶段旁路
+            # Test case 4: WB stage bypass (rs2)
             (0x2, 0xA, 1, 1, 0x4, 0, 0, 0x7, 0xA),
-            # 测试用例5：Load-Use冒险（必须停顿）
+            # Test case 5: Load-Use hazard (must stall)
             (0x2, 0x4, 1, 1, 0x4, 1, 0, 0x7, 0xA),
-            # 测试用例6：零寄存器（不应该产生冒险）
+            # Test case 6: Zero register (should not cause hazard)
             (0x0, 0x2, 1, 1, 0x0, 0, 0, 0x7, 0xA),
-            # 测试用例7：MUL busy（必须停顿）
+            # Test case 7: MUL busy (must stall)
             (0x2, 0x3, 1, 1, 0x4, 0, 1, 0x7, 0xA),
         ]
 
@@ -162,12 +162,12 @@ def check(raw_output):
     # Sel: 1=REG, 2=EX, 4=MEM, 8=WB
     expected_map = {
         0: (1, 1, 0),  # No Hazard
-        1: (1, 2, 0),  # EX Fwd (rs1)
-        2: (1, 4, 0),
-        3: (1, 8, 0),  # MEM Fwd
-        4: (1, 1, 1),  # WB Fwd
-        5: (1, 1, 0),  # EX Load 优先 -> Stall
-        6: (1, 1, 1),  # MUL busy -> Stall (新增测试用例)
+        1: (1, 2, 0),  # EX Fwd (rs2)
+        2: (1, 4, 0),  # MEM Fwd (rs2)
+        3: (1, 8, 0),  # WB Fwd (rs2)
+        4: (1, 1, 1),  # Load-Use hazard -> Stall
+        5: (1, 1, 0),  # Zero register (no hazard)
+        6: (1, 1, 1),  # MUL busy -> Stall
     }
 
     captured_data = {}
