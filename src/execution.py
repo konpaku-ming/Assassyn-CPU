@@ -334,7 +334,7 @@ class Execution(Module):
         # 确定bypass的值：
         # - 如果MUL结果ready，使用mul_result_value
         # - 否则使用alu_result
-        bypass_value = mul_result_valid.select(alu_result, mul_result_value)
+        bypass_value = mul_result_valid.select(mul_result_value, alu_result)
         
         # 只在should_update_bypass为true时更新bypass
         with Condition(should_update_bypass):
