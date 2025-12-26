@@ -132,7 +132,7 @@ class WallaceTreeMul:
         until the result is ready. The pipeline stalls for the entire duration,
         preventing IF/ID/EX from accepting new instructions.
         """
-        return ((self.m1_valid[0] | self.m2_valid[0] | self.m3_valid[0]))
+        return self.m1_valid[0] | self.m2_valid[0] | self.m3_valid[0]
     
     def start_multiply(self, op1, op2, op1_signed, op2_signed, result_high):
         """
