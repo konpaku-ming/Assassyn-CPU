@@ -22,11 +22,11 @@
 @line:364   Cycle @4.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @4.00: [Executor]	EX: ALU Op2 source: IMM (0x1)
 @line:1033  Cycle @4.00: [Executor]	EX: ALU Operation: ADD
-@line:1268  Cycle @4.00: [Executor]	EX: ALU Result: 0x1
-@line:1271  Cycle @4.00: [Executor]	EX: Bypass Update: 0x1
-@line:1339  Cycle @4.00: [Executor]	EX: Branch Immediate: 0x1
-@line:1343  Cycle @4.00: [Executor]	EX: Branch Target Base: 0x0
-@line:1512  Cycle @4.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @4.00: [Executor]	EX: Bypass Update: 0x1
+@line:1290  Cycle @4.00: [Executor]	EX: ALU Result: 0x1
+@line:1358  Cycle @4.00: [Executor]	EX: Branch Immediate: 0x1
+@line:1362  Cycle @4.00: [Executor]	EX: Branch Target Base: 0x0
+@line:1531  Cycle @4.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:144   Cycle @4.00: [DataHazardUnit]	Input Signals: rs1_idx=0 rs2_idx=1 rs1_used=1 rs2_used=0 ex_rd=10 ex_is_load=0 ex_mul_busy=0 mem_rd=0 wb_rd=0
 @line:262   Cycle @4.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=1 rs2_sel=1 stall_if=0 mul_busy_hazard=0
 @line:64    Cycle @4.00: [Fetcher_Impl]	IF: Final Current PC=0x8
@@ -44,11 +44,11 @@
 @line:364   Cycle @5.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @5.00: [Executor]	EX: ALU Op2 source: IMM (0x1)
 @line:1033  Cycle @5.00: [Executor]	EX: ALU Operation: ADD
-@line:1268  Cycle @5.00: [Executor]	EX: ALU Result: 0x1
-@line:1271  Cycle @5.00: [Executor]	EX: Bypass Update: 0x1
-@line:1339  Cycle @5.00: [Executor]	EX: Branch Immediate: 0x1
-@line:1343  Cycle @5.00: [Executor]	EX: Branch Target Base: 0x4
-@line:1512  Cycle @5.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @5.00: [Executor]	EX: Bypass Update: 0x1
+@line:1290  Cycle @5.00: [Executor]	EX: ALU Result: 0x1
+@line:1358  Cycle @5.00: [Executor]	EX: Branch Immediate: 0x1
+@line:1362  Cycle @5.00: [Executor]	EX: Branch Target Base: 0x4
+@line:1531  Cycle @5.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @5.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @5.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @5.00: [MEM]	MEM: SIGNED.
@@ -70,11 +70,11 @@
 @line:364   Cycle @6.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @6.00: [Executor]	EX: ALU Op2 source: IMM (0xb)
 @line:1033  Cycle @6.00: [Executor]	EX: ALU Operation: ADD
-@line:1268  Cycle @6.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @6.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @6.00: [Executor]	EX: Branch Immediate: 0xb
-@line:1343  Cycle @6.00: [Executor]	EX: Branch Target Base: 0x8
-@line:1512  Cycle @6.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @6.00: [Executor]	EX: Bypass Update: 0xb
+@line:1290  Cycle @6.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @6.00: [Executor]	EX: Branch Immediate: 0xb
+@line:1362  Cycle @6.00: [Executor]	EX: Branch Target Base: 0x8
+@line:1531  Cycle @6.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @6.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @6.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @6.00: [MEM]	MEM: SIGNED.
@@ -100,11 +100,11 @@
 @line:693   Cycle @7.00: [Executor]	EX: Starting 3-cycle multiplication (Pure Wallace Tree)
 @line:696   Cycle @7.00: [Executor]	EX:   Op1=0x1 (signed=1), Op2=0x1 (signed=1)
 @line:1213  Cycle @7.00: [Executor]	EX: ALU Operation: MUL
-@line:1268  Cycle @7.00: [Executor]	EX: ALU Result: 0x0
-@line:1271  Cycle @7.00: [Executor]	EX: Bypass Update: 0x0
-@line:1339  Cycle @7.00: [Executor]	EX: Branch Immediate: 0x0
-@line:1343  Cycle @7.00: [Executor]	EX: Branch Target Base: 0xc
-@line:1512  Cycle @7.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1286  Cycle @7.00: [Executor]	EX: Bypass Update skipped for MUL (result not ready)
+@line:1290  Cycle @7.00: [Executor]	EX: ALU Result: 0x0
+@line:1358  Cycle @7.00: [Executor]	EX: Branch Immediate: 0x0
+@line:1362  Cycle @7.00: [Executor]	EX: Branch Target Base: 0xc
+@line:1531  Cycle @7.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @7.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @7.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @7.00: [MEM]	MEM: SIGNED.
@@ -131,11 +131,11 @@
 @line:717   Cycle @8.00: [Executor]	EX_M1:   Op1=0x1 (signed=1), Op2=0x1 (signed=1)
 @line:811   Cycle @8.00: [Executor]	EX_M1: Partial products generated, advancing to EX_M2
 @line:1033  Cycle @8.00: [Executor]	EX: ALU Operation: ADD
-@line:1268  Cycle @8.00: [Executor]	EX: ALU Result: 0x2
-@line:1271  Cycle @8.00: [Executor]	EX: Bypass Update: 0x2
-@line:1339  Cycle @8.00: [Executor]	EX: Branch Immediate: 0x1
-@line:1343  Cycle @8.00: [Executor]	EX: Branch Target Base: 0x10
-@line:1512  Cycle @8.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @8.00: [Executor]	EX: Bypass Update: 0x2
+@line:1290  Cycle @8.00: [Executor]	EX: ALU Result: 0x2
+@line:1358  Cycle @8.00: [Executor]	EX: Branch Immediate: 0x1
+@line:1362  Cycle @8.00: [Executor]	EX: Branch Target Base: 0x10
+@line:1531  Cycle @8.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @8.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @8.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @8.00: [MEM]	MEM: SIGNED.
@@ -164,11 +164,11 @@
 @line:853   Cycle @9.00: [Executor]	EX_M2:   Reducing 32 partial products to 6-8 rows
 @line:866   Cycle @9.00: [Executor]	EX_M2: Compression complete, advancing to EX_M3
 @line:1198  Cycle @9.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:1268  Cycle @9.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @9.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @9.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @9.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1512  Cycle @9.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @9.00: [Executor]	EX: Bypass Update: 0xb
+@line:1290  Cycle @9.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @9.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @9.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1531  Cycle @9.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @9.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @9.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @9.00: [MEM]	MEM: SIGNED.
@@ -198,11 +198,11 @@
 @line:899   Cycle @10.00: [Executor]	EX_M3:   Result ready: 0x1
 @line:908   Cycle @10.00: [Executor]	EX: 3-cycle multiplier result ready and consumed: 0x1
 @line:1198  Cycle @10.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:1268  Cycle @10.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @10.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @10.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @10.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1512  Cycle @10.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @10.00: [Executor]	EX: Bypass Update: 0x1
+@line:1290  Cycle @10.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @10.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @10.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1531  Cycle @10.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @10.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @10.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @10.00: [MEM]	MEM: SIGNED.
@@ -226,14 +226,14 @@
 @line:364   Cycle @11.00: [Executor]	EX: ALU Op1 source: RS1 (0x2)
 @line:429   Cycle @11.00: [Executor]	EX: ALU Op2 source: RS2 (0xb)
 @line:1048  Cycle @11.00: [Executor]	EX: ALU Operation: SUB
-@line:1268  Cycle @11.00: [Executor]	EX: ALU Result: 0xfffffff7
-@line:1271  Cycle @11.00: [Executor]	EX: Bypass Update: 0xfffffff7
-@line:1339  Cycle @11.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @11.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1407  Cycle @11.00: [Executor]	EX: Branch Type: BNE
-@line:1686  Cycle @11.00: [Executor]	EX: Branch Target: 0x8
-@line:1691  Cycle @11.00: [Executor]	EX: Branch Taken: 1
-@line:1716  Cycle @11.00: [Executor]	BTB: UPDATE at PC=0x14, Index=5, Target=0x8
+@line:1280  Cycle @11.00: [Executor]	EX: Bypass Update: 0xfffffff7
+@line:1290  Cycle @11.00: [Executor]	EX: ALU Result: 0xfffffff7
+@line:1358  Cycle @11.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @11.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1426  Cycle @11.00: [Executor]	EX: Branch Type: BNE
+@line:1705  Cycle @11.00: [Executor]	EX: Branch Target: 0x8
+@line:1710  Cycle @11.00: [Executor]	EX: Branch Taken: 1
+@line:1735  Cycle @11.00: [Executor]	BTB: UPDATE at PC=0x14, Index=5, Target=0x8
 @line:55    Cycle @11.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @11.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @11.00: [MEM]	MEM: SIGNED.
@@ -257,11 +257,11 @@
 @line:364   Cycle @12.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @12.00: [Executor]	EX: ALU Op2 source: IMM (0x1)
 @line:1183  Cycle @12.00: [Executor]	EX: ALU Operation: SYS
-@line:1268  Cycle @12.00: [Executor]	EX: ALU Result: 0x1
-@line:1271  Cycle @12.00: [Executor]	EX: Bypass Update: 0x1
-@line:1339  Cycle @12.00: [Executor]	EX: Branch Immediate: 0x1
-@line:1343  Cycle @12.00: [Executor]	EX: Branch Target Base: 0x18
-@line:1512  Cycle @12.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @12.00: [Executor]	EX: Bypass Update: 0x1
+@line:1290  Cycle @12.00: [Executor]	EX: ALU Result: 0x1
+@line:1358  Cycle @12.00: [Executor]	EX: Branch Immediate: 0x1
+@line:1362  Cycle @12.00: [Executor]	EX: Branch Target Base: 0x18
+@line:1531  Cycle @12.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @12.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @12.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @12.00: [MEM]	MEM: SIGNED.
@@ -286,11 +286,11 @@
 @line:364   Cycle @13.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:429   Cycle @13.00: [Executor]	EX: ALU Op2 source: RS2 (0x0)
 @line:1198  Cycle @13.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:1268  Cycle @13.00: [Executor]	EX: ALU Result: 0x0
-@line:1271  Cycle @13.00: [Executor]	EX: Bypass Update: 0x0
-@line:1339  Cycle @13.00: [Executor]	EX: Branch Immediate: 0x0
-@line:1343  Cycle @13.00: [Executor]	EX: Branch Target Base: 0x1c
-@line:1512  Cycle @13.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @13.00: [Executor]	EX: Bypass Update: 0x0
+@line:1290  Cycle @13.00: [Executor]	EX: ALU Result: 0x0
+@line:1358  Cycle @13.00: [Executor]	EX: Branch Immediate: 0x0
+@line:1362  Cycle @13.00: [Executor]	EX: Branch Target Base: 0x1c
+@line:1531  Cycle @13.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:85    Cycle @13.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @13.00: [MEM]	MEM: SIGNED.
 @line:256   Cycle @13.00: [MEM]	MEM: Bypass <= 0x1
@@ -312,11 +312,11 @@
 @line:364   Cycle @14.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @14.00: [Executor]	EX: ALU Op2 source: IMM (0xb)
 @line:1033  Cycle @14.00: [Executor]	EX: ALU Operation: ADD
-@line:1268  Cycle @14.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @14.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @14.00: [Executor]	EX: Branch Immediate: 0xb
-@line:1343  Cycle @14.00: [Executor]	EX: Branch Target Base: 0x8
-@line:1512  Cycle @14.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @14.00: [Executor]	EX: Bypass Update: 0xb
+@line:1290  Cycle @14.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @14.00: [Executor]	EX: Branch Immediate: 0xb
+@line:1362  Cycle @14.00: [Executor]	EX: Branch Target Base: 0x8
+@line:1531  Cycle @14.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @14.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @14.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @14.00: [MEM]	MEM: SIGNED.
@@ -341,11 +341,11 @@
 @line:693   Cycle @15.00: [Executor]	EX: Starting 3-cycle multiplication (Pure Wallace Tree)
 @line:696   Cycle @15.00: [Executor]	EX:   Op1=0x0 (signed=1), Op2=0x2 (signed=1)
 @line:1213  Cycle @15.00: [Executor]	EX: ALU Operation: MUL
-@line:1268  Cycle @15.00: [Executor]	EX: ALU Result: 0x1
-@line:1271  Cycle @15.00: [Executor]	EX: Bypass Update: 0x1
-@line:1339  Cycle @15.00: [Executor]	EX: Branch Immediate: 0x0
-@line:1343  Cycle @15.00: [Executor]	EX: Branch Target Base: 0xc
-@line:1512  Cycle @15.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1286  Cycle @15.00: [Executor]	EX: Bypass Update skipped for MUL (result not ready)
+@line:1290  Cycle @15.00: [Executor]	EX: ALU Result: 0x1
+@line:1358  Cycle @15.00: [Executor]	EX: Branch Immediate: 0x0
+@line:1362  Cycle @15.00: [Executor]	EX: Branch Target Base: 0xc
+@line:1531  Cycle @15.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @15.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @15.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @15.00: [MEM]	MEM: SIGNED.
@@ -371,11 +371,11 @@
 @line:717   Cycle @16.00: [Executor]	EX_M1:   Op1=0x0 (signed=1), Op2=0x2 (signed=1)
 @line:811   Cycle @16.00: [Executor]	EX_M1: Partial products generated, advancing to EX_M2
 @line:1033  Cycle @16.00: [Executor]	EX: ALU Operation: ADD
-@line:1268  Cycle @16.00: [Executor]	EX: ALU Result: 0x3
-@line:1271  Cycle @16.00: [Executor]	EX: Bypass Update: 0x3
-@line:1339  Cycle @16.00: [Executor]	EX: Branch Immediate: 0x1
-@line:1343  Cycle @16.00: [Executor]	EX: Branch Target Base: 0x10
-@line:1512  Cycle @16.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @16.00: [Executor]	EX: Bypass Update: 0x3
+@line:1290  Cycle @16.00: [Executor]	EX: ALU Result: 0x3
+@line:1358  Cycle @16.00: [Executor]	EX: Branch Immediate: 0x1
+@line:1362  Cycle @16.00: [Executor]	EX: Branch Target Base: 0x10
+@line:1531  Cycle @16.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @16.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @16.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @16.00: [MEM]	MEM: SIGNED.
@@ -404,11 +404,11 @@
 @line:853   Cycle @17.00: [Executor]	EX_M2:   Reducing 32 partial products to 6-8 rows
 @line:866   Cycle @17.00: [Executor]	EX_M2: Compression complete, advancing to EX_M3
 @line:1198  Cycle @17.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:1268  Cycle @17.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @17.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @17.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @17.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1512  Cycle @17.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @17.00: [Executor]	EX: Bypass Update: 0xb
+@line:1290  Cycle @17.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @17.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @17.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1531  Cycle @17.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @17.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @17.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @17.00: [MEM]	MEM: SIGNED.
@@ -438,11 +438,11 @@
 @line:899   Cycle @18.00: [Executor]	EX_M3:   Result ready: 0x0
 @line:908   Cycle @18.00: [Executor]	EX: 3-cycle multiplier result ready and consumed: 0x0
 @line:1198  Cycle @18.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:1268  Cycle @18.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @18.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @18.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @18.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1512  Cycle @18.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @18.00: [Executor]	EX: Bypass Update: 0x0
+@line:1290  Cycle @18.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @18.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @18.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1531  Cycle @18.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @18.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @18.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @18.00: [MEM]	MEM: SIGNED.
@@ -466,14 +466,14 @@
 @line:364   Cycle @19.00: [Executor]	EX: ALU Op1 source: RS1 (0x3)
 @line:429   Cycle @19.00: [Executor]	EX: ALU Op2 source: RS2 (0xb)
 @line:1048  Cycle @19.00: [Executor]	EX: ALU Operation: SUB
-@line:1268  Cycle @19.00: [Executor]	EX: ALU Result: 0xfffffff8
-@line:1271  Cycle @19.00: [Executor]	EX: Bypass Update: 0xfffffff8
-@line:1339  Cycle @19.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @19.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1407  Cycle @19.00: [Executor]	EX: Branch Type: BNE
-@line:1686  Cycle @19.00: [Executor]	EX: Branch Target: 0x8
-@line:1691  Cycle @19.00: [Executor]	EX: Branch Taken: 1
-@line:1716  Cycle @19.00: [Executor]	BTB: UPDATE at PC=0x14, Index=5, Target=0x8
+@line:1280  Cycle @19.00: [Executor]	EX: Bypass Update: 0xfffffff8
+@line:1290  Cycle @19.00: [Executor]	EX: ALU Result: 0xfffffff8
+@line:1358  Cycle @19.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @19.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1426  Cycle @19.00: [Executor]	EX: Branch Type: BNE
+@line:1705  Cycle @19.00: [Executor]	EX: Branch Target: 0x8
+@line:1710  Cycle @19.00: [Executor]	EX: Branch Taken: 1
+@line:1735  Cycle @19.00: [Executor]	BTB: UPDATE at PC=0x14, Index=5, Target=0x8
 @line:55    Cycle @19.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @19.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @19.00: [MEM]	MEM: SIGNED.
@@ -496,11 +496,11 @@
 @line:364   Cycle @20.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @20.00: [Executor]	EX: ALU Op2 source: IMM (0xb)
 @line:1033  Cycle @20.00: [Executor]	EX: ALU Operation: ADD
-@line:1268  Cycle @20.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @20.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @20.00: [Executor]	EX: Branch Immediate: 0xb
-@line:1343  Cycle @20.00: [Executor]	EX: Branch Target Base: 0x8
-@line:1512  Cycle @20.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @20.00: [Executor]	EX: Bypass Update: 0xb
+@line:1290  Cycle @20.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @20.00: [Executor]	EX: Branch Immediate: 0xb
+@line:1362  Cycle @20.00: [Executor]	EX: Branch Target Base: 0x8
+@line:1531  Cycle @20.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @20.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @20.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @20.00: [MEM]	MEM: SIGNED.
@@ -525,11 +525,11 @@
 @line:693   Cycle @21.00: [Executor]	EX: Starting 3-cycle multiplication (Pure Wallace Tree)
 @line:696   Cycle @21.00: [Executor]	EX:   Op1=0x1 (signed=1), Op2=0x3 (signed=1)
 @line:1213  Cycle @21.00: [Executor]	EX: ALU Operation: MUL
-@line:1268  Cycle @21.00: [Executor]	EX: ALU Result: 0x0
-@line:1271  Cycle @21.00: [Executor]	EX: Bypass Update: 0x0
-@line:1339  Cycle @21.00: [Executor]	EX: Branch Immediate: 0x0
-@line:1343  Cycle @21.00: [Executor]	EX: Branch Target Base: 0xc
-@line:1512  Cycle @21.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1286  Cycle @21.00: [Executor]	EX: Bypass Update skipped for MUL (result not ready)
+@line:1290  Cycle @21.00: [Executor]	EX: ALU Result: 0x0
+@line:1358  Cycle @21.00: [Executor]	EX: Branch Immediate: 0x0
+@line:1362  Cycle @21.00: [Executor]	EX: Branch Target Base: 0xc
+@line:1531  Cycle @21.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @21.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @21.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @21.00: [MEM]	MEM: SIGNED.
@@ -555,11 +555,11 @@
 @line:717   Cycle @22.00: [Executor]	EX_M1:   Op1=0x1 (signed=1), Op2=0x3 (signed=1)
 @line:811   Cycle @22.00: [Executor]	EX_M1: Partial products generated, advancing to EX_M2
 @line:1033  Cycle @22.00: [Executor]	EX: ALU Operation: ADD
-@line:1268  Cycle @22.00: [Executor]	EX: ALU Result: 0x4
-@line:1271  Cycle @22.00: [Executor]	EX: Bypass Update: 0x4
-@line:1339  Cycle @22.00: [Executor]	EX: Branch Immediate: 0x1
-@line:1343  Cycle @22.00: [Executor]	EX: Branch Target Base: 0x10
-@line:1512  Cycle @22.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @22.00: [Executor]	EX: Bypass Update: 0x4
+@line:1290  Cycle @22.00: [Executor]	EX: ALU Result: 0x4
+@line:1358  Cycle @22.00: [Executor]	EX: Branch Immediate: 0x1
+@line:1362  Cycle @22.00: [Executor]	EX: Branch Target Base: 0x10
+@line:1531  Cycle @22.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @22.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @22.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @22.00: [MEM]	MEM: SIGNED.
@@ -588,11 +588,11 @@
 @line:853   Cycle @23.00: [Executor]	EX_M2:   Reducing 32 partial products to 6-8 rows
 @line:866   Cycle @23.00: [Executor]	EX_M2: Compression complete, advancing to EX_M3
 @line:1198  Cycle @23.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:1268  Cycle @23.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @23.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @23.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @23.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1512  Cycle @23.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @23.00: [Executor]	EX: Bypass Update: 0xb
+@line:1290  Cycle @23.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @23.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @23.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1531  Cycle @23.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @23.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @23.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @23.00: [MEM]	MEM: SIGNED.
@@ -622,11 +622,11 @@
 @line:899   Cycle @24.00: [Executor]	EX_M3:   Result ready: 0x3
 @line:908   Cycle @24.00: [Executor]	EX: 3-cycle multiplier result ready and consumed: 0x3
 @line:1198  Cycle @24.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:1268  Cycle @24.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @24.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @24.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @24.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1512  Cycle @24.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @24.00: [Executor]	EX: Bypass Update: 0x3
+@line:1290  Cycle @24.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @24.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @24.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1531  Cycle @24.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @24.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @24.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @24.00: [MEM]	MEM: SIGNED.
@@ -650,14 +650,14 @@
 @line:364   Cycle @25.00: [Executor]	EX: ALU Op1 source: RS1 (0x4)
 @line:429   Cycle @25.00: [Executor]	EX: ALU Op2 source: RS2 (0xb)
 @line:1048  Cycle @25.00: [Executor]	EX: ALU Operation: SUB
-@line:1268  Cycle @25.00: [Executor]	EX: ALU Result: 0xfffffff9
-@line:1271  Cycle @25.00: [Executor]	EX: Bypass Update: 0xfffffff9
-@line:1339  Cycle @25.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @25.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1407  Cycle @25.00: [Executor]	EX: Branch Type: BNE
-@line:1686  Cycle @25.00: [Executor]	EX: Branch Target: 0x8
-@line:1691  Cycle @25.00: [Executor]	EX: Branch Taken: 1
-@line:1716  Cycle @25.00: [Executor]	BTB: UPDATE at PC=0x14, Index=5, Target=0x8
+@line:1280  Cycle @25.00: [Executor]	EX: Bypass Update: 0xfffffff9
+@line:1290  Cycle @25.00: [Executor]	EX: ALU Result: 0xfffffff9
+@line:1358  Cycle @25.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @25.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1426  Cycle @25.00: [Executor]	EX: Branch Type: BNE
+@line:1705  Cycle @25.00: [Executor]	EX: Branch Target: 0x8
+@line:1710  Cycle @25.00: [Executor]	EX: Branch Taken: 1
+@line:1735  Cycle @25.00: [Executor]	BTB: UPDATE at PC=0x14, Index=5, Target=0x8
 @line:55    Cycle @25.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @25.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @25.00: [MEM]	MEM: SIGNED.
@@ -680,11 +680,11 @@
 @line:364   Cycle @26.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @26.00: [Executor]	EX: ALU Op2 source: IMM (0xb)
 @line:1033  Cycle @26.00: [Executor]	EX: ALU Operation: ADD
-@line:1268  Cycle @26.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @26.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @26.00: [Executor]	EX: Branch Immediate: 0xb
-@line:1343  Cycle @26.00: [Executor]	EX: Branch Target Base: 0x8
-@line:1512  Cycle @26.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @26.00: [Executor]	EX: Bypass Update: 0xb
+@line:1290  Cycle @26.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @26.00: [Executor]	EX: Branch Immediate: 0xb
+@line:1362  Cycle @26.00: [Executor]	EX: Branch Target Base: 0x8
+@line:1531  Cycle @26.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @26.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @26.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @26.00: [MEM]	MEM: SIGNED.
@@ -709,11 +709,11 @@
 @line:693   Cycle @27.00: [Executor]	EX: Starting 3-cycle multiplication (Pure Wallace Tree)
 @line:696   Cycle @27.00: [Executor]	EX:   Op1=0x0 (signed=1), Op2=0x4 (signed=1)
 @line:1213  Cycle @27.00: [Executor]	EX: ALU Operation: MUL
-@line:1268  Cycle @27.00: [Executor]	EX: ALU Result: 0x3
-@line:1271  Cycle @27.00: [Executor]	EX: Bypass Update: 0x3
-@line:1339  Cycle @27.00: [Executor]	EX: Branch Immediate: 0x0
-@line:1343  Cycle @27.00: [Executor]	EX: Branch Target Base: 0xc
-@line:1512  Cycle @27.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1286  Cycle @27.00: [Executor]	EX: Bypass Update skipped for MUL (result not ready)
+@line:1290  Cycle @27.00: [Executor]	EX: ALU Result: 0x3
+@line:1358  Cycle @27.00: [Executor]	EX: Branch Immediate: 0x0
+@line:1362  Cycle @27.00: [Executor]	EX: Branch Target Base: 0xc
+@line:1531  Cycle @27.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @27.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @27.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @27.00: [MEM]	MEM: SIGNED.
@@ -739,11 +739,11 @@
 @line:717   Cycle @28.00: [Executor]	EX_M1:   Op1=0x0 (signed=1), Op2=0x4 (signed=1)
 @line:811   Cycle @28.00: [Executor]	EX_M1: Partial products generated, advancing to EX_M2
 @line:1033  Cycle @28.00: [Executor]	EX: ALU Operation: ADD
-@line:1268  Cycle @28.00: [Executor]	EX: ALU Result: 0x5
-@line:1271  Cycle @28.00: [Executor]	EX: Bypass Update: 0x5
-@line:1339  Cycle @28.00: [Executor]	EX: Branch Immediate: 0x1
-@line:1343  Cycle @28.00: [Executor]	EX: Branch Target Base: 0x10
-@line:1512  Cycle @28.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @28.00: [Executor]	EX: Bypass Update: 0x5
+@line:1290  Cycle @28.00: [Executor]	EX: ALU Result: 0x5
+@line:1358  Cycle @28.00: [Executor]	EX: Branch Immediate: 0x1
+@line:1362  Cycle @28.00: [Executor]	EX: Branch Target Base: 0x10
+@line:1531  Cycle @28.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @28.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @28.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @28.00: [MEM]	MEM: SIGNED.
@@ -772,11 +772,11 @@
 @line:853   Cycle @29.00: [Executor]	EX_M2:   Reducing 32 partial products to 6-8 rows
 @line:866   Cycle @29.00: [Executor]	EX_M2: Compression complete, advancing to EX_M3
 @line:1198  Cycle @29.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:1268  Cycle @29.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @29.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @29.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @29.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1512  Cycle @29.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @29.00: [Executor]	EX: Bypass Update: 0xb
+@line:1290  Cycle @29.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @29.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @29.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1531  Cycle @29.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @29.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @29.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @29.00: [MEM]	MEM: SIGNED.
@@ -806,11 +806,11 @@
 @line:899   Cycle @30.00: [Executor]	EX_M3:   Result ready: 0x0
 @line:908   Cycle @30.00: [Executor]	EX: 3-cycle multiplier result ready and consumed: 0x0
 @line:1198  Cycle @30.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:1268  Cycle @30.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @30.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @30.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @30.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1512  Cycle @30.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @30.00: [Executor]	EX: Bypass Update: 0x0
+@line:1290  Cycle @30.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @30.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @30.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1531  Cycle @30.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @30.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @30.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @30.00: [MEM]	MEM: SIGNED.
@@ -834,14 +834,14 @@
 @line:364   Cycle @31.00: [Executor]	EX: ALU Op1 source: RS1 (0x5)
 @line:429   Cycle @31.00: [Executor]	EX: ALU Op2 source: RS2 (0xb)
 @line:1048  Cycle @31.00: [Executor]	EX: ALU Operation: SUB
-@line:1268  Cycle @31.00: [Executor]	EX: ALU Result: 0xfffffffa
-@line:1271  Cycle @31.00: [Executor]	EX: Bypass Update: 0xfffffffa
-@line:1339  Cycle @31.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @31.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1407  Cycle @31.00: [Executor]	EX: Branch Type: BNE
-@line:1686  Cycle @31.00: [Executor]	EX: Branch Target: 0x8
-@line:1691  Cycle @31.00: [Executor]	EX: Branch Taken: 1
-@line:1716  Cycle @31.00: [Executor]	BTB: UPDATE at PC=0x14, Index=5, Target=0x8
+@line:1280  Cycle @31.00: [Executor]	EX: Bypass Update: 0xfffffffa
+@line:1290  Cycle @31.00: [Executor]	EX: ALU Result: 0xfffffffa
+@line:1358  Cycle @31.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @31.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1426  Cycle @31.00: [Executor]	EX: Branch Type: BNE
+@line:1705  Cycle @31.00: [Executor]	EX: Branch Target: 0x8
+@line:1710  Cycle @31.00: [Executor]	EX: Branch Taken: 1
+@line:1735  Cycle @31.00: [Executor]	BTB: UPDATE at PC=0x14, Index=5, Target=0x8
 @line:55    Cycle @31.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @31.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @31.00: [MEM]	MEM: SIGNED.
@@ -864,11 +864,11 @@
 @line:364   Cycle @32.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @32.00: [Executor]	EX: ALU Op2 source: IMM (0xb)
 @line:1033  Cycle @32.00: [Executor]	EX: ALU Operation: ADD
-@line:1268  Cycle @32.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @32.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @32.00: [Executor]	EX: Branch Immediate: 0xb
-@line:1343  Cycle @32.00: [Executor]	EX: Branch Target Base: 0x8
-@line:1512  Cycle @32.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @32.00: [Executor]	EX: Bypass Update: 0xb
+@line:1290  Cycle @32.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @32.00: [Executor]	EX: Branch Immediate: 0xb
+@line:1362  Cycle @32.00: [Executor]	EX: Branch Target Base: 0x8
+@line:1531  Cycle @32.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @32.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @32.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @32.00: [MEM]	MEM: SIGNED.
@@ -893,11 +893,11 @@
 @line:693   Cycle @33.00: [Executor]	EX: Starting 3-cycle multiplication (Pure Wallace Tree)
 @line:696   Cycle @33.00: [Executor]	EX:   Op1=0x3 (signed=1), Op2=0x5 (signed=1)
 @line:1213  Cycle @33.00: [Executor]	EX: ALU Operation: MUL
-@line:1268  Cycle @33.00: [Executor]	EX: ALU Result: 0x0
-@line:1271  Cycle @33.00: [Executor]	EX: Bypass Update: 0x0
-@line:1339  Cycle @33.00: [Executor]	EX: Branch Immediate: 0x0
-@line:1343  Cycle @33.00: [Executor]	EX: Branch Target Base: 0xc
-@line:1512  Cycle @33.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1286  Cycle @33.00: [Executor]	EX: Bypass Update skipped for MUL (result not ready)
+@line:1290  Cycle @33.00: [Executor]	EX: ALU Result: 0x0
+@line:1358  Cycle @33.00: [Executor]	EX: Branch Immediate: 0x0
+@line:1362  Cycle @33.00: [Executor]	EX: Branch Target Base: 0xc
+@line:1531  Cycle @33.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @33.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @33.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @33.00: [MEM]	MEM: SIGNED.
@@ -923,11 +923,11 @@
 @line:717   Cycle @34.00: [Executor]	EX_M1:   Op1=0x3 (signed=1), Op2=0x5 (signed=1)
 @line:811   Cycle @34.00: [Executor]	EX_M1: Partial products generated, advancing to EX_M2
 @line:1033  Cycle @34.00: [Executor]	EX: ALU Operation: ADD
-@line:1268  Cycle @34.00: [Executor]	EX: ALU Result: 0x6
-@line:1271  Cycle @34.00: [Executor]	EX: Bypass Update: 0x6
-@line:1339  Cycle @34.00: [Executor]	EX: Branch Immediate: 0x1
-@line:1343  Cycle @34.00: [Executor]	EX: Branch Target Base: 0x10
-@line:1512  Cycle @34.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @34.00: [Executor]	EX: Bypass Update: 0x6
+@line:1290  Cycle @34.00: [Executor]	EX: ALU Result: 0x6
+@line:1358  Cycle @34.00: [Executor]	EX: Branch Immediate: 0x1
+@line:1362  Cycle @34.00: [Executor]	EX: Branch Target Base: 0x10
+@line:1531  Cycle @34.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @34.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @34.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @34.00: [MEM]	MEM: SIGNED.
@@ -956,11 +956,11 @@
 @line:853   Cycle @35.00: [Executor]	EX_M2:   Reducing 32 partial products to 6-8 rows
 @line:866   Cycle @35.00: [Executor]	EX_M2: Compression complete, advancing to EX_M3
 @line:1198  Cycle @35.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:1268  Cycle @35.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @35.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @35.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @35.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1512  Cycle @35.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @35.00: [Executor]	EX: Bypass Update: 0xb
+@line:1290  Cycle @35.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @35.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @35.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1531  Cycle @35.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @35.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @35.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @35.00: [MEM]	MEM: SIGNED.
@@ -990,11 +990,11 @@
 @line:899   Cycle @36.00: [Executor]	EX_M3:   Result ready: 0xf
 @line:908   Cycle @36.00: [Executor]	EX: 3-cycle multiplier result ready and consumed: 0xf
 @line:1198  Cycle @36.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:1268  Cycle @36.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @36.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @36.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @36.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1512  Cycle @36.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @36.00: [Executor]	EX: Bypass Update: 0xf
+@line:1290  Cycle @36.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @36.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @36.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1531  Cycle @36.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @36.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @36.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @36.00: [MEM]	MEM: SIGNED.
@@ -1018,14 +1018,14 @@
 @line:364   Cycle @37.00: [Executor]	EX: ALU Op1 source: RS1 (0x6)
 @line:429   Cycle @37.00: [Executor]	EX: ALU Op2 source: RS2 (0xb)
 @line:1048  Cycle @37.00: [Executor]	EX: ALU Operation: SUB
-@line:1268  Cycle @37.00: [Executor]	EX: ALU Result: 0xfffffffb
-@line:1271  Cycle @37.00: [Executor]	EX: Bypass Update: 0xfffffffb
-@line:1339  Cycle @37.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @37.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1407  Cycle @37.00: [Executor]	EX: Branch Type: BNE
-@line:1686  Cycle @37.00: [Executor]	EX: Branch Target: 0x8
-@line:1691  Cycle @37.00: [Executor]	EX: Branch Taken: 1
-@line:1716  Cycle @37.00: [Executor]	BTB: UPDATE at PC=0x14, Index=5, Target=0x8
+@line:1280  Cycle @37.00: [Executor]	EX: Bypass Update: 0xfffffffb
+@line:1290  Cycle @37.00: [Executor]	EX: ALU Result: 0xfffffffb
+@line:1358  Cycle @37.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @37.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1426  Cycle @37.00: [Executor]	EX: Branch Type: BNE
+@line:1705  Cycle @37.00: [Executor]	EX: Branch Target: 0x8
+@line:1710  Cycle @37.00: [Executor]	EX: Branch Taken: 1
+@line:1735  Cycle @37.00: [Executor]	BTB: UPDATE at PC=0x14, Index=5, Target=0x8
 @line:55    Cycle @37.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @37.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @37.00: [MEM]	MEM: SIGNED.
@@ -1048,11 +1048,11 @@
 @line:364   Cycle @38.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @38.00: [Executor]	EX: ALU Op2 source: IMM (0xb)
 @line:1033  Cycle @38.00: [Executor]	EX: ALU Operation: ADD
-@line:1268  Cycle @38.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @38.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @38.00: [Executor]	EX: Branch Immediate: 0xb
-@line:1343  Cycle @38.00: [Executor]	EX: Branch Target Base: 0x8
-@line:1512  Cycle @38.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @38.00: [Executor]	EX: Bypass Update: 0xb
+@line:1290  Cycle @38.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @38.00: [Executor]	EX: Branch Immediate: 0xb
+@line:1362  Cycle @38.00: [Executor]	EX: Branch Target Base: 0x8
+@line:1531  Cycle @38.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @38.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @38.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @38.00: [MEM]	MEM: SIGNED.
@@ -1077,11 +1077,11 @@
 @line:693   Cycle @39.00: [Executor]	EX: Starting 3-cycle multiplication (Pure Wallace Tree)
 @line:696   Cycle @39.00: [Executor]	EX:   Op1=0x0 (signed=1), Op2=0x6 (signed=1)
 @line:1213  Cycle @39.00: [Executor]	EX: ALU Operation: MUL
-@line:1268  Cycle @39.00: [Executor]	EX: ALU Result: 0xf
-@line:1271  Cycle @39.00: [Executor]	EX: Bypass Update: 0xf
-@line:1339  Cycle @39.00: [Executor]	EX: Branch Immediate: 0x0
-@line:1343  Cycle @39.00: [Executor]	EX: Branch Target Base: 0xc
-@line:1512  Cycle @39.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1286  Cycle @39.00: [Executor]	EX: Bypass Update skipped for MUL (result not ready)
+@line:1290  Cycle @39.00: [Executor]	EX: ALU Result: 0xf
+@line:1358  Cycle @39.00: [Executor]	EX: Branch Immediate: 0x0
+@line:1362  Cycle @39.00: [Executor]	EX: Branch Target Base: 0xc
+@line:1531  Cycle @39.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @39.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @39.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @39.00: [MEM]	MEM: SIGNED.
@@ -1107,11 +1107,11 @@
 @line:717   Cycle @40.00: [Executor]	EX_M1:   Op1=0x0 (signed=1), Op2=0x6 (signed=1)
 @line:811   Cycle @40.00: [Executor]	EX_M1: Partial products generated, advancing to EX_M2
 @line:1033  Cycle @40.00: [Executor]	EX: ALU Operation: ADD
-@line:1268  Cycle @40.00: [Executor]	EX: ALU Result: 0x7
-@line:1271  Cycle @40.00: [Executor]	EX: Bypass Update: 0x7
-@line:1339  Cycle @40.00: [Executor]	EX: Branch Immediate: 0x1
-@line:1343  Cycle @40.00: [Executor]	EX: Branch Target Base: 0x10
-@line:1512  Cycle @40.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @40.00: [Executor]	EX: Bypass Update: 0x7
+@line:1290  Cycle @40.00: [Executor]	EX: ALU Result: 0x7
+@line:1358  Cycle @40.00: [Executor]	EX: Branch Immediate: 0x1
+@line:1362  Cycle @40.00: [Executor]	EX: Branch Target Base: 0x10
+@line:1531  Cycle @40.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @40.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @40.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @40.00: [MEM]	MEM: SIGNED.
@@ -1140,11 +1140,11 @@
 @line:853   Cycle @41.00: [Executor]	EX_M2:   Reducing 32 partial products to 6-8 rows
 @line:866   Cycle @41.00: [Executor]	EX_M2: Compression complete, advancing to EX_M3
 @line:1198  Cycle @41.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:1268  Cycle @41.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @41.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @41.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @41.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1512  Cycle @41.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @41.00: [Executor]	EX: Bypass Update: 0xb
+@line:1290  Cycle @41.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @41.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @41.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1531  Cycle @41.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @41.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @41.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @41.00: [MEM]	MEM: SIGNED.
@@ -1174,11 +1174,11 @@
 @line:899   Cycle @42.00: [Executor]	EX_M3:   Result ready: 0x0
 @line:908   Cycle @42.00: [Executor]	EX: 3-cycle multiplier result ready and consumed: 0x0
 @line:1198  Cycle @42.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:1268  Cycle @42.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @42.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @42.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @42.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1512  Cycle @42.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @42.00: [Executor]	EX: Bypass Update: 0x0
+@line:1290  Cycle @42.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @42.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @42.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1531  Cycle @42.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @42.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @42.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @42.00: [MEM]	MEM: SIGNED.
@@ -1202,14 +1202,14 @@
 @line:364   Cycle @43.00: [Executor]	EX: ALU Op1 source: RS1 (0x7)
 @line:429   Cycle @43.00: [Executor]	EX: ALU Op2 source: RS2 (0xb)
 @line:1048  Cycle @43.00: [Executor]	EX: ALU Operation: SUB
-@line:1268  Cycle @43.00: [Executor]	EX: ALU Result: 0xfffffffc
-@line:1271  Cycle @43.00: [Executor]	EX: Bypass Update: 0xfffffffc
-@line:1339  Cycle @43.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @43.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1407  Cycle @43.00: [Executor]	EX: Branch Type: BNE
-@line:1686  Cycle @43.00: [Executor]	EX: Branch Target: 0x8
-@line:1691  Cycle @43.00: [Executor]	EX: Branch Taken: 1
-@line:1716  Cycle @43.00: [Executor]	BTB: UPDATE at PC=0x14, Index=5, Target=0x8
+@line:1280  Cycle @43.00: [Executor]	EX: Bypass Update: 0xfffffffc
+@line:1290  Cycle @43.00: [Executor]	EX: ALU Result: 0xfffffffc
+@line:1358  Cycle @43.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @43.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1426  Cycle @43.00: [Executor]	EX: Branch Type: BNE
+@line:1705  Cycle @43.00: [Executor]	EX: Branch Target: 0x8
+@line:1710  Cycle @43.00: [Executor]	EX: Branch Taken: 1
+@line:1735  Cycle @43.00: [Executor]	BTB: UPDATE at PC=0x14, Index=5, Target=0x8
 @line:55    Cycle @43.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @43.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @43.00: [MEM]	MEM: SIGNED.
@@ -1232,11 +1232,11 @@
 @line:364   Cycle @44.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @44.00: [Executor]	EX: ALU Op2 source: IMM (0xb)
 @line:1033  Cycle @44.00: [Executor]	EX: ALU Operation: ADD
-@line:1268  Cycle @44.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @44.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @44.00: [Executor]	EX: Branch Immediate: 0xb
-@line:1343  Cycle @44.00: [Executor]	EX: Branch Target Base: 0x8
-@line:1512  Cycle @44.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @44.00: [Executor]	EX: Bypass Update: 0xb
+@line:1290  Cycle @44.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @44.00: [Executor]	EX: Branch Immediate: 0xb
+@line:1362  Cycle @44.00: [Executor]	EX: Branch Target Base: 0x8
+@line:1531  Cycle @44.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @44.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @44.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @44.00: [MEM]	MEM: SIGNED.
@@ -1261,11 +1261,11 @@
 @line:693   Cycle @45.00: [Executor]	EX: Starting 3-cycle multiplication (Pure Wallace Tree)
 @line:696   Cycle @45.00: [Executor]	EX:   Op1=0xf (signed=1), Op2=0x7 (signed=1)
 @line:1213  Cycle @45.00: [Executor]	EX: ALU Operation: MUL
-@line:1268  Cycle @45.00: [Executor]	EX: ALU Result: 0x0
-@line:1271  Cycle @45.00: [Executor]	EX: Bypass Update: 0x0
-@line:1339  Cycle @45.00: [Executor]	EX: Branch Immediate: 0x0
-@line:1343  Cycle @45.00: [Executor]	EX: Branch Target Base: 0xc
-@line:1512  Cycle @45.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1286  Cycle @45.00: [Executor]	EX: Bypass Update skipped for MUL (result not ready)
+@line:1290  Cycle @45.00: [Executor]	EX: ALU Result: 0x0
+@line:1358  Cycle @45.00: [Executor]	EX: Branch Immediate: 0x0
+@line:1362  Cycle @45.00: [Executor]	EX: Branch Target Base: 0xc
+@line:1531  Cycle @45.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @45.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @45.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @45.00: [MEM]	MEM: SIGNED.
@@ -1291,11 +1291,11 @@
 @line:717   Cycle @46.00: [Executor]	EX_M1:   Op1=0xf (signed=1), Op2=0x7 (signed=1)
 @line:811   Cycle @46.00: [Executor]	EX_M1: Partial products generated, advancing to EX_M2
 @line:1033  Cycle @46.00: [Executor]	EX: ALU Operation: ADD
-@line:1268  Cycle @46.00: [Executor]	EX: ALU Result: 0x8
-@line:1271  Cycle @46.00: [Executor]	EX: Bypass Update: 0x8
-@line:1339  Cycle @46.00: [Executor]	EX: Branch Immediate: 0x1
-@line:1343  Cycle @46.00: [Executor]	EX: Branch Target Base: 0x10
-@line:1512  Cycle @46.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @46.00: [Executor]	EX: Bypass Update: 0x8
+@line:1290  Cycle @46.00: [Executor]	EX: ALU Result: 0x8
+@line:1358  Cycle @46.00: [Executor]	EX: Branch Immediate: 0x1
+@line:1362  Cycle @46.00: [Executor]	EX: Branch Target Base: 0x10
+@line:1531  Cycle @46.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @46.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @46.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @46.00: [MEM]	MEM: SIGNED.
@@ -1324,11 +1324,11 @@
 @line:853   Cycle @47.00: [Executor]	EX_M2:   Reducing 32 partial products to 6-8 rows
 @line:866   Cycle @47.00: [Executor]	EX_M2: Compression complete, advancing to EX_M3
 @line:1198  Cycle @47.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:1268  Cycle @47.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @47.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @47.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @47.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1512  Cycle @47.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @47.00: [Executor]	EX: Bypass Update: 0xb
+@line:1290  Cycle @47.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @47.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @47.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1531  Cycle @47.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @47.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @47.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @47.00: [MEM]	MEM: SIGNED.
@@ -1358,11 +1358,11 @@
 @line:899   Cycle @48.00: [Executor]	EX_M3:   Result ready: 0x69
 @line:908   Cycle @48.00: [Executor]	EX: 3-cycle multiplier result ready and consumed: 0x69
 @line:1198  Cycle @48.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:1268  Cycle @48.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @48.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @48.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @48.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1512  Cycle @48.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @48.00: [Executor]	EX: Bypass Update: 0x69
+@line:1290  Cycle @48.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @48.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @48.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1531  Cycle @48.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @48.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @48.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @48.00: [MEM]	MEM: SIGNED.
@@ -1386,14 +1386,14 @@
 @line:364   Cycle @49.00: [Executor]	EX: ALU Op1 source: RS1 (0x8)
 @line:429   Cycle @49.00: [Executor]	EX: ALU Op2 source: RS2 (0xb)
 @line:1048  Cycle @49.00: [Executor]	EX: ALU Operation: SUB
-@line:1268  Cycle @49.00: [Executor]	EX: ALU Result: 0xfffffffd
-@line:1271  Cycle @49.00: [Executor]	EX: Bypass Update: 0xfffffffd
-@line:1339  Cycle @49.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @49.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1407  Cycle @49.00: [Executor]	EX: Branch Type: BNE
-@line:1686  Cycle @49.00: [Executor]	EX: Branch Target: 0x8
-@line:1691  Cycle @49.00: [Executor]	EX: Branch Taken: 1
-@line:1716  Cycle @49.00: [Executor]	BTB: UPDATE at PC=0x14, Index=5, Target=0x8
+@line:1280  Cycle @49.00: [Executor]	EX: Bypass Update: 0xfffffffd
+@line:1290  Cycle @49.00: [Executor]	EX: ALU Result: 0xfffffffd
+@line:1358  Cycle @49.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @49.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1426  Cycle @49.00: [Executor]	EX: Branch Type: BNE
+@line:1705  Cycle @49.00: [Executor]	EX: Branch Target: 0x8
+@line:1710  Cycle @49.00: [Executor]	EX: Branch Taken: 1
+@line:1735  Cycle @49.00: [Executor]	BTB: UPDATE at PC=0x14, Index=5, Target=0x8
 @line:55    Cycle @49.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @49.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @49.00: [MEM]	MEM: SIGNED.
@@ -1416,11 +1416,11 @@
 @line:364   Cycle @50.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @50.00: [Executor]	EX: ALU Op2 source: IMM (0xb)
 @line:1033  Cycle @50.00: [Executor]	EX: ALU Operation: ADD
-@line:1268  Cycle @50.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @50.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @50.00: [Executor]	EX: Branch Immediate: 0xb
-@line:1343  Cycle @50.00: [Executor]	EX: Branch Target Base: 0x8
-@line:1512  Cycle @50.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @50.00: [Executor]	EX: Bypass Update: 0xb
+@line:1290  Cycle @50.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @50.00: [Executor]	EX: Branch Immediate: 0xb
+@line:1362  Cycle @50.00: [Executor]	EX: Branch Target Base: 0x8
+@line:1531  Cycle @50.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @50.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @50.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @50.00: [MEM]	MEM: SIGNED.
@@ -1445,11 +1445,11 @@
 @line:693   Cycle @51.00: [Executor]	EX: Starting 3-cycle multiplication (Pure Wallace Tree)
 @line:696   Cycle @51.00: [Executor]	EX:   Op1=0x0 (signed=1), Op2=0x8 (signed=1)
 @line:1213  Cycle @51.00: [Executor]	EX: ALU Operation: MUL
-@line:1268  Cycle @51.00: [Executor]	EX: ALU Result: 0x69
-@line:1271  Cycle @51.00: [Executor]	EX: Bypass Update: 0x69
-@line:1339  Cycle @51.00: [Executor]	EX: Branch Immediate: 0x0
-@line:1343  Cycle @51.00: [Executor]	EX: Branch Target Base: 0xc
-@line:1512  Cycle @51.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1286  Cycle @51.00: [Executor]	EX: Bypass Update skipped for MUL (result not ready)
+@line:1290  Cycle @51.00: [Executor]	EX: ALU Result: 0x69
+@line:1358  Cycle @51.00: [Executor]	EX: Branch Immediate: 0x0
+@line:1362  Cycle @51.00: [Executor]	EX: Branch Target Base: 0xc
+@line:1531  Cycle @51.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @51.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @51.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @51.00: [MEM]	MEM: SIGNED.
@@ -1475,11 +1475,11 @@
 @line:717   Cycle @52.00: [Executor]	EX_M1:   Op1=0x0 (signed=1), Op2=0x8 (signed=1)
 @line:811   Cycle @52.00: [Executor]	EX_M1: Partial products generated, advancing to EX_M2
 @line:1033  Cycle @52.00: [Executor]	EX: ALU Operation: ADD
-@line:1268  Cycle @52.00: [Executor]	EX: ALU Result: 0x9
-@line:1271  Cycle @52.00: [Executor]	EX: Bypass Update: 0x9
-@line:1339  Cycle @52.00: [Executor]	EX: Branch Immediate: 0x1
-@line:1343  Cycle @52.00: [Executor]	EX: Branch Target Base: 0x10
-@line:1512  Cycle @52.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @52.00: [Executor]	EX: Bypass Update: 0x9
+@line:1290  Cycle @52.00: [Executor]	EX: ALU Result: 0x9
+@line:1358  Cycle @52.00: [Executor]	EX: Branch Immediate: 0x1
+@line:1362  Cycle @52.00: [Executor]	EX: Branch Target Base: 0x10
+@line:1531  Cycle @52.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @52.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @52.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @52.00: [MEM]	MEM: SIGNED.
@@ -1508,11 +1508,11 @@
 @line:853   Cycle @53.00: [Executor]	EX_M2:   Reducing 32 partial products to 6-8 rows
 @line:866   Cycle @53.00: [Executor]	EX_M2: Compression complete, advancing to EX_M3
 @line:1198  Cycle @53.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:1268  Cycle @53.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @53.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @53.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @53.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1512  Cycle @53.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @53.00: [Executor]	EX: Bypass Update: 0xb
+@line:1290  Cycle @53.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @53.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @53.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1531  Cycle @53.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @53.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @53.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @53.00: [MEM]	MEM: SIGNED.
@@ -1542,11 +1542,11 @@
 @line:899   Cycle @54.00: [Executor]	EX_M3:   Result ready: 0x0
 @line:908   Cycle @54.00: [Executor]	EX: 3-cycle multiplier result ready and consumed: 0x0
 @line:1198  Cycle @54.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:1268  Cycle @54.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @54.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @54.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @54.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1512  Cycle @54.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @54.00: [Executor]	EX: Bypass Update: 0x0
+@line:1290  Cycle @54.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @54.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @54.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1531  Cycle @54.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @54.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @54.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @54.00: [MEM]	MEM: SIGNED.
@@ -1570,14 +1570,14 @@
 @line:364   Cycle @55.00: [Executor]	EX: ALU Op1 source: RS1 (0x9)
 @line:429   Cycle @55.00: [Executor]	EX: ALU Op2 source: RS2 (0xb)
 @line:1048  Cycle @55.00: [Executor]	EX: ALU Operation: SUB
-@line:1268  Cycle @55.00: [Executor]	EX: ALU Result: 0xfffffffe
-@line:1271  Cycle @55.00: [Executor]	EX: Bypass Update: 0xfffffffe
-@line:1339  Cycle @55.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @55.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1407  Cycle @55.00: [Executor]	EX: Branch Type: BNE
-@line:1686  Cycle @55.00: [Executor]	EX: Branch Target: 0x8
-@line:1691  Cycle @55.00: [Executor]	EX: Branch Taken: 1
-@line:1716  Cycle @55.00: [Executor]	BTB: UPDATE at PC=0x14, Index=5, Target=0x8
+@line:1280  Cycle @55.00: [Executor]	EX: Bypass Update: 0xfffffffe
+@line:1290  Cycle @55.00: [Executor]	EX: ALU Result: 0xfffffffe
+@line:1358  Cycle @55.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @55.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1426  Cycle @55.00: [Executor]	EX: Branch Type: BNE
+@line:1705  Cycle @55.00: [Executor]	EX: Branch Target: 0x8
+@line:1710  Cycle @55.00: [Executor]	EX: Branch Taken: 1
+@line:1735  Cycle @55.00: [Executor]	BTB: UPDATE at PC=0x14, Index=5, Target=0x8
 @line:55    Cycle @55.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @55.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @55.00: [MEM]	MEM: SIGNED.
@@ -1600,11 +1600,11 @@
 @line:364   Cycle @56.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @56.00: [Executor]	EX: ALU Op2 source: IMM (0xb)
 @line:1033  Cycle @56.00: [Executor]	EX: ALU Operation: ADD
-@line:1268  Cycle @56.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @56.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @56.00: [Executor]	EX: Branch Immediate: 0xb
-@line:1343  Cycle @56.00: [Executor]	EX: Branch Target Base: 0x8
-@line:1512  Cycle @56.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @56.00: [Executor]	EX: Bypass Update: 0xb
+@line:1290  Cycle @56.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @56.00: [Executor]	EX: Branch Immediate: 0xb
+@line:1362  Cycle @56.00: [Executor]	EX: Branch Target Base: 0x8
+@line:1531  Cycle @56.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @56.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @56.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @56.00: [MEM]	MEM: SIGNED.
@@ -1629,11 +1629,11 @@
 @line:693   Cycle @57.00: [Executor]	EX: Starting 3-cycle multiplication (Pure Wallace Tree)
 @line:696   Cycle @57.00: [Executor]	EX:   Op1=0x69 (signed=1), Op2=0x9 (signed=1)
 @line:1213  Cycle @57.00: [Executor]	EX: ALU Operation: MUL
-@line:1268  Cycle @57.00: [Executor]	EX: ALU Result: 0x0
-@line:1271  Cycle @57.00: [Executor]	EX: Bypass Update: 0x0
-@line:1339  Cycle @57.00: [Executor]	EX: Branch Immediate: 0x0
-@line:1343  Cycle @57.00: [Executor]	EX: Branch Target Base: 0xc
-@line:1512  Cycle @57.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1286  Cycle @57.00: [Executor]	EX: Bypass Update skipped for MUL (result not ready)
+@line:1290  Cycle @57.00: [Executor]	EX: ALU Result: 0x0
+@line:1358  Cycle @57.00: [Executor]	EX: Branch Immediate: 0x0
+@line:1362  Cycle @57.00: [Executor]	EX: Branch Target Base: 0xc
+@line:1531  Cycle @57.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @57.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @57.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @57.00: [MEM]	MEM: SIGNED.
@@ -1659,11 +1659,11 @@
 @line:717   Cycle @58.00: [Executor]	EX_M1:   Op1=0x69 (signed=1), Op2=0x9 (signed=1)
 @line:811   Cycle @58.00: [Executor]	EX_M1: Partial products generated, advancing to EX_M2
 @line:1033  Cycle @58.00: [Executor]	EX: ALU Operation: ADD
-@line:1268  Cycle @58.00: [Executor]	EX: ALU Result: 0xa
-@line:1271  Cycle @58.00: [Executor]	EX: Bypass Update: 0xa
-@line:1339  Cycle @58.00: [Executor]	EX: Branch Immediate: 0x1
-@line:1343  Cycle @58.00: [Executor]	EX: Branch Target Base: 0x10
-@line:1512  Cycle @58.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @58.00: [Executor]	EX: Bypass Update: 0xa
+@line:1290  Cycle @58.00: [Executor]	EX: ALU Result: 0xa
+@line:1358  Cycle @58.00: [Executor]	EX: Branch Immediate: 0x1
+@line:1362  Cycle @58.00: [Executor]	EX: Branch Target Base: 0x10
+@line:1531  Cycle @58.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @58.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @58.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @58.00: [MEM]	MEM: SIGNED.
@@ -1692,11 +1692,11 @@
 @line:853   Cycle @59.00: [Executor]	EX_M2:   Reducing 32 partial products to 6-8 rows
 @line:866   Cycle @59.00: [Executor]	EX_M2: Compression complete, advancing to EX_M3
 @line:1198  Cycle @59.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:1268  Cycle @59.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @59.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @59.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @59.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1512  Cycle @59.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @59.00: [Executor]	EX: Bypass Update: 0xb
+@line:1290  Cycle @59.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @59.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @59.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1531  Cycle @59.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @59.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @59.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @59.00: [MEM]	MEM: SIGNED.
@@ -1726,11 +1726,11 @@
 @line:899   Cycle @60.00: [Executor]	EX_M3:   Result ready: 0x3b1
 @line:908   Cycle @60.00: [Executor]	EX: 3-cycle multiplier result ready and consumed: 0x3b1
 @line:1198  Cycle @60.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:1268  Cycle @60.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @60.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @60.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @60.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1512  Cycle @60.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @60.00: [Executor]	EX: Bypass Update: 0x3b1
+@line:1290  Cycle @60.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @60.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @60.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1531  Cycle @60.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @60.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @60.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @60.00: [MEM]	MEM: SIGNED.
@@ -1754,14 +1754,14 @@
 @line:364   Cycle @61.00: [Executor]	EX: ALU Op1 source: RS1 (0xa)
 @line:429   Cycle @61.00: [Executor]	EX: ALU Op2 source: RS2 (0xb)
 @line:1048  Cycle @61.00: [Executor]	EX: ALU Operation: SUB
-@line:1268  Cycle @61.00: [Executor]	EX: ALU Result: 0xffffffff
-@line:1271  Cycle @61.00: [Executor]	EX: Bypass Update: 0xffffffff
-@line:1339  Cycle @61.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @61.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1407  Cycle @61.00: [Executor]	EX: Branch Type: BNE
-@line:1686  Cycle @61.00: [Executor]	EX: Branch Target: 0x8
-@line:1691  Cycle @61.00: [Executor]	EX: Branch Taken: 1
-@line:1716  Cycle @61.00: [Executor]	BTB: UPDATE at PC=0x14, Index=5, Target=0x8
+@line:1280  Cycle @61.00: [Executor]	EX: Bypass Update: 0xffffffff
+@line:1290  Cycle @61.00: [Executor]	EX: ALU Result: 0xffffffff
+@line:1358  Cycle @61.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @61.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1426  Cycle @61.00: [Executor]	EX: Branch Type: BNE
+@line:1705  Cycle @61.00: [Executor]	EX: Branch Target: 0x8
+@line:1710  Cycle @61.00: [Executor]	EX: Branch Taken: 1
+@line:1735  Cycle @61.00: [Executor]	BTB: UPDATE at PC=0x14, Index=5, Target=0x8
 @line:55    Cycle @61.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @61.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @61.00: [MEM]	MEM: SIGNED.
@@ -1784,11 +1784,11 @@
 @line:364   Cycle @62.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @62.00: [Executor]	EX: ALU Op2 source: IMM (0xb)
 @line:1033  Cycle @62.00: [Executor]	EX: ALU Operation: ADD
-@line:1268  Cycle @62.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @62.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @62.00: [Executor]	EX: Branch Immediate: 0xb
-@line:1343  Cycle @62.00: [Executor]	EX: Branch Target Base: 0x8
-@line:1512  Cycle @62.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @62.00: [Executor]	EX: Bypass Update: 0xb
+@line:1290  Cycle @62.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @62.00: [Executor]	EX: Branch Immediate: 0xb
+@line:1362  Cycle @62.00: [Executor]	EX: Branch Target Base: 0x8
+@line:1531  Cycle @62.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @62.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @62.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @62.00: [MEM]	MEM: SIGNED.
@@ -1813,11 +1813,11 @@
 @line:693   Cycle @63.00: [Executor]	EX: Starting 3-cycle multiplication (Pure Wallace Tree)
 @line:696   Cycle @63.00: [Executor]	EX:   Op1=0x0 (signed=1), Op2=0xa (signed=1)
 @line:1213  Cycle @63.00: [Executor]	EX: ALU Operation: MUL
-@line:1268  Cycle @63.00: [Executor]	EX: ALU Result: 0x3b1
-@line:1271  Cycle @63.00: [Executor]	EX: Bypass Update: 0x3b1
-@line:1339  Cycle @63.00: [Executor]	EX: Branch Immediate: 0x0
-@line:1343  Cycle @63.00: [Executor]	EX: Branch Target Base: 0xc
-@line:1512  Cycle @63.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1286  Cycle @63.00: [Executor]	EX: Bypass Update skipped for MUL (result not ready)
+@line:1290  Cycle @63.00: [Executor]	EX: ALU Result: 0x3b1
+@line:1358  Cycle @63.00: [Executor]	EX: Branch Immediate: 0x0
+@line:1362  Cycle @63.00: [Executor]	EX: Branch Target Base: 0xc
+@line:1531  Cycle @63.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @63.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @63.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @63.00: [MEM]	MEM: SIGNED.
@@ -1843,11 +1843,11 @@
 @line:717   Cycle @64.00: [Executor]	EX_M1:   Op1=0x0 (signed=1), Op2=0xa (signed=1)
 @line:811   Cycle @64.00: [Executor]	EX_M1: Partial products generated, advancing to EX_M2
 @line:1033  Cycle @64.00: [Executor]	EX: ALU Operation: ADD
-@line:1268  Cycle @64.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @64.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @64.00: [Executor]	EX: Branch Immediate: 0x1
-@line:1343  Cycle @64.00: [Executor]	EX: Branch Target Base: 0x10
-@line:1512  Cycle @64.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @64.00: [Executor]	EX: Bypass Update: 0xb
+@line:1290  Cycle @64.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @64.00: [Executor]	EX: Branch Immediate: 0x1
+@line:1362  Cycle @64.00: [Executor]	EX: Branch Target Base: 0x10
+@line:1531  Cycle @64.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @64.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @64.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @64.00: [MEM]	MEM: SIGNED.
@@ -1876,11 +1876,11 @@
 @line:853   Cycle @65.00: [Executor]	EX_M2:   Reducing 32 partial products to 6-8 rows
 @line:866   Cycle @65.00: [Executor]	EX_M2: Compression complete, advancing to EX_M3
 @line:1198  Cycle @65.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:1268  Cycle @65.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @65.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @65.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @65.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1512  Cycle @65.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @65.00: [Executor]	EX: Bypass Update: 0xb
+@line:1290  Cycle @65.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @65.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @65.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1531  Cycle @65.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @65.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @65.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @65.00: [MEM]	MEM: SIGNED.
@@ -1910,11 +1910,11 @@
 @line:899   Cycle @66.00: [Executor]	EX_M3:   Result ready: 0x0
 @line:908   Cycle @66.00: [Executor]	EX: 3-cycle multiplier result ready and consumed: 0x0
 @line:1198  Cycle @66.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:1268  Cycle @66.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @66.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @66.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @66.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1512  Cycle @66.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @66.00: [Executor]	EX: Bypass Update: 0x0
+@line:1290  Cycle @66.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @66.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @66.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1531  Cycle @66.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @66.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @66.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @66.00: [MEM]	MEM: SIGNED.
@@ -1938,13 +1938,13 @@
 @line:364   Cycle @67.00: [Executor]	EX: ALU Op1 source: RS1 (0xb)
 @line:429   Cycle @67.00: [Executor]	EX: ALU Op2 source: RS2 (0xb)
 @line:1048  Cycle @67.00: [Executor]	EX: ALU Operation: SUB
-@line:1268  Cycle @67.00: [Executor]	EX: ALU Result: 0x0
-@line:1271  Cycle @67.00: [Executor]	EX: Bypass Update: 0x0
-@line:1339  Cycle @67.00: [Executor]	EX: Branch Immediate: 0xfffffff4
-@line:1343  Cycle @67.00: [Executor]	EX: Branch Target Base: 0x14
-@line:1407  Cycle @67.00: [Executor]	EX: Branch Type: BNE
-@line:1686  Cycle @67.00: [Executor]	EX: Branch Target: 0x8
-@line:1691  Cycle @67.00: [Executor]	EX: Branch Taken: 0
+@line:1280  Cycle @67.00: [Executor]	EX: Bypass Update: 0x0
+@line:1290  Cycle @67.00: [Executor]	EX: ALU Result: 0x0
+@line:1358  Cycle @67.00: [Executor]	EX: Branch Immediate: 0xfffffff4
+@line:1362  Cycle @67.00: [Executor]	EX: Branch Target Base: 0x14
+@line:1426  Cycle @67.00: [Executor]	EX: Branch Type: BNE
+@line:1705  Cycle @67.00: [Executor]	EX: Branch Target: 0x8
+@line:1710  Cycle @67.00: [Executor]	EX: Branch Taken: 0
 @line:55    Cycle @67.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @67.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @67.00: [MEM]	MEM: SIGNED.
@@ -1968,11 +1968,11 @@
 @line:364   Cycle @68.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @68.00: [Executor]	EX: ALU Op2 source: IMM (0xb)
 @line:1033  Cycle @68.00: [Executor]	EX: ALU Operation: ADD
-@line:1268  Cycle @68.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @68.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @68.00: [Executor]	EX: Branch Immediate: 0xb
-@line:1343  Cycle @68.00: [Executor]	EX: Branch Target Base: 0x8
-@line:1512  Cycle @68.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @68.00: [Executor]	EX: Bypass Update: 0xb
+@line:1290  Cycle @68.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @68.00: [Executor]	EX: Branch Immediate: 0xb
+@line:1362  Cycle @68.00: [Executor]	EX: Branch Target Base: 0x8
+@line:1531  Cycle @68.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @68.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @68.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @68.00: [MEM]	MEM: SIGNED.
@@ -1997,11 +1997,11 @@
 @line:364   Cycle @69.00: [Executor]	EX: ALU Op1 source: RS1 (0x3b1)
 @line:429   Cycle @69.00: [Executor]	EX: ALU Op2 source: RS2 (0xb)
 @line:1198  Cycle @69.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:1268  Cycle @69.00: [Executor]	EX: ALU Result: 0xb
-@line:1271  Cycle @69.00: [Executor]	EX: Bypass Update: 0xb
-@line:1339  Cycle @69.00: [Executor]	EX: Branch Immediate: 0x0
-@line:1343  Cycle @69.00: [Executor]	EX: Branch Target Base: 0xc
-@line:1512  Cycle @69.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1280  Cycle @69.00: [Executor]	EX: Bypass Update: 0xb
+@line:1290  Cycle @69.00: [Executor]	EX: ALU Result: 0xb
+@line:1358  Cycle @69.00: [Executor]	EX: Branch Immediate: 0x0
+@line:1362  Cycle @69.00: [Executor]	EX: Branch Target Base: 0xc
+@line:1531  Cycle @69.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:85    Cycle @69.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @69.00: [MEM]	MEM: SIGNED.
 @line:256   Cycle @69.00: [MEM]	MEM: Bypass <= 0xb
