@@ -5,7 +5,12 @@ This script extracts all ADD operations and checks if Op1 + Op2 = Result.
 """
 
 import re
+import sys
 from typing import List, Dict, Tuple
+
+# Constants for search ranges
+BACKWARD_SEARCH_LINES = 10  # Number of lines to search backwards for operands
+FORWARD_SEARCH_LINES = 5    # Number of lines to search forward for results
 
 def parse_hex(value: str) -> int:
     """Parse hexadecimal value, handling signed 32-bit representation"""
@@ -41,8 +46,8 @@ def extract_add_operations(log_file: str) -> List[Dict]:
             op1_source = None
             op2_source = None
             
-            # Search backwards up to 10 lines for operand information
-            for j in range(max(0, i - 10), i):
+            # Search backwards for operand information
+            for j in range(max(0, i - BACKWARD_SEARCH_LINES), i):
                 prev_line = lines[j]
                 
                 # Extract Op1
@@ -60,7 +65,7 @@ def extract_add_operations(log_file: str) -> List[Dict]:
                         op2 = op2_match.group(2)
             
             # Look forward for result
-            for j in range(i + 1, min(len(lines), i + 5)):
+            for j in range(i + 1, min(len(lines), i + FORWARD_SEARCH_LINES)):
                 next_line = lines[j]
                 if "EX: ALU Result:" in next_line:
                     result_match = re.search(r'Result: (0x[0-9a-f]+)', next_line)
@@ -161,7 +166,24 @@ def generate_report(operations: List[Dict], correct: int, incorrect: int, incorr
     return "\n".join(report)
 
 def main():
-    log_file = "logs/0to100.log"
+    # Allow command line argument for log file path
+    if len(sys.argv) > 1:
+        if sys.argv[1] in ['-h', '--help']:
+            print("Usage: python3 analyze_add_operations.py [log_file_path]")
+            print()
+            print("Analyzes ADD operations in a CPU simulation log file.")
+            print()
+            print("Arguments:")
+            print("  log_file_path    Path to the log file (default: logs/0to100.log)")
+            print()
+            print("Examples:")
+            print("  python3 analyze_add_operations.py")
+            print("  python3 analyze_add_operations.py logs/0to100.log")
+            print("  python3 analyze_add_operations.py logs/mul1to10.log")
+            return 0
+        log_file = sys.argv[1]
+    else:
+        log_file = "logs/0to100.log"
     
     print(f"Analyzing ADD operations in {log_file}...")
     print()

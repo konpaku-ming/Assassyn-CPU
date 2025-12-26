@@ -88,4 +88,25 @@
 ## 生成工具
 
 本报告由 `analyze_add_operations.py` 脚本自动生成。
+
+### 使用方法
+
+```bash
+# 分析默认日志文件 (logs/0to100.log)
+python3 analyze_add_operations.py
+
+# 分析指定的日志文件
+python3 analyze_add_operations.py logs/0to100.log
+
+# 查看帮助信息
+python3 analyze_add_operations.py --help
+```
+
+### 脚本功能
+
+- 自动提取所有ADD操作
+- 验证操作数和结果的正确性
+- 生成详细的分析报告
+- 支持命令行参数指定日志文件
+
 分析时间：2024-12-26
