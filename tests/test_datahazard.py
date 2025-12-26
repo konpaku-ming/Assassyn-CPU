@@ -26,15 +26,15 @@ class Driver(Module):
     def build(self, dut: Module, hazard_impl: Module):
         # --- Test vector definition ---
         # Format: (rs1_idx, rs2_idx, rs1_used, rs2_used, ex_rd, ex_is_load, ex_mul_busy, mem_rd, wb_rd)
-        #         rs1_idx:  Source register 1 index
-        #         rs2_idx:  Source register 2 index
-        #         rs1_used: Whether rs1 is used
-        #         rs2_used: Whether rs2 is used
-        #         ex_rd:    EX stage destination register
-        #         ex_is_load: Whether EX stage instruction is a load
-        #         ex_mul_busy: Whether multiplier is busy
-        #         mem_rd:   MEM stage destination register
-        #         wb_rd:    WB stage destination register
+        #         [0] rs1_idx:     Source register 1 index
+        #         [1] rs2_idx:     Source register 2 index
+        #         [2] rs1_used:    Whether rs1 is used
+        #         [3] rs2_used:    Whether rs2 is used
+        #         [4] ex_rd:       EX stage destination register
+        #         [5] ex_is_load:  Whether EX stage instruction is a load
+        #         [6] ex_mul_busy: Whether multiplier is busy (NEW: for MUL stall)
+        #         [7] mem_rd:      MEM stage destination register
+        #         [8] wb_rd:       WB stage destination register
         vectors = [
             # Test case 1: No hazard
             (0x2, 0x3, 1, 1, 0x4, 0, 0, 0x7, 0xA),
