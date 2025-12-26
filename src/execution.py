@@ -318,9 +318,36 @@ class Execution(Module):
             log("EX: ALU Operation: MULHU")
 
         # 3. 更新本级 Bypass 寄存器
-        ex_bypass[0] = alu_result
+        # 修复：对于MUL指令，只有当结果ready时才更新bypass
+        # 这样可以避免在MUL开始的第一个周期错误地更新bypass为0
+        # 原理：
+        # - 如果不是MUL指令，正常更新bypass
+        # - 如果是MUL指令但结果还没ready，保持bypass不变（不更新）
+        # - 如果MUL结果ready，优先使用MUL结果更新bypass
+        
+        # 确定是否应该更新bypass：
+        # - 非MUL指令：总是更新
+        # - MUL指令第一个周期：不更新（mul_result_valid=0）
+        # - MUL结果ready时：更新（mul_result_valid=1）
+        should_update_bypass = ~is_mul_op | mul_result_valid
+        
+        # 确定bypass的值：
+        # - 如果MUL结果ready（无论当前是什么指令），优先使用mul_result_value
+        # - 否则使用alu_result
+        # 注意：
+        # 1. mul_result_valid为1时，说明multiplier有ready的结果，
+        #    这个结果来自3个周期前开始的MUL指令，应该被用于bypass
+        # 2. select(true_value, false_value)：当条件为true(1)时选择第一个参数
+        bypass_value = mul_result_valid.select(mul_result_value, alu_result)
+        
+        # 只在should_update_bypass为true时更新bypass
+        with Condition(should_update_bypass):
+            ex_bypass[0] = bypass_value
+            log("EX: Bypass Update: 0x{:x}", bypass_value)
+        with Condition(~should_update_bypass):
+            log("EX: Bypass Update skipped for MUL (result not ready)")
+        
         log("EX: ALU Result: 0x{:x}", alu_result)
-        log("EX: Bypass Update: 0x{:x}", alu_result)
 
         # --- 访存操作 (Store Handling) ---
         # 仅在 is_write (Store) 为真时驱动 SRAM 的 WE
