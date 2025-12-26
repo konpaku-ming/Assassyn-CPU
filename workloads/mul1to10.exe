@@ -1,30 +1,11 @@
-00001117 // auipc sp, 0x1          ; _start: 设置 SP 高 20 位 (0x1000)
-00010113 // addi  sp, sp, 0        ; 设置 SP 低 12 位 (SP = 0x1000)
-008000ef // jal   ra, 0x08         ; 跳转到 main 函数 (地址 0x10)
-00100073 // ebreak                 ; Stop Simulation (原为 j 0xc)
-fe010113 // addi  sp, sp, -32      ; main: 开辟栈帧 (地址 0x10)
-00812e23 // sw    s0, 28(sp)       ; 保存 s0
-02010413 // addi  s0, sp, 32       ; 设置 s0
-00100793 // li    a5, 1            ; result = 1 (初始化结果为 1)
-fef42623 // sw    a5, -20(s0)      ; 保存 result 到栈 [s0-20]
-fe042423 // sw    zero, -24(s0)    ; i = 0 (循环计数器初始化为 0)
-0300006f // j     0x40             ; 跳转到循环条件检查 (地址 0x40)
-00000713 // li    a4, 0            ; <loop_body>: 数组基址 0 (地址 0x18)
-fe842783 // lw    a5, -24(s0)      ; 加载 i
-00279793 // slli  a5, a5, 2        ; i * 4 (计算数组偏移量)
-00f707b3 // add   a5, a4, a5       ; &array[i]
-0007a783 // lw    a5, 0(a5)        ; 加载 array[i]
-fec42703 // lw    a4, -20(s0)      ; 加载 result
-02f707b3 // mul   a5, a4, a5       ; result * array[i] (使用 M 扩展的 mul 指令)
-fef42623 // sw    a5, -20(s0)      ; 更新 result
-fe842783 // lw    a5, -24(s0)      ; 加载 i
-00178793 // addi  a5, a5, 1        ; i++
-fef42423 // sw    a5, -24(s0)      ; 更新 i
-fe842703 // lw    a4, -24(s0)      ; <loop_cond>: 加载 i (地址 0x40)
-00900793 // li    a5, 9            ; limit = 9 (循环 10 次: 0-9)
-fce7d6e3 // bge   a5, a4, -52      ; if (9 >= i) goto loop_body
-fec42783 // lw    a5, -20(s0)      ; 加载 result
-00078513 // mv    a0, a5           ; 设置返回值 (a0 = result)
-01c12403 // lw    s0, 28(sp)       ; 恢复 s0
-02010113 // addi  sp, sp, 32       ; 恢复 sp
-00008067 // ret                    ; 返回
+00000513 //  0: li   a0, 0        ; res = 0
+00000793 //  4: li   a5, 0        ; i = 0
+00b00693 //  8: li   a3, 11       ; end = 11
+02f50533 // 12: mul  a0, a0, a5   ; a0 = a0 * a5
+00178793 // 16: addi a5, a5, 1    ; i++
+fed79ae3 // 20: bne a5, a3, -12
+00100073 // 24: ebreak
+00000033 // 28: add x0, x0, x0    ; padding
+00000033 // 32: add x0, x0, x0
+00000033 // 36: add x0, x0, x0
+00000033 // 40: add x0, x0, x0
