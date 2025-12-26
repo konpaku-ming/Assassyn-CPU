@@ -116,8 +116,22 @@ class WallaceTreeMul:
         self.m3_result = RegArray(Bits(32), 1, initializer=[0])
     
     def is_busy(self):
-        """Check if multiplier has operations in flight"""
-        return (self.m1_valid[0] | self.m2_valid[0] | self.m3_valid[0])
+        """
+        Check if multiplier has operations in flight that require pipeline stall.
+        
+        Returns True only when stages M1 or M2 are active, NOT when M3 is active.
+        
+        Timing:
+        - Cycle N: MUL instruction starts, m1_valid=1
+        - Cycle N+1: M1 active (stall required), m2_valid=1, m1_valid=0
+        - Cycle N+2: M2 active (stall required), m3_valid=1, m2_valid=0
+        - Cycle N+3: M3 active (result ready, no stall needed), next instruction can proceed
+        
+        Rationale: When M3 is active, the result is ready and can be consumed in the
+        same cycle, so the pipeline does not need to stall. Only M1 and M2 require
+        the pipeline to wait.
+        """
+        return ((self.m1_valid[0] | self.m2_valid[0]))
     
     def start_multiply(self, op1, op2, op1_signed, op2_signed, result_high):
         """
