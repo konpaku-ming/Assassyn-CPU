@@ -100,6 +100,10 @@ python3 analyze_add_operations.py logs/0to100.log
 
 # 查看帮助信息
 python3 analyze_add_operations.py --help
+
+# 查看寄存器的最终值
+python3 show_register_value.py a0
+python3 show_register_value.py x15
 ```
 
 ### 脚本功能
@@ -108,5 +112,22 @@ python3 analyze_add_operations.py --help
 - 验证操作数和结果的正确性
 - 生成详细的分析报告
 - 支持命令行参数指定日志文件
+
+### 查看寄存器值
+
+使用 `show_register_value.py` 可以查看任何寄存器在执行过程中的值：
+
+```bash
+# 查看寄存器a0（返回值）
+python3 show_register_value.py a0
+
+# 输出示例：
+# 📊 Summary:
+#   Total writes: 101
+#   Final value:  0x0 (decimal: 0)
+#   Final cycle:  410.00
+```
+
+**0to100.log中寄存器a0的最终值为 0x0 (十进制: 0)**
 
 分析时间：2024-12-26

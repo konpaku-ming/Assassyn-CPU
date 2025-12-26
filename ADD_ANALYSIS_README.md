@@ -8,7 +8,9 @@
 
 ## 工具使用
 
-### 基本用法
+### ADD操作分析
+
+#### 基本用法
 
 ```bash
 # 分析默认日志文件 (logs/0to100.log)
@@ -24,12 +26,44 @@ python3 analyze_add_operations.py logs/mul1to10.log
 python3 analyze_add_operations.py --help
 ```
 
-### 输出文件
+#### 输出文件
 
 工具会生成以下报告文件：
 
 1. **ADD_OPERATIONS_ANALYSIS.md** - 英文分析报告
 2. **0to100_ADD_分析报告.md** - 中文详细报告（仅在分析0to100.log时）
+
+### 寄存器值查询
+
+使用 `show_register_value.py` 查看任意寄存器的最终值：
+
+```bash
+# 查看寄存器a0（函数返回值）
+python3 show_register_value.py a0
+
+# 查看寄存器x15
+python3 show_register_value.py x15
+
+# 查看特定日志文件中的寄存器
+python3 show_register_value.py a0 logs/mul1to10.log
+
+# 查看帮助信息
+python3 show_register_value.py
+```
+
+#### 输出示例
+
+```
+📊 Summary:
+  Total writes: 101
+  Final value:  0x0 (decimal: 0)
+  Final cycle:  410.00
+
+  ℹ️  Register a0/x10 is typically used for function return values
+     The program returned 0 (success)
+```
+
+**在0to100.log中，寄存器a0的最终值为 0x0 (十进制: 0)**
 
 ## 分析结果
 
