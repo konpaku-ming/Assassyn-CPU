@@ -1,7 +1,7 @@
 00001117 // auipc sp, 0x1          ; _start: 设置 SP 高 20 位 (0x1000)
 00010113 // addi  sp, sp, 0        ; 设置 SP 低 12 位 (SP = 0x1000)
 008000ef // jal   ra, 0x08         ; 跳转到 main 函数 (地址 0x10)
-0000006f // j     0x00             ; 无限循环 (Stop Simulation)
+00100073 // ebreak                 ; Stop Simulation (原为 j 0xc)
 fe010113 // addi  sp, sp, -32      ; main: 开辟栈帧 (地址 0x10)
 00812e23 // sw    s0, 28(sp)       ; 保存 s0
 02010413 // addi  s0, sp, 32       ; 设置 s0
