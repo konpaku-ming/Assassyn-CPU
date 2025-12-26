@@ -70,10 +70,7 @@ class DataHazardUnit(Downstream):
         load_use_hazard_rs1 = rs1_used_val & ~rs1_is_zero & ex_is_load_val & (rs1_idx_val == ex_rd_val)
         load_use_hazard_rs2 = rs2_used_val & ~rs2_is_zero & ex_is_load_val & (rs2_idx_val == ex_rd_val)
 
-        # 2. Detect MUL multi-cycle occupancy (Must Stall)
-        # Condition: EX stage multiplier is busy (executing 3-cycle MUL instruction)
-        # In this case, must stall entire pipeline until MUL completes
-        # MUL occupies EX stage, entire pipeline stalls for 3 cycles
+        # 2. Detect MUL multi-cycle occupancy - stall pipeline for 3 cycles until completion
         mul_busy_stall = ex_mul_busy_val
 
         # If Load-Use hazard or MUL occupancy exists, stall pipeline
