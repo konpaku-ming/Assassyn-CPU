@@ -71,10 +71,8 @@ class DataHazardUnit(Downstream):
         load_use_hazard_rs2 = rs2_used_val & ~rs2_is_zero & ex_is_load_val & (rs2_idx_val == ex_rd_val)
 
         # 2. Detect MUL multi-cycle occupancy - stall pipeline until multiplier completes
-        mul_busy_stall = ex_mul_busy_val
-
         # If Load-Use hazard or MUL occupancy exists, stall pipeline
-        stall_if = load_use_hazard_rs1 | load_use_hazard_rs2 | mul_busy_stall
+        stall_if = load_use_hazard_rs1 | load_use_hazard_rs2 | ex_mul_busy_val
 
         # 2. Detect Forwarding (Generate Mux selection codes)
         # If no Load-Use hazard, generate rs1_sel and rs2_sel selection codes
@@ -95,11 +93,11 @@ class DataHazardUnit(Downstream):
         rs2_sel = (rs2_used_val & ~rs2_is_zero).select(rs2_ex_bypass, Rs2Sel.RS2)
 
         log(
-            "DataHazardUnit: rs1_sel={} rs2_sel={} stall_if={} mul_busy_stall={}",
+            "DataHazardUnit: rs1_sel={} rs2_sel={} stall_if={} ex_mul_busy={}",
             rs1_sel,
             rs2_sel,
             stall_if,
-            mul_busy_stall,
+            ex_mul_busy_val,
         )
         # Return bypass selection signals and stall signal
         return rs1_sel, rs2_sel, stall_if
