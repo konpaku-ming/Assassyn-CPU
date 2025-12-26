@@ -188,10 +188,9 @@ class Execution(Module):
         #   MULHSU: signed × unsigned → high 32 bits
         #   MULHU:  unsigned × unsigned → high 32 bits
         #
-        # Note: This implementation maintains compatibility with the existing single-cycle
-        # pipeline by providing immediate results while representing the 3-cycle structure.
-        # In a true 3-cycle implementation, the pipeline would need to stall for 2 cycles
-        # after initiating a multiply operation.
+        # This is the ONLY multiplication interface - all multiplication operations
+        # use the 3-cycle Wallace Tree pipeline. Each multiplication takes exactly
+        # 3 cycles to complete, from EX_M1 through EX_M3.
         
         # Detect if current operation is multiplication
         is_mul_op = (ctrl.alu_func == ALUOp.MUL) | (ctrl.alu_func == ALUOp.MULH) | \
@@ -234,37 +233,9 @@ class Execution(Module):
             log("EX: 3-cycle multiplier result ready: 0x{:x}", mul_result_value)
             multiplier.clear_result()
         
-        # For compatibility with existing single-cycle ALU structure,
-        # we also compute results inline. In a full 3-cycle implementation,
-        # only the pipelined multiplier results would be used.
-        # This maintains backward compatibility while implementing the 3-cycle structure.
-        
-        # Inline computation (for compatibility/fallback)
-        # Use helper function for sign/zero extension based on operation type
-        # op1_is_signed and op2_is_signed were computed earlier based on operation
-        op1_extended = sign_zero_extend(alu_op1, op1_is_signed)
-        op2_extended = sign_zero_extend(alu_op2, op2_is_signed)
-        op1_zero_ext = sign_zero_extend(alu_op1, Bits(1)(0))  # Zero-extended for MULHU
-        op2_zero_ext = sign_zero_extend(alu_op2, Bits(1)(0))  # Zero-extended for MULHU/MULHSU
-        
-        # MUL: 有符号 × 有符号，返回低32位
-        # 使用无符号乘法，然后提取结果
-        mul_result_signed = op1_extended.bitcast(UInt(64)) * op2_extended.bitcast(UInt(64))
-        mul_result_bits = mul_result_signed.bitcast(Bits(64))
-        mul_res = mul_result_bits[0:31].bitcast(Bits(32))
-        
-        # MULH: 有符号 × 有符号，返回高32位
-        mulh_res = mul_result_bits[32:63].bitcast(Bits(32))
-        
-        # MULHSU: 有符号 × 无符号，返回高32位
-        mulhsu_result = op1_extended.bitcast(UInt(64)) * op2_zero_ext.bitcast(UInt(64))
-        mulhsu_result_bits = mulhsu_result.bitcast(Bits(64))
-        mulhsu_res = mulhsu_result_bits[32:63].bitcast(Bits(32))
-        
-        # MULHU: 无符号 × 无符号，返回高32位
-        mulhu_result = op1_zero_ext.bitcast(UInt(64)) * op2_zero_ext.bitcast(UInt(64))
-        mulhu_result_bits = mulhu_result.bitcast(Bits(64))
-        mulhu_res = mulhu_result_bits[32:63].bitcast(Bits(32))
+        # Wallace Tree multiplier is now the ONLY interface for multiplication
+        # All MUL/MULH/MULHSU/MULHU operations use the 3-cycle pipeline result
+        # No inline single-cycle computation is performed
 
         # ebreak 停机
         with Condition((ctrl.alu_func == ALUOp.SYS) & ~flush_if):
@@ -272,27 +243,29 @@ class Execution(Module):
             finish()
 
         # 2. 结果选择
+        # For MUL/MULH/MULHSU/MULHU, use the Wallace Tree multiplier result
+        # All multiplication operations use mul_result_value from the 3-cycle pipeline
         alu_result = ctrl.alu_func.select1hot(
-            add_res,     # 0:  ADD
-            sub_res,     # 1:  SUB
-            sll_res,     # 2:  SLL
-            slt_res,     # 3:  SLT
-            sltu_res,    # 4:  SLTU
-            xor_res,     # 5:  XOR
-            srl_res,     # 6:  SRL
-            sra_res,     # 7:  SRA
-            or_res,      # 8:  OR
-            and_res,     # 9:  AND
-            alu_op2,     # 10: SYS
-            mul_res,     # 11: MUL (新增)
-            mulh_res,    # 12: MULH (新增)
-            mulhsu_res,  # 13: MULHSU (新增)
-            mulhu_res,   # 14: MULHU (新增)
-            alu_op2,     # 15: 占位
-            alu_op2,     # 16: 占位
-            alu_op2,     # 17: 占位
-            alu_op2,     # 18: 占位
-            alu_op2,     # 19-31: 占位（为未来扩展预留）
+            add_res,            # 0:  ADD
+            sub_res,            # 1:  SUB
+            sll_res,            # 2:  SLL
+            slt_res,            # 3:  SLT
+            sltu_res,           # 4:  SLTU
+            xor_res,            # 5:  XOR
+            srl_res,            # 6:  SRL
+            sra_res,            # 7:  SRA
+            or_res,             # 8:  OR
+            and_res,            # 9:  AND
+            alu_op2,            # 10: SYS
+            mul_result_value,   # 11: MUL - from Wallace Tree (3-cycle)
+            mul_result_value,   # 12: MULH - from Wallace Tree (3-cycle)
+            mul_result_value,   # 13: MULHSU - from Wallace Tree (3-cycle)
+            mul_result_value,   # 14: MULHU - from Wallace Tree (3-cycle)
+            alu_op2,            # 15: 占位
+            alu_op2,            # 16: 占位
+            alu_op2,            # 17: 占位
+            alu_op2,            # 18: 占位
+            alu_op2,            # 19-31: 占位（为未来扩展预留）
             alu_op2,
             alu_op2,
             alu_op2,
