@@ -191,11 +191,11 @@ class Execution(Module):
         # This is the ONLY multiplication interface - all multiplication operations
         # use the 3-cycle Wallace Tree pipeline. Each multiplication takes exactly
         # 3 cycles to complete, from EX_M1 through EX_M3.
-        
+
         # Detect if current operation is multiplication
         is_mul_op = (ctrl.alu_func == ALUOp.MUL) | (ctrl.alu_func == ALUOp.MULH) | \
                     (ctrl.alu_func == ALUOp.MULHSU) | (ctrl.alu_func == ALUOp.MULHU)
-        
+
         # Determine signedness for each multiply operation type
         # MUL, MULH, MULHSU: op1 is treated as signed
         # MUL, MULH: op2 is treated as signed
@@ -204,12 +204,12 @@ class Execution(Module):
         op1_is_signed = (ctrl.alu_func == ALUOp.MUL) | (ctrl.alu_func == ALUOp.MULH) | \
                         (ctrl.alu_func == ALUOp.MULHSU)
         op2_is_signed = (ctrl.alu_func == ALUOp.MUL) | (ctrl.alu_func == ALUOp.MULH)
-        
+
         # Determine which 32 bits of the 64-bit product to return
         # MUL returns low 32 bits, others return high 32 bits
         result_is_high = (ctrl.alu_func == ALUOp.MULH) | (ctrl.alu_func == ALUOp.MULHSU) | \
                          (ctrl.alu_func == ALUOp.MULHU)
-        
+
         # Initiate multiplication in the 3-cycle pipeline
         # Only start if multiplier is not busy to avoid overwriting in-flight operations
         # Stage 1 (EX_M1): Start partial product generation
@@ -219,22 +219,22 @@ class Execution(Module):
         with Condition(mul_can_start):
             multiplier.start_multiply(real_rs1, real_rs2, op1_is_signed, op2_is_signed, result_is_high)
             log("EX: Starting 3-cycle multiplication (Pure Wallace Tree)")
-            log("EX:   Op1=0x{:x} (signed={}), Op2=0x{:x} (signed={})", 
+            log("EX:   Op1=0x{:x} (signed={}), Op2=0x{:x} (signed={})",
                 real_rs1, op1_is_signed, real_rs2, op2_is_signed)
-        
+
         # Advance multiplier pipeline stages every cycle
         multiplier.cycle_m1()  # Stage 1 -> Stage 2: Generate 32 partial products
         multiplier.cycle_m2()  # Stage 2 -> Stage 3: Wallace Tree compression (32 → 6-8 rows)
         multiplier.cycle_m3()  # Stage 3: Final compression + CPA, result ready
-        
+
         # Get multiplication result if ready (after 3 cycles)
         mul_result_valid, mul_result_value = multiplier.get_result_if_ready()
-        
+
         # Clear result after reading to prevent consuming it multiple times
         with Condition(mul_result_valid == Bits(1)(1)):
             log("EX: 3-cycle multiplier result ready and consumed: 0x{:x}", mul_result_value)
             multiplier.clear_result()
-        
+
         # Wallace Tree multiplier is now the ONLY interface for multiplication
         # All MUL/MULH/MULHSU/MULHU operations use the 3-cycle pipeline result
         # No inline single-cycle computation is performed
@@ -248,26 +248,26 @@ class Execution(Module):
         # For MUL/MULH/MULHSU/MULHU, use the Wallace Tree multiplier result
         # All multiplication operations use mul_result_value from the 3-cycle pipeline
         alu_result = ctrl.alu_func.select1hot(
-            add_res,            # 0:  ADD
-            sub_res,            # 1:  SUB
-            sll_res,            # 2:  SLL
-            slt_res,            # 3:  SLT
-            sltu_res,           # 4:  SLTU
-            xor_res,            # 5:  XOR
-            srl_res,            # 6:  SRL
-            sra_res,            # 7:  SRA
-            or_res,             # 8:  OR
-            and_res,            # 9:  AND
-            alu_op2,            # 10: SYS
-            mul_result_value,   # 11: MUL - from Wallace Tree (3-cycle)
-            mul_result_value,   # 12: MULH - from Wallace Tree (3-cycle)
-            mul_result_value,   # 13: MULHSU - from Wallace Tree (3-cycle)
-            mul_result_value,   # 14: MULHU - from Wallace Tree (3-cycle)
-            alu_op2,            # 15: 占位
-            alu_op2,            # 16: 占位
-            alu_op2,            # 17: 占位
-            alu_op2,            # 18: 占位
-            alu_op2,            # 19-31: 占位（为未来扩展预留）
+            add_res,  # 0:  ADD
+            sub_res,  # 1:  SUB
+            sll_res,  # 2:  SLL
+            slt_res,  # 3:  SLT
+            sltu_res,  # 4:  SLTU
+            xor_res,  # 5:  XOR
+            srl_res,  # 6:  SRL
+            sra_res,  # 7:  SRA
+            or_res,  # 8:  OR
+            and_res,  # 9:  AND
+            alu_op2,  # 10: SYS
+            mul_result_value,  # 11: MUL - from Wallace Tree (3-cycle)
+            mul_result_value,  # 12: MULH - from Wallace Tree (3-cycle)
+            mul_result_value,  # 13: MULHSU - from Wallace Tree (3-cycle)
+            mul_result_value,  # 14: MULHU - from Wallace Tree (3-cycle)
+            alu_op2,  # 15: 占位
+            alu_op2,  # 16: 占位
+            alu_op2,  # 17: 占位
+            alu_op2,  # 18: 占位
+            alu_op2,  # 19-31: 占位（为未来扩展预留）
             alu_op2,
             alu_op2,
             alu_op2,
@@ -306,7 +306,7 @@ class Execution(Module):
             log("EX: ALU Operation: SYS")
         with Condition(ctrl.alu_func == ALUOp.NOP):
             log("EX: ALU Operation: NOP or Reserved")
-        
+
         # M Extension 操作日志
         with Condition(ctrl.alu_func == ALUOp.MUL):
             log("EX: ALU Operation: MUL")
@@ -318,36 +318,9 @@ class Execution(Module):
             log("EX: ALU Operation: MULHU")
 
         # 3. 更新本级 Bypass 寄存器
-        # 修复：对于MUL指令，只有当结果ready时才更新bypass
-        # 这样可以避免在MUL开始的第一个周期错误地更新bypass为0
-        # 原理：
-        # - 如果不是MUL指令，正常更新bypass
-        # - 如果是MUL指令但结果还没ready，保持bypass不变（不更新）
-        # - 如果MUL结果ready，优先使用MUL结果更新bypass
-        
-        # 确定是否应该更新bypass：
-        # - 非MUL指令：总是更新
-        # - MUL指令第一个周期：不更新（mul_result_valid=0）
-        # - MUL结果ready时：更新（mul_result_valid=1）
-        should_update_bypass = ~is_mul_op | mul_result_valid
-        
-        # 确定bypass的值：
-        # - 如果MUL结果ready（无论当前是什么指令），优先使用mul_result_value
-        # - 否则使用alu_result
-        # 注意：
-        # 1. mul_result_valid为1时，说明multiplier有ready的结果，
-        #    这个结果来自3个周期前开始的MUL指令，应该被用于bypass
-        # 2. select(true_value, false_value)：当条件为true(1)时选择第一个参数
-        bypass_value = mul_result_valid.select(mul_result_value, alu_result)
-        
-        # 只在should_update_bypass为true时更新bypass
-        with Condition(should_update_bypass):
-            ex_bypass[0] = bypass_value
-            log("EX: Bypass Update: 0x{:x}", bypass_value)
-        with Condition(~should_update_bypass):
-            log("EX: Bypass Update skipped for MUL (result not ready)")
-        
+        ex_bypass[0] = alu_result
         log("EX: ALU Result: 0x{:x}", alu_result)
+        log("EX: Bypass Update: 0x{:x}", alu_result)
 
         # --- 访存操作 (Store Handling) ---
         # 仅在 is_write (Store) 为真时驱动 SRAM 的 WE
