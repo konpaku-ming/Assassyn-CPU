@@ -105,6 +105,7 @@
 @line:1363  Cycle @7.00: [Executor]	EX: Branch Immediate: 0x0
 @line:1367  Cycle @7.00: [Executor]	EX: Branch Target Base: 0xc
 @line:1536  Cycle @7.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1849  Cycle @7.00: [Executor]	EX: MUL not ready, sending NOP to MEM (rd=0)
 @line:55    Cycle @7.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @7.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @7.00: [MEM]	MEM: SIGNED.
@@ -136,6 +137,10 @@
 @line:1363  Cycle @8.00: [Executor]	EX: Branch Immediate: 0x1
 @line:1367  Cycle @8.00: [Executor]	EX: Branch Target Base: 0x10
 @line:1536  Cycle @8.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:55    Cycle @8.00: [MEM]	MEM: OP NONE.
+@line:85    Cycle @8.00: [MEM]	MEM: WIDTH WORD.
+@line:99    Cycle @8.00: [MEM]	MEM: SIGNED.
+@line:256   Cycle @8.00: [MEM]	MEM: Bypass <= 0x0
 @line:30    Cycle @8.00: [WB]	Input: rd=x13 wdata=0xb
 @line:35    Cycle @8.00: [WB]	WB: Write x13 <= 0xb
 @line:144   Cycle @8.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=15 ex_is_load=0 ex_mul_busy=1 mem_rd=0 wb_rd=13
@@ -169,6 +174,7 @@
 @line:85    Cycle @9.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @9.00: [MEM]	MEM: SIGNED.
 @line:256   Cycle @9.00: [MEM]	MEM: Bypass <= 0x2
+@line:30    Cycle @9.00: [WB]	Input: rd=x0 wdata=0x0
 @line:144   Cycle @9.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=0 ex_is_load=0 ex_mul_busy=1 mem_rd=15 wb_rd=0
 @line:262   Cycle @9.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=4 rs2_sel=1 stall_if=1 mul_busy_hazard=1
 @line:27    Cycle @9.00: [Fetcher_Impl]	IF: Stall
@@ -230,7 +236,7 @@
 @line:55    Cycle @11.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @11.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @11.00: [MEM]	MEM: SIGNED.
-@line:256   Cycle @11.00: [MEM]	MEM: Bypass <= 0x1
+@line:256   Cycle @11.00: [MEM]	MEM: Bypass <= 0xb
 @line:30    Cycle @11.00: [WB]	Input: rd=x0 wdata=0xb
 @line:144   Cycle @11.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=0 ex_is_load=0 ex_mul_busy=0 mem_rd=0 wb_rd=0
 @line:262   Cycle @11.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=1 rs2_sel=1 stall_if=0 mul_busy_hazard=0
@@ -261,7 +267,7 @@
 @line:85    Cycle @12.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @12.00: [MEM]	MEM: SIGNED.
 @line:256   Cycle @12.00: [MEM]	MEM: Bypass <= 0xb
-@line:30    Cycle @12.00: [WB]	Input: rd=x0 wdata=0x1
+@line:30    Cycle @12.00: [WB]	Input: rd=x0 wdata=0xb
 @line:144   Cycle @12.00: [DataHazardUnit]	Input Signals: rs1_idx=0 rs2_idx=1 rs1_used=0 rs2_used=0 ex_rd=0 ex_is_load=0 ex_mul_busy=0 mem_rd=0 wb_rd=0
 @line:262   Cycle @12.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=1 rs2_sel=1 stall_if=0 mul_busy_hazard=0
 @line:64    Cycle @12.00: [Fetcher_Impl]	IF: Final Current PC=0x1c
@@ -369,6 +375,7 @@
 @line:1363  Cycle @16.00: [Executor]	EX: Branch Immediate: 0x0
 @line:1367  Cycle @16.00: [Executor]	EX: Branch Target Base: 0xc
 @line:1536  Cycle @16.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1849  Cycle @16.00: [Executor]	EX: MUL not ready, sending NOP to MEM (rd=0)
 @line:55    Cycle @16.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @16.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @16.00: [MEM]	MEM: SIGNED.
@@ -399,6 +406,10 @@
 @line:1363  Cycle @17.00: [Executor]	EX: Branch Immediate: 0x1
 @line:1367  Cycle @17.00: [Executor]	EX: Branch Target Base: 0x10
 @line:1536  Cycle @17.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:55    Cycle @17.00: [MEM]	MEM: OP NONE.
+@line:85    Cycle @17.00: [MEM]	MEM: WIDTH WORD.
+@line:99    Cycle @17.00: [MEM]	MEM: SIGNED.
+@line:256   Cycle @17.00: [MEM]	MEM: Bypass <= 0x1
 @line:30    Cycle @17.00: [WB]	Input: rd=x13 wdata=0xb
 @line:35    Cycle @17.00: [WB]	WB: Write x13 <= 0xb
 @line:144   Cycle @17.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=15 ex_is_load=0 ex_mul_busy=1 mem_rd=0 wb_rd=13
@@ -432,6 +443,7 @@
 @line:85    Cycle @18.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @18.00: [MEM]	MEM: SIGNED.
 @line:256   Cycle @18.00: [MEM]	MEM: Bypass <= 0x3
+@line:30    Cycle @18.00: [WB]	Input: rd=x0 wdata=0x1
 @line:144   Cycle @18.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=0 ex_is_load=0 ex_mul_busy=1 mem_rd=15 wb_rd=0
 @line:262   Cycle @18.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=4 rs2_sel=1 stall_if=1 mul_busy_hazard=1
 @line:27    Cycle @18.00: [Fetcher_Impl]	IF: Stall
@@ -493,7 +505,7 @@
 @line:55    Cycle @20.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @20.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @20.00: [MEM]	MEM: SIGNED.
-@line:256   Cycle @20.00: [MEM]	MEM: Bypass <= 0x2
+@line:256   Cycle @20.00: [MEM]	MEM: Bypass <= 0xb
 @line:30    Cycle @20.00: [WB]	Input: rd=x0 wdata=0xb
 @line:144   Cycle @20.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=0 ex_is_load=0 ex_mul_busy=0 mem_rd=0 wb_rd=0
 @line:262   Cycle @20.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=1 rs2_sel=1 stall_if=0 mul_busy_hazard=0
@@ -524,7 +536,7 @@
 @line:85    Cycle @21.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @21.00: [MEM]	MEM: SIGNED.
 @line:256   Cycle @21.00: [MEM]	MEM: Bypass <= 0xb
-@line:30    Cycle @21.00: [WB]	Input: rd=x0 wdata=0x2
+@line:30    Cycle @21.00: [WB]	Input: rd=x0 wdata=0xb
 @line:144   Cycle @21.00: [DataHazardUnit]	Input Signals: rs1_idx=0 rs2_idx=11 rs1_used=1 rs2_used=0 ex_rd=0 ex_is_load=0 ex_mul_busy=0 mem_rd=0 wb_rd=0
 @line:262   Cycle @21.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=1 rs2_sel=1 stall_if=0 mul_busy_hazard=0
 @line:64    Cycle @21.00: [Fetcher_Impl]	IF: Final Current PC=0xc
@@ -576,6 +588,7 @@
 @line:1363  Cycle @23.00: [Executor]	EX: Branch Immediate: 0x0
 @line:1367  Cycle @23.00: [Executor]	EX: Branch Target Base: 0xc
 @line:1536  Cycle @23.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1849  Cycle @23.00: [Executor]	EX: MUL not ready, sending NOP to MEM (rd=0)
 @line:55    Cycle @23.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @23.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @23.00: [MEM]	MEM: SIGNED.
@@ -606,6 +619,10 @@
 @line:1363  Cycle @24.00: [Executor]	EX: Branch Immediate: 0x1
 @line:1367  Cycle @24.00: [Executor]	EX: Branch Target Base: 0x10
 @line:1536  Cycle @24.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:55    Cycle @24.00: [MEM]	MEM: OP NONE.
+@line:85    Cycle @24.00: [MEM]	MEM: WIDTH WORD.
+@line:99    Cycle @24.00: [MEM]	MEM: SIGNED.
+@line:256   Cycle @24.00: [MEM]	MEM: Bypass <= 0x2
 @line:30    Cycle @24.00: [WB]	Input: rd=x13 wdata=0xb
 @line:35    Cycle @24.00: [WB]	WB: Write x13 <= 0xb
 @line:144   Cycle @24.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=15 ex_is_load=0 ex_mul_busy=1 mem_rd=0 wb_rd=13
@@ -639,6 +656,7 @@
 @line:85    Cycle @25.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @25.00: [MEM]	MEM: SIGNED.
 @line:256   Cycle @25.00: [MEM]	MEM: Bypass <= 0x4
+@line:30    Cycle @25.00: [WB]	Input: rd=x0 wdata=0x2
 @line:144   Cycle @25.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=0 ex_is_load=0 ex_mul_busy=1 mem_rd=15 wb_rd=0
 @line:262   Cycle @25.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=4 rs2_sel=1 stall_if=1 mul_busy_hazard=1
 @line:27    Cycle @25.00: [Fetcher_Impl]	IF: Stall
@@ -700,7 +718,7 @@
 @line:55    Cycle @27.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @27.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @27.00: [MEM]	MEM: SIGNED.
-@line:256   Cycle @27.00: [MEM]	MEM: Bypass <= 0x3
+@line:256   Cycle @27.00: [MEM]	MEM: Bypass <= 0xb
 @line:30    Cycle @27.00: [WB]	Input: rd=x0 wdata=0xb
 @line:144   Cycle @27.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=0 ex_is_load=0 ex_mul_busy=0 mem_rd=0 wb_rd=0
 @line:262   Cycle @27.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=1 rs2_sel=1 stall_if=0 mul_busy_hazard=0
@@ -731,7 +749,7 @@
 @line:85    Cycle @28.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @28.00: [MEM]	MEM: SIGNED.
 @line:256   Cycle @28.00: [MEM]	MEM: Bypass <= 0xb
-@line:30    Cycle @28.00: [WB]	Input: rd=x0 wdata=0x3
+@line:30    Cycle @28.00: [WB]	Input: rd=x0 wdata=0xb
 @line:144   Cycle @28.00: [DataHazardUnit]	Input Signals: rs1_idx=0 rs2_idx=11 rs1_used=1 rs2_used=0 ex_rd=0 ex_is_load=0 ex_mul_busy=0 mem_rd=0 wb_rd=0
 @line:262   Cycle @28.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=1 rs2_sel=1 stall_if=0 mul_busy_hazard=0
 @line:64    Cycle @28.00: [Fetcher_Impl]	IF: Final Current PC=0xc
@@ -783,6 +801,7 @@
 @line:1363  Cycle @30.00: [Executor]	EX: Branch Immediate: 0x0
 @line:1367  Cycle @30.00: [Executor]	EX: Branch Target Base: 0xc
 @line:1536  Cycle @30.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1849  Cycle @30.00: [Executor]	EX: MUL not ready, sending NOP to MEM (rd=0)
 @line:55    Cycle @30.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @30.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @30.00: [MEM]	MEM: SIGNED.
@@ -813,6 +832,10 @@
 @line:1363  Cycle @31.00: [Executor]	EX: Branch Immediate: 0x1
 @line:1367  Cycle @31.00: [Executor]	EX: Branch Target Base: 0x10
 @line:1536  Cycle @31.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:55    Cycle @31.00: [MEM]	MEM: OP NONE.
+@line:85    Cycle @31.00: [MEM]	MEM: WIDTH WORD.
+@line:99    Cycle @31.00: [MEM]	MEM: SIGNED.
+@line:256   Cycle @31.00: [MEM]	MEM: Bypass <= 0x3
 @line:30    Cycle @31.00: [WB]	Input: rd=x13 wdata=0xb
 @line:35    Cycle @31.00: [WB]	WB: Write x13 <= 0xb
 @line:144   Cycle @31.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=15 ex_is_load=0 ex_mul_busy=1 mem_rd=0 wb_rd=13
@@ -846,6 +869,7 @@
 @line:85    Cycle @32.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @32.00: [MEM]	MEM: SIGNED.
 @line:256   Cycle @32.00: [MEM]	MEM: Bypass <= 0x5
+@line:30    Cycle @32.00: [WB]	Input: rd=x0 wdata=0x3
 @line:144   Cycle @32.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=0 ex_is_load=0 ex_mul_busy=1 mem_rd=15 wb_rd=0
 @line:262   Cycle @32.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=4 rs2_sel=1 stall_if=1 mul_busy_hazard=1
 @line:27    Cycle @32.00: [Fetcher_Impl]	IF: Stall
@@ -907,7 +931,7 @@
 @line:55    Cycle @34.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @34.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @34.00: [MEM]	MEM: SIGNED.
-@line:256   Cycle @34.00: [MEM]	MEM: Bypass <= 0x4
+@line:256   Cycle @34.00: [MEM]	MEM: Bypass <= 0xb
 @line:30    Cycle @34.00: [WB]	Input: rd=x0 wdata=0xb
 @line:144   Cycle @34.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=0 ex_is_load=0 ex_mul_busy=0 mem_rd=0 wb_rd=0
 @line:262   Cycle @34.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=1 rs2_sel=1 stall_if=0 mul_busy_hazard=0
@@ -938,7 +962,7 @@
 @line:85    Cycle @35.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @35.00: [MEM]	MEM: SIGNED.
 @line:256   Cycle @35.00: [MEM]	MEM: Bypass <= 0xb
-@line:30    Cycle @35.00: [WB]	Input: rd=x0 wdata=0x4
+@line:30    Cycle @35.00: [WB]	Input: rd=x0 wdata=0xb
 @line:144   Cycle @35.00: [DataHazardUnit]	Input Signals: rs1_idx=0 rs2_idx=11 rs1_used=1 rs2_used=0 ex_rd=0 ex_is_load=0 ex_mul_busy=0 mem_rd=0 wb_rd=0
 @line:262   Cycle @35.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=1 rs2_sel=1 stall_if=0 mul_busy_hazard=0
 @line:64    Cycle @35.00: [Fetcher_Impl]	IF: Final Current PC=0xc
@@ -990,6 +1014,7 @@
 @line:1363  Cycle @37.00: [Executor]	EX: Branch Immediate: 0x0
 @line:1367  Cycle @37.00: [Executor]	EX: Branch Target Base: 0xc
 @line:1536  Cycle @37.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1849  Cycle @37.00: [Executor]	EX: MUL not ready, sending NOP to MEM (rd=0)
 @line:55    Cycle @37.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @37.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @37.00: [MEM]	MEM: SIGNED.
@@ -1020,6 +1045,10 @@
 @line:1363  Cycle @38.00: [Executor]	EX: Branch Immediate: 0x1
 @line:1367  Cycle @38.00: [Executor]	EX: Branch Target Base: 0x10
 @line:1536  Cycle @38.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:55    Cycle @38.00: [MEM]	MEM: OP NONE.
+@line:85    Cycle @38.00: [MEM]	MEM: WIDTH WORD.
+@line:99    Cycle @38.00: [MEM]	MEM: SIGNED.
+@line:256   Cycle @38.00: [MEM]	MEM: Bypass <= 0x4
 @line:30    Cycle @38.00: [WB]	Input: rd=x13 wdata=0xb
 @line:35    Cycle @38.00: [WB]	WB: Write x13 <= 0xb
 @line:144   Cycle @38.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=15 ex_is_load=0 ex_mul_busy=1 mem_rd=0 wb_rd=13
@@ -1053,6 +1082,7 @@
 @line:85    Cycle @39.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @39.00: [MEM]	MEM: SIGNED.
 @line:256   Cycle @39.00: [MEM]	MEM: Bypass <= 0x6
+@line:30    Cycle @39.00: [WB]	Input: rd=x0 wdata=0x4
 @line:144   Cycle @39.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=0 ex_is_load=0 ex_mul_busy=1 mem_rd=15 wb_rd=0
 @line:262   Cycle @39.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=4 rs2_sel=1 stall_if=1 mul_busy_hazard=1
 @line:27    Cycle @39.00: [Fetcher_Impl]	IF: Stall
@@ -1114,7 +1144,7 @@
 @line:55    Cycle @41.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @41.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @41.00: [MEM]	MEM: SIGNED.
-@line:256   Cycle @41.00: [MEM]	MEM: Bypass <= 0x5
+@line:256   Cycle @41.00: [MEM]	MEM: Bypass <= 0xb
 @line:30    Cycle @41.00: [WB]	Input: rd=x0 wdata=0xb
 @line:144   Cycle @41.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=0 ex_is_load=0 ex_mul_busy=0 mem_rd=0 wb_rd=0
 @line:262   Cycle @41.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=1 rs2_sel=1 stall_if=0 mul_busy_hazard=0
@@ -1145,7 +1175,7 @@
 @line:85    Cycle @42.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @42.00: [MEM]	MEM: SIGNED.
 @line:256   Cycle @42.00: [MEM]	MEM: Bypass <= 0xb
-@line:30    Cycle @42.00: [WB]	Input: rd=x0 wdata=0x5
+@line:30    Cycle @42.00: [WB]	Input: rd=x0 wdata=0xb
 @line:144   Cycle @42.00: [DataHazardUnit]	Input Signals: rs1_idx=0 rs2_idx=11 rs1_used=1 rs2_used=0 ex_rd=0 ex_is_load=0 ex_mul_busy=0 mem_rd=0 wb_rd=0
 @line:262   Cycle @42.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=1 rs2_sel=1 stall_if=0 mul_busy_hazard=0
 @line:64    Cycle @42.00: [Fetcher_Impl]	IF: Final Current PC=0xc
@@ -1197,6 +1227,7 @@
 @line:1363  Cycle @44.00: [Executor]	EX: Branch Immediate: 0x0
 @line:1367  Cycle @44.00: [Executor]	EX: Branch Target Base: 0xc
 @line:1536  Cycle @44.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1849  Cycle @44.00: [Executor]	EX: MUL not ready, sending NOP to MEM (rd=0)
 @line:55    Cycle @44.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @44.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @44.00: [MEM]	MEM: SIGNED.
@@ -1227,6 +1258,10 @@
 @line:1363  Cycle @45.00: [Executor]	EX: Branch Immediate: 0x1
 @line:1367  Cycle @45.00: [Executor]	EX: Branch Target Base: 0x10
 @line:1536  Cycle @45.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:55    Cycle @45.00: [MEM]	MEM: OP NONE.
+@line:85    Cycle @45.00: [MEM]	MEM: WIDTH WORD.
+@line:99    Cycle @45.00: [MEM]	MEM: SIGNED.
+@line:256   Cycle @45.00: [MEM]	MEM: Bypass <= 0x5
 @line:30    Cycle @45.00: [WB]	Input: rd=x13 wdata=0xb
 @line:35    Cycle @45.00: [WB]	WB: Write x13 <= 0xb
 @line:144   Cycle @45.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=15 ex_is_load=0 ex_mul_busy=1 mem_rd=0 wb_rd=13
@@ -1260,6 +1295,7 @@
 @line:85    Cycle @46.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @46.00: [MEM]	MEM: SIGNED.
 @line:256   Cycle @46.00: [MEM]	MEM: Bypass <= 0x7
+@line:30    Cycle @46.00: [WB]	Input: rd=x0 wdata=0x5
 @line:144   Cycle @46.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=0 ex_is_load=0 ex_mul_busy=1 mem_rd=15 wb_rd=0
 @line:262   Cycle @46.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=4 rs2_sel=1 stall_if=1 mul_busy_hazard=1
 @line:27    Cycle @46.00: [Fetcher_Impl]	IF: Stall
@@ -1321,7 +1357,7 @@
 @line:55    Cycle @48.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @48.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @48.00: [MEM]	MEM: SIGNED.
-@line:256   Cycle @48.00: [MEM]	MEM: Bypass <= 0x6
+@line:256   Cycle @48.00: [MEM]	MEM: Bypass <= 0xb
 @line:30    Cycle @48.00: [WB]	Input: rd=x0 wdata=0xb
 @line:144   Cycle @48.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=0 ex_is_load=0 ex_mul_busy=0 mem_rd=0 wb_rd=0
 @line:262   Cycle @48.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=1 rs2_sel=1 stall_if=0 mul_busy_hazard=0
@@ -1352,7 +1388,7 @@
 @line:85    Cycle @49.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @49.00: [MEM]	MEM: SIGNED.
 @line:256   Cycle @49.00: [MEM]	MEM: Bypass <= 0xb
-@line:30    Cycle @49.00: [WB]	Input: rd=x0 wdata=0x6
+@line:30    Cycle @49.00: [WB]	Input: rd=x0 wdata=0xb
 @line:144   Cycle @49.00: [DataHazardUnit]	Input Signals: rs1_idx=0 rs2_idx=11 rs1_used=1 rs2_used=0 ex_rd=0 ex_is_load=0 ex_mul_busy=0 mem_rd=0 wb_rd=0
 @line:262   Cycle @49.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=1 rs2_sel=1 stall_if=0 mul_busy_hazard=0
 @line:64    Cycle @49.00: [Fetcher_Impl]	IF: Final Current PC=0xc
@@ -1404,6 +1440,7 @@
 @line:1363  Cycle @51.00: [Executor]	EX: Branch Immediate: 0x0
 @line:1367  Cycle @51.00: [Executor]	EX: Branch Target Base: 0xc
 @line:1536  Cycle @51.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1849  Cycle @51.00: [Executor]	EX: MUL not ready, sending NOP to MEM (rd=0)
 @line:55    Cycle @51.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @51.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @51.00: [MEM]	MEM: SIGNED.
@@ -1434,6 +1471,10 @@
 @line:1363  Cycle @52.00: [Executor]	EX: Branch Immediate: 0x1
 @line:1367  Cycle @52.00: [Executor]	EX: Branch Target Base: 0x10
 @line:1536  Cycle @52.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:55    Cycle @52.00: [MEM]	MEM: OP NONE.
+@line:85    Cycle @52.00: [MEM]	MEM: WIDTH WORD.
+@line:99    Cycle @52.00: [MEM]	MEM: SIGNED.
+@line:256   Cycle @52.00: [MEM]	MEM: Bypass <= 0x6
 @line:30    Cycle @52.00: [WB]	Input: rd=x13 wdata=0xb
 @line:35    Cycle @52.00: [WB]	WB: Write x13 <= 0xb
 @line:144   Cycle @52.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=15 ex_is_load=0 ex_mul_busy=1 mem_rd=0 wb_rd=13
@@ -1467,6 +1508,7 @@
 @line:85    Cycle @53.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @53.00: [MEM]	MEM: SIGNED.
 @line:256   Cycle @53.00: [MEM]	MEM: Bypass <= 0x8
+@line:30    Cycle @53.00: [WB]	Input: rd=x0 wdata=0x6
 @line:144   Cycle @53.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=0 ex_is_load=0 ex_mul_busy=1 mem_rd=15 wb_rd=0
 @line:262   Cycle @53.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=4 rs2_sel=1 stall_if=1 mul_busy_hazard=1
 @line:27    Cycle @53.00: [Fetcher_Impl]	IF: Stall
@@ -1528,7 +1570,7 @@
 @line:55    Cycle @55.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @55.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @55.00: [MEM]	MEM: SIGNED.
-@line:256   Cycle @55.00: [MEM]	MEM: Bypass <= 0x7
+@line:256   Cycle @55.00: [MEM]	MEM: Bypass <= 0xb
 @line:30    Cycle @55.00: [WB]	Input: rd=x0 wdata=0xb
 @line:144   Cycle @55.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=0 ex_is_load=0 ex_mul_busy=0 mem_rd=0 wb_rd=0
 @line:262   Cycle @55.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=1 rs2_sel=1 stall_if=0 mul_busy_hazard=0
@@ -1559,7 +1601,7 @@
 @line:85    Cycle @56.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @56.00: [MEM]	MEM: SIGNED.
 @line:256   Cycle @56.00: [MEM]	MEM: Bypass <= 0xb
-@line:30    Cycle @56.00: [WB]	Input: rd=x0 wdata=0x7
+@line:30    Cycle @56.00: [WB]	Input: rd=x0 wdata=0xb
 @line:144   Cycle @56.00: [DataHazardUnit]	Input Signals: rs1_idx=0 rs2_idx=11 rs1_used=1 rs2_used=0 ex_rd=0 ex_is_load=0 ex_mul_busy=0 mem_rd=0 wb_rd=0
 @line:262   Cycle @56.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=1 rs2_sel=1 stall_if=0 mul_busy_hazard=0
 @line:64    Cycle @56.00: [Fetcher_Impl]	IF: Final Current PC=0xc
@@ -1611,6 +1653,7 @@
 @line:1363  Cycle @58.00: [Executor]	EX: Branch Immediate: 0x0
 @line:1367  Cycle @58.00: [Executor]	EX: Branch Target Base: 0xc
 @line:1536  Cycle @58.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1849  Cycle @58.00: [Executor]	EX: MUL not ready, sending NOP to MEM (rd=0)
 @line:55    Cycle @58.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @58.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @58.00: [MEM]	MEM: SIGNED.
@@ -1641,6 +1684,10 @@
 @line:1363  Cycle @59.00: [Executor]	EX: Branch Immediate: 0x1
 @line:1367  Cycle @59.00: [Executor]	EX: Branch Target Base: 0x10
 @line:1536  Cycle @59.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:55    Cycle @59.00: [MEM]	MEM: OP NONE.
+@line:85    Cycle @59.00: [MEM]	MEM: WIDTH WORD.
+@line:99    Cycle @59.00: [MEM]	MEM: SIGNED.
+@line:256   Cycle @59.00: [MEM]	MEM: Bypass <= 0x7
 @line:30    Cycle @59.00: [WB]	Input: rd=x13 wdata=0xb
 @line:35    Cycle @59.00: [WB]	WB: Write x13 <= 0xb
 @line:144   Cycle @59.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=15 ex_is_load=0 ex_mul_busy=1 mem_rd=0 wb_rd=13
@@ -1674,6 +1721,7 @@
 @line:85    Cycle @60.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @60.00: [MEM]	MEM: SIGNED.
 @line:256   Cycle @60.00: [MEM]	MEM: Bypass <= 0x9
+@line:30    Cycle @60.00: [WB]	Input: rd=x0 wdata=0x7
 @line:144   Cycle @60.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=0 ex_is_load=0 ex_mul_busy=1 mem_rd=15 wb_rd=0
 @line:262   Cycle @60.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=4 rs2_sel=1 stall_if=1 mul_busy_hazard=1
 @line:27    Cycle @60.00: [Fetcher_Impl]	IF: Stall
@@ -1735,7 +1783,7 @@
 @line:55    Cycle @62.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @62.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @62.00: [MEM]	MEM: SIGNED.
-@line:256   Cycle @62.00: [MEM]	MEM: Bypass <= 0x8
+@line:256   Cycle @62.00: [MEM]	MEM: Bypass <= 0xb
 @line:30    Cycle @62.00: [WB]	Input: rd=x0 wdata=0xb
 @line:144   Cycle @62.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=0 ex_is_load=0 ex_mul_busy=0 mem_rd=0 wb_rd=0
 @line:262   Cycle @62.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=1 rs2_sel=1 stall_if=0 mul_busy_hazard=0
@@ -1766,7 +1814,7 @@
 @line:85    Cycle @63.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @63.00: [MEM]	MEM: SIGNED.
 @line:256   Cycle @63.00: [MEM]	MEM: Bypass <= 0xb
-@line:30    Cycle @63.00: [WB]	Input: rd=x0 wdata=0x8
+@line:30    Cycle @63.00: [WB]	Input: rd=x0 wdata=0xb
 @line:144   Cycle @63.00: [DataHazardUnit]	Input Signals: rs1_idx=0 rs2_idx=11 rs1_used=1 rs2_used=0 ex_rd=0 ex_is_load=0 ex_mul_busy=0 mem_rd=0 wb_rd=0
 @line:262   Cycle @63.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=1 rs2_sel=1 stall_if=0 mul_busy_hazard=0
 @line:64    Cycle @63.00: [Fetcher_Impl]	IF: Final Current PC=0xc
@@ -1818,6 +1866,7 @@
 @line:1363  Cycle @65.00: [Executor]	EX: Branch Immediate: 0x0
 @line:1367  Cycle @65.00: [Executor]	EX: Branch Target Base: 0xc
 @line:1536  Cycle @65.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1849  Cycle @65.00: [Executor]	EX: MUL not ready, sending NOP to MEM (rd=0)
 @line:55    Cycle @65.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @65.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @65.00: [MEM]	MEM: SIGNED.
@@ -1848,6 +1897,10 @@
 @line:1363  Cycle @66.00: [Executor]	EX: Branch Immediate: 0x1
 @line:1367  Cycle @66.00: [Executor]	EX: Branch Target Base: 0x10
 @line:1536  Cycle @66.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:55    Cycle @66.00: [MEM]	MEM: OP NONE.
+@line:85    Cycle @66.00: [MEM]	MEM: WIDTH WORD.
+@line:99    Cycle @66.00: [MEM]	MEM: SIGNED.
+@line:256   Cycle @66.00: [MEM]	MEM: Bypass <= 0x8
 @line:30    Cycle @66.00: [WB]	Input: rd=x13 wdata=0xb
 @line:35    Cycle @66.00: [WB]	WB: Write x13 <= 0xb
 @line:144   Cycle @66.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=15 ex_is_load=0 ex_mul_busy=1 mem_rd=0 wb_rd=13
@@ -1881,6 +1934,7 @@
 @line:85    Cycle @67.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @67.00: [MEM]	MEM: SIGNED.
 @line:256   Cycle @67.00: [MEM]	MEM: Bypass <= 0xa
+@line:30    Cycle @67.00: [WB]	Input: rd=x0 wdata=0x8
 @line:144   Cycle @67.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=0 ex_is_load=0 ex_mul_busy=1 mem_rd=15 wb_rd=0
 @line:262   Cycle @67.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=4 rs2_sel=1 stall_if=1 mul_busy_hazard=1
 @line:27    Cycle @67.00: [Fetcher_Impl]	IF: Stall
@@ -1942,7 +1996,7 @@
 @line:55    Cycle @69.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @69.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @69.00: [MEM]	MEM: SIGNED.
-@line:256   Cycle @69.00: [MEM]	MEM: Bypass <= 0x9
+@line:256   Cycle @69.00: [MEM]	MEM: Bypass <= 0xb
 @line:30    Cycle @69.00: [WB]	Input: rd=x0 wdata=0xb
 @line:144   Cycle @69.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=0 ex_is_load=0 ex_mul_busy=0 mem_rd=0 wb_rd=0
 @line:262   Cycle @69.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=1 rs2_sel=1 stall_if=0 mul_busy_hazard=0
@@ -1973,7 +2027,7 @@
 @line:85    Cycle @70.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @70.00: [MEM]	MEM: SIGNED.
 @line:256   Cycle @70.00: [MEM]	MEM: Bypass <= 0xb
-@line:30    Cycle @70.00: [WB]	Input: rd=x0 wdata=0x9
+@line:30    Cycle @70.00: [WB]	Input: rd=x0 wdata=0xb
 @line:144   Cycle @70.00: [DataHazardUnit]	Input Signals: rs1_idx=0 rs2_idx=11 rs1_used=1 rs2_used=0 ex_rd=0 ex_is_load=0 ex_mul_busy=0 mem_rd=0 wb_rd=0
 @line:262   Cycle @70.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=1 rs2_sel=1 stall_if=0 mul_busy_hazard=0
 @line:64    Cycle @70.00: [Fetcher_Impl]	IF: Final Current PC=0xc
@@ -2025,6 +2079,7 @@
 @line:1363  Cycle @72.00: [Executor]	EX: Branch Immediate: 0x0
 @line:1367  Cycle @72.00: [Executor]	EX: Branch Target Base: 0xc
 @line:1536  Cycle @72.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:1849  Cycle @72.00: [Executor]	EX: MUL not ready, sending NOP to MEM (rd=0)
 @line:55    Cycle @72.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @72.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @72.00: [MEM]	MEM: SIGNED.
@@ -2055,6 +2110,10 @@
 @line:1363  Cycle @73.00: [Executor]	EX: Branch Immediate: 0x1
 @line:1367  Cycle @73.00: [Executor]	EX: Branch Target Base: 0x10
 @line:1536  Cycle @73.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:55    Cycle @73.00: [MEM]	MEM: OP NONE.
+@line:85    Cycle @73.00: [MEM]	MEM: WIDTH WORD.
+@line:99    Cycle @73.00: [MEM]	MEM: SIGNED.
+@line:256   Cycle @73.00: [MEM]	MEM: Bypass <= 0x9
 @line:30    Cycle @73.00: [WB]	Input: rd=x13 wdata=0xb
 @line:35    Cycle @73.00: [WB]	WB: Write x13 <= 0xb
 @line:144   Cycle @73.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=15 ex_is_load=0 ex_mul_busy=1 mem_rd=0 wb_rd=13
@@ -2088,6 +2147,7 @@
 @line:85    Cycle @74.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @74.00: [MEM]	MEM: SIGNED.
 @line:256   Cycle @74.00: [MEM]	MEM: Bypass <= 0xb
+@line:30    Cycle @74.00: [WB]	Input: rd=x0 wdata=0x9
 @line:144   Cycle @74.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=0 ex_is_load=0 ex_mul_busy=1 mem_rd=15 wb_rd=0
 @line:262   Cycle @74.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=4 rs2_sel=1 stall_if=1 mul_busy_hazard=1
 @line:27    Cycle @74.00: [Fetcher_Impl]	IF: Stall
@@ -2149,7 +2209,7 @@
 @line:55    Cycle @76.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @76.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @76.00: [MEM]	MEM: SIGNED.
-@line:256   Cycle @76.00: [MEM]	MEM: Bypass <= 0xa
+@line:256   Cycle @76.00: [MEM]	MEM: Bypass <= 0xb
 @line:30    Cycle @76.00: [WB]	Input: rd=x0 wdata=0xb
 @line:144   Cycle @76.00: [DataHazardUnit]	Input Signals: rs1_idx=15 rs2_idx=13 rs1_used=1 rs2_used=1 ex_rd=0 ex_is_load=0 ex_mul_busy=0 mem_rd=0 wb_rd=0
 @line:262   Cycle @76.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=1 rs2_sel=1 stall_if=0 mul_busy_hazard=0
@@ -2179,7 +2239,7 @@
 @line:85    Cycle @77.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @77.00: [MEM]	MEM: SIGNED.
 @line:256   Cycle @77.00: [MEM]	MEM: Bypass <= 0xb
-@line:30    Cycle @77.00: [WB]	Input: rd=x0 wdata=0xa
+@line:30    Cycle @77.00: [WB]	Input: rd=x0 wdata=0xb
 @line:144   Cycle @77.00: [DataHazardUnit]	Input Signals: rs1_idx=0 rs2_idx=11 rs1_used=1 rs2_used=0 ex_rd=0 ex_is_load=0 ex_mul_busy=0 mem_rd=0 wb_rd=0
 @line:262   Cycle @77.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=1 rs2_sel=1 stall_if=0 mul_busy_hazard=0
 @line:64    Cycle @77.00: [Fetcher_Impl]	IF: Final Current PC=0xc
