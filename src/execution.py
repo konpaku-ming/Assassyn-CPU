@@ -213,12 +213,14 @@ class Execution(Module):
         # Initiate multiplication in the 3-cycle pipeline
         # Only start if multiplier is not busy to avoid overwriting in-flight operations
         # Stage 1 (EX_M1): Start partial product generation
+        # Note: MUL uses real_rs1 and real_rs2 directly (like ADD with register operands)
+        # to ensure proper operand forwarding, not alu_op1/alu_op2 which are for general ALU ops
         mul_can_start = is_mul_op & ~flush_if & ~multiplier.is_busy()
         with Condition(mul_can_start):
-            multiplier.start_multiply(alu_op1, alu_op2, op1_is_signed, op2_is_signed, result_is_high)
+            multiplier.start_multiply(real_rs1, real_rs2, op1_is_signed, op2_is_signed, result_is_high)
             log("EX: Starting 3-cycle multiplication (Pure Wallace Tree)")
             log("EX:   Op1=0x{:x} (signed={}), Op2=0x{:x} (signed={})", 
-                alu_op1, op1_is_signed, alu_op2, op2_is_signed)
+                real_rs1, op1_is_signed, real_rs2, op2_is_signed)
         
         # Advance multiplier pipeline stages every cycle
         multiplier.cycle_m1()  # Stage 1 -> Stage 2: Generate 32 partial products
