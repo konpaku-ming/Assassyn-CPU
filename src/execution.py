@@ -476,17 +476,49 @@ class Execution(Module):
         # 构造发送给 MEM 的包
         # 只有两个参数：控制 + 统一数据
         # 
-        # 对于MUL指令，确保发送正确的结果：
-        # - 如果MUL结果ready，使用mul_result_value
-        # - 否则使用alu_result (对于非MUL指令或MUL第一个周期)
-        # 同时，对于MUL指令，只有当结果ready时才发送到MEM
-        # 这样MUL指令会在EX阶段等待，直到结果就绪
-        final_alu_result = mul_result_valid.select(mul_result_value, alu_result)
-        should_send_to_mem = ~is_mul_op | mul_result_valid
+        # 方案A修复：MUL指令在EX阶段停留直到结果ready
+        # 
+        # 关键思路：
+        # 1. 总是向MEM发送数据（保持流水线连续）
+        # 2. 当MUL未ready时，发送rd=0（表示"无写回"），相当于发送NOP
+        # 3. 当MUL结果ready时，发送正确的rd和结果
+        #
+        # 这样MUL指令实际上"停留"在EX阶段：
+        # - Cycle N: MUL进入EX，rd=10，向MEM发送rd=0（NOP）
+        # - Cycle N+1: MUL仍在EX，M1阶段，向MEM发送rd=0（NOP）
+        # - Cycle N+2: MUL仍在EX，M2阶段，向MEM发送rd=0（NOP）
+        # - Cycle N+3: MUL结果ready，向MEM发送rd=10和正确结果
+        # - Cycle N+4: MUL的结果到达WB，写入x10
         
-        with Condition(should_send_to_mem):
-            mem_call = mem_module.async_called(ctrl=final_mem_ctrl, alu_result=final_alu_result)
-            mem_call.bind.set_fifo_depth(ctrl=1, alu_result=1)
+        # 确定发送到MEM的rd：
+        # - 非MUL指令：使用final_rd（原始的rd或flush后的0）
+        # - MUL指令未ready：强制rd=0（不写回）
+        # - MUL指令ready：使用final_rd（正确的rd）
+        mul_not_ready = is_mul_op & ~mul_result_valid
+        mem_rd = mul_not_ready.select(Bits(5)(0), final_rd)
+        
+        # 确定发送到MEM的ALU结果：
+        # - 非MUL指令：使用alu_result
+        # - MUL指令：使用mul_result_value（ready时有效，not ready时为0也无妨因为rd=0）
+        mem_alu_result = is_mul_op.select(mul_result_value, alu_result)
+        
+        # 重新构造发送给MEM的控制信号
+        mem_ctrl_to_send = mem_ctrl_signals.bundle(
+            mem_opcode=final_mem_opcode,
+            mem_width=final_mem_ctrl.mem_width,
+            mem_unsigned=final_mem_ctrl.mem_unsigned,
+            rd_addr=mem_rd,
+        )
+        
+        # 总是向MEM发送（不再使用条件包装）
+        mem_call = mem_module.async_called(ctrl=mem_ctrl_to_send, alu_result=mem_alu_result)
+        mem_call.bind.set_fifo_depth(ctrl=1, alu_result=1)
+        
+        # 日志记录
+        with Condition(mul_not_ready):
+            log("EX: MUL not ready, sending NOP to MEM (rd=0)")
+        with Condition(is_mul_op & mul_result_valid):
+            log("EX: MUL ready, sending result to MEM (rd=0x{:x}, result=0x{:x})", mem_rd, mem_alu_result)
 
         # 3. Return status (for HazardUnit to monitor)
         # rd_addr for scoreboarding/dependency detection
