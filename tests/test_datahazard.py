@@ -24,8 +24,8 @@ class Driver(Module):
     @module.combinational
     # [修改] build 函数返回 cnt，使其成为 Output Wire
     def build(self, dut: Module, hazard_impl: Module):
-        # --- 测试向量定义 ---
-        # 格式: (rs1_idx, rs2_idx, rs1_used, rs2_used, ex_rd, ex_is_load, ex_mul_busy, mem_rd, wb_rd)
+        # --- Test vector definition ---
+        # Format: (rs1_idx, rs2_idx, rs1_used, rs2_used, ex_rd, ex_is_load, ex_mul_busy, mem_rd, wb_rd)
         vectors = [
             # 测试用例1：没有冒险的情况
             (0x2, 0x3, 1, 1, 0x4, 0, 0, 0x7, 0xA),

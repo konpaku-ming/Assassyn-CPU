@@ -459,9 +459,9 @@ class Execution(Module):
         mem_call = mem_module.async_called(ctrl=final_mem_ctrl, alu_result=alu_result)
         mem_call.bind.set_fifo_depth(ctrl=1, alu_result=1)
 
-        # 3. 返回状态 (供 HazardUnit 窃听)
-        # rd_addr 用于记分牌/依赖检测
-        # is_load 用于检测 Load-Use 冒险
-        # mul_busy 用于检测 MUL 多周期占用，需要 stall 流水线
+        # 3. Return status (for HazardUnit to monitor)
+        # rd_addr for scoreboarding/dependency detection
+        # is_load for detecting Load-Use hazards
+        # mul_busy for detecting MUL multi-cycle occupancy, requires pipeline stall
         mul_busy = multiplier.is_busy()
         return final_mem_ctrl.rd_addr, is_load, mul_busy

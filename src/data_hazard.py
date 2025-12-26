@@ -29,7 +29,7 @@ class DataHazardUnit(Downstream):
             # 各级 Module build() 的返回值
             ex_rd: Value,  # EX 级目标寄存器索引
             ex_is_load: Value,  # EX 级是否为 Load 指令
-            ex_mul_busy: Value,  # EX 级乘法器是否忙碌 (多周期 MUL 指令占用)
+            ex_mul_busy: Value,  # EX stage multiplier busy status (multi-cycle MUL instruction occupancy)
             mem_rd: Value,  # MEM 级目标寄存器索引
             wb_rd: Value,  # WB 级目标寄存器索引
     ):
@@ -70,17 +70,17 @@ class DataHazardUnit(Downstream):
         load_use_hazard_rs1 = rs1_used_val & ~rs1_is_zero & ex_is_load_val & (rs1_idx_val == ex_rd_val)
         load_use_hazard_rs2 = rs2_used_val & ~rs2_is_zero & ex_is_load_val & (rs2_idx_val == ex_rd_val)
 
-        # 2. 检测 MUL 多周期占用 (必须 Stall)
-        # 条件：EX 级的乘法器正在忙碌（执行 3 周期的 MUL 指令）
-        # 这种情况下必须停顿整个流水线，直到 MUL 完成
-        # MUL 占用 EX 阶段，整个流水线 stall 3 个 cycle
+        # 2. Detect MUL multi-cycle occupancy (Must Stall)
+        # Condition: EX stage multiplier is busy (executing 3-cycle MUL instruction)
+        # In this case, must stall entire pipeline until MUL completes
+        # MUL occupies EX stage, entire pipeline stalls for 3 cycles
         mul_busy_stall = ex_mul_busy_val
 
-        # 如果存在 Load-Use 冒险或 MUL 占用，需要停顿流水线
+        # If Load-Use hazard or MUL occupancy exists, stall pipeline
         stall_if = load_use_hazard_rs1 | load_use_hazard_rs2 | mul_busy_stall
 
-        # 2. 检测 Forwarding (生成 Mux 选择码)
-        # 如果没有 Load-Use 冒险，我们生成选择码 rs1_sel 与 rs2_sel
+        # 2. Detect Forwarding (Generate Mux selection codes)
+        # If no Load-Use hazard, generate rs1_sel and rs2_sel selection codes
 
         rs1_wb_pass = (rs1_idx_val == wb_rd_val).select(Rs1Sel.WB_BYPASS, Rs1Sel.RS1)
         rs1_mem_bypass = (rs1_idx_val == mem_rd_val).select(Rs1Sel.MEM_BYPASS, rs1_wb_pass)
@@ -89,7 +89,7 @@ class DataHazardUnit(Downstream):
         )
         rs1_sel = (rs1_used_val & ~rs1_is_zero).select(rs1_ex_bypass, Rs1Sel.RS1)
 
-        # 对于 rs2 的旁路选择
+        # For rs2 bypass selection
         rs2_wb_pass = (rs2_idx_val == wb_rd_val).select(Rs2Sel.WB_BYPASS, Rs2Sel.RS2)
         rs2_mem_bypass = (rs2_idx_val == mem_rd_val).select(Rs2Sel.MEM_BYPASS, rs2_wb_pass)
         rs2_ex_bypass = ((rs2_idx_val == ex_rd_val) & ~ex_is_load_val).select(
@@ -104,5 +104,5 @@ class DataHazardUnit(Downstream):
             stall_if,
             mul_busy_stall,
         )
-        # 返回旁路选择信号和停顿信号
+        # Return bypass selection signals and stall signal
         return rs1_sel, rs2_sel, stall_if
