@@ -362,6 +362,75 @@ else:
 
 但这需要修改流水线寄存器传递逻辑，比较复杂。
 
+### 5.5 实际实现方案 ✅
+
+**已实现方案：** 基于方案A的改进版本，结合了延迟bypass更新的核心思想。
+
+**实现代码：** （src/execution.py 第320-346行）
+
+```python
+# 3. 更新本级 Bypass 寄存器
+# 修复：对于MUL指令，只有当结果ready时才更新bypass
+# 这样可以避免在MUL开始的第一个周期错误地更新bypass为0
+
+# 确定是否应该更新bypass：
+# - 非MUL指令：总是更新
+# - MUL指令第一个周期：不更新（mul_result_valid=0）
+# - MUL结果ready时：更新（mul_result_valid=1）
+should_update_bypass = ~is_mul_op | mul_result_valid
+
+# 确定bypass的值：
+# - 如果MUL结果ready，使用mul_result_value
+# - 否则使用alu_result
+bypass_value = mul_result_valid.select(alu_result, mul_result_value)
+
+# 只在should_update_bypass为true时更新bypass
+with Condition(should_update_bypass):
+    ex_bypass[0] = bypass_value
+    log("EX: Bypass Update: 0x{:x}", bypass_value)
+with Condition(~should_update_bypass):
+    log("EX: Bypass Update skipped for MUL (result not ready)")
+
+log("EX: ALU Result: 0x{:x}", alu_result)
+```
+
+**工作原理：**
+
+1. **非MUL指令（例如ADD, SUB等）：**
+   - `is_mul_op = 0`
+   - `should_update_bypass = ~0 | X = 1` (总是更新)
+   - 正常更新bypass，行为不变
+
+2. **MUL指令第一个周期（Cycle N）：**
+   - `is_mul_op = 1`, `mul_result_valid = 0`
+   - `should_update_bypass = ~1 | 0 = 0` (不更新)
+   - Bypass保持旧值，避免写入0
+   - 日志："Bypass Update skipped for MUL (result not ready)"
+
+3. **MUL结果ready时（Cycle N+3）：**
+   - `mul_result_valid = 1`, `mul_result_value = 正确结果`
+   - `should_update_bypass = X | 1 = 1` (更新)
+   - `bypass_value = 1.select(X, mul_result_value) = mul_result_value`
+   - Bypass被更新为正确的乘法结果
+
+**关键优势：**
+
+- **最小化改动：** 只修改了bypass更新逻辑，没有改变流水线控制
+- **概念清晰：** 符合"结果ready才更新"的直观语义
+- **兼容性好：** 非MUL指令完全不受影响
+- **时序正确：** MUL结果在ready时立即更新bypass，可以被后续指令forwarding
+
+**预期效果：**
+
+| 周期 | EX阶段 | bypass更新 | 说明 |
+|------|--------|-----------|------|
+| N | MUL x10 开始 | ❌ 跳过 | mul_result_valid=0，保持旧值 |
+| N+1 | NOP (stall) | ✓ 正常 | 非MUL，正常更新（但是NOP的值） |
+| N+2 | NOP (stall) | ✓ 正常 | 非MUL，正常更新（但是NOP的值） |
+| N+3 | NOP 或其他 | ✓ **MUL结果** | mul_result_valid=1，更新为0x1 |
+
+注意：在Cycle N+3，即使EX阶段是NOP或其他指令，由于`mul_result_valid=1`，`bypass_value`会被设为`mul_result_value`，从而正确更新bypass。
+
 ## 6. 验证方案
 
 修复后，应该验证：
@@ -407,7 +476,7 @@ Op1变成0不是因为被其他指令覆盖，而是因为：
 
 **但是，Stall机制无法解决Bypass更新过早的问题。** Stall只能阻止后续指令进入EX，不能撤回MUL已经写入的错误bypass值。
 
-### 7.3 核心问题
+### 7.3 核心问题及修复
 
 **MUL指令的根本问题在于时序不匹配：**
 
@@ -417,15 +486,63 @@ Op1变成0不是因为被其他指令覆盖，而是因为：
 - 这个0值沿着流水线传播，最终写入目标寄存器
 - 导致后续的MUL操作读取到错误的操作数
 
+**修复方案 ✅ 已实现：**
+
+实现了延迟bypass更新逻辑（参见5.5节）：
+1. MUL指令在第一个周期不更新bypass（保持旧值）
+2. 当MUL结果ready时（`mul_result_valid=1`），更新bypass为正确结果
+3. 非MUL指令行为不变，确保兼容性
+
+**修复效果：**
+
+- Cycle N: MUL开始，bypass不更新（保持旧值而非0）
+- Cycle N+3: MUL结果ready，bypass更新为正确结果
+- 后续MUL指令读取寄存器时，得到正确值而非0
+- x10寄存器值变化：1 → 1 → 2 → 6 → 24 → ... (正确的阶乘序列)
+
 ### 7.4 建议
 
-1. **短期：** 使用方案A的变体，在MUL结果ready时通过特殊逻辑更新bypass
-2. **长期：** 考虑重新设计多周期操作的数据通路，使其与单周期操作分离
-3. **验证：** 修复后必须重新运行mul1to10测试，确保所有乘法结果正确
+1. ✅ **已完成：** 实现了延迟bypass更新的修复方案（commit c5bb4b6）
+2. **待验证：** 运行mul1to10测试，确认最终结果为3628800 (0x375F00)
+3. **待验证：** 检查日志，确认不再出现"Bypass Update: 0x0"在MUL指令第一周期
+4. **待验证：** 确认所有中间结果正确：1, 2, 6, 24, 120, 720, 5040, 40320, 362880, 3628800
 
-## 8. 附录：日志片段
+## 8. 实现状态
 
-### 附录A：第一次MUL操作（Cycle 7-10）
+### 8.1 代码变更
+
+**文件：** `src/execution.py`  
+**提交：** c5bb4b6  
+**变更内容：** 第320-346行，修改bypass更新逻辑
+
+**关键变更：**
+```python
+# 原来的代码（错误）：
+ex_bypass[0] = alu_result  # MUL第一周期会写入0
+
+# 修复后的代码：
+should_update_bypass = ~is_mul_op | mul_result_valid
+bypass_value = mul_result_valid.select(alu_result, mul_result_value)
+with Condition(should_update_bypass):
+    ex_bypass[0] = bypass_value  # MUL第一周期跳过，结果ready时更新
+```
+
+### 8.2 测试状态
+
+- ⏳ **待测试：** mul1to10工作负载测试
+- ⏳ **待验证：** 日志分析，确认bypass更新时序正确
+- ⏳ **待验证：** 最终结果正确性
+
+### 8.3 后续工作
+
+1. 运行完整的mul1to10测试
+2. 分析新的日志文件，对比修复前后的差异
+3. 验证所有乘法指令（MUL, MULH, MULHSU, MULHU）都工作正常
+4. 可选：添加单元测试，防止将来回归
+
+## 9. 附录：日志片段
+
+### 附录A：第一次MUL操作（Cycle 7-10）- 修复前
 
 ```
 Cycle @7.00: [Executor] EX: RS1 source: WB Bypass (0x1)
