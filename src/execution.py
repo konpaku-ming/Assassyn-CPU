@@ -1,6 +1,6 @@
 from assassyn.frontend import *
 from .control_signals import *
-from .multiplier import BoothWallaceMul, sign_zero_extend
+from .multiplier import WallaceTreeMul, sign_zero_extend
 
 
 class Execution(Module):
@@ -109,8 +109,8 @@ class Execution(Module):
         with Condition(ctrl.rs2_sel == Rs2Sel.WB_BYPASS):
             log("EX: RS2 source: WB Bypass (0x{:x})", fwd_from_wb_stage)
 
-        # === Initialize 3-cycle Radix-4 Booth + Wallace Tree Multiplier ===
-        multiplier = BoothWallaceMul()
+        # === Initialize 3-cycle Pure Wallace Tree Multiplier (No Booth Encoding) ===
+        multiplier = WallaceTreeMul()
 
         # --- 操作数 1 选择 ---
         alu_op1 = ctrl.op1_sel.select1hot(
@@ -173,13 +173,14 @@ class Execution(Module):
         # 无符号比较小于
         sltu_res = (alu_op1 < alu_op2).bitcast(Bits(32))
 
-        # ============== M Extension - Radix-4 Booth + Wallace Tree 乘法器 ==============
+        # ============== M Extension - Pure Wallace Tree Multiplier ==============
         # 
-        # Implementation: 3-cycle pipelined multiplier
+        # Implementation: 3-cycle pipelined multiplier (NO Booth encoding)
         # Architecture:
-        #   Cycle 1 (EX1): Booth encoding + partial product generation (17 partial products)
-        #   Cycle 2 (EX2): Wallace Tree compression (reduce 17 → 3-4 rows)
-        #   Cycle 3 (EX3): Final compression + carry-propagate adder (produce 64-bit result)
+        #   Cycle 1 (EX_M1): Partial product generation (32 partial products)
+        #                    pp[i] = A & {32{B[i]}}, left-shifted by i positions
+        #   Cycle 2 (EX_M2): Wallace Tree compression (reduce 32 → 6-8 rows)
+        #   Cycle 3 (EX_M3): Wallace Tree final compression + CPA (produce 64-bit result)
         #
         # Supported Operations:
         #   MUL:    signed × signed → low 32 bits
@@ -212,18 +213,18 @@ class Execution(Module):
         
         # Initiate multiplication in the 3-cycle pipeline
         # Only start if multiplier is not busy to avoid overwriting in-flight operations
-        # Stage 1 (EX1): Start Booth encoding + partial product generation
+        # Stage 1 (EX_M1): Start partial product generation
         mul_can_start = is_mul_op & ~flush_if & ~multiplier.is_busy()
         with Condition(mul_can_start):
             multiplier.start_multiply(alu_op1, alu_op2, op1_is_signed, op2_is_signed, result_is_high)
-            log("EX: Starting 3-cycle multiplication (Radix-4 Booth + Wallace Tree)")
+            log("EX: Starting 3-cycle multiplication (Pure Wallace Tree)")
             log("EX:   Op1=0x{:x} (signed={}), Op2=0x{:x} (signed={})", 
                 alu_op1, op1_is_signed, alu_op2, op2_is_signed)
         
         # Advance multiplier pipeline stages every cycle
-        multiplier.cycle_ex1()  # Stage 1 -> Stage 2: Generate partial products
-        multiplier.cycle_ex2()  # Stage 2 -> Stage 3: Wallace Tree compression
-        multiplier.cycle_ex3()  # Stage 3: Final adder, result ready
+        multiplier.cycle_m1()  # Stage 1 -> Stage 2: Generate 32 partial products
+        multiplier.cycle_m2()  # Stage 2 -> Stage 3: Wallace Tree compression (32 → 6-8 rows)
+        multiplier.cycle_m3()  # Stage 3: Final compression + CPA, result ready
         
         # Get multiplication result if ready (after 3 cycles)
         mul_result_valid, mul_result_value = multiplier.get_result_if_ready()
