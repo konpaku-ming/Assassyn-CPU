@@ -230,7 +230,7 @@ class Execution(Module):
         
         # Clear result after reading to prevent consuming it multiple times
         with Condition(mul_result_valid == Bits(1)(1)):
-            log("EX: 3-cycle multiplier result ready: 0x{:x}", mul_result_value)
+            log("EX: 3-cycle multiplier result ready and consumed: 0x{:x}", mul_result_value)
             multiplier.clear_result()
         
         # Wallace Tree multiplier is now the ONLY interface for multiplication
