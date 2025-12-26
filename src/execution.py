@@ -245,6 +245,10 @@ class Execution(Module):
 
         # Get multiplication result if ready (after 3 cycles)
         mul_result_valid, mul_result_value = multiplier.get_result_if_ready()
+        
+        # 检测是否有pending的MUL结果需要写回
+        # 这个变量需要在bypass更新逻辑之前定义，因为bypass更新需要用到它
+        has_pending_mul_result = mul_pending_valid[0] & mul_result_valid
 
         # Clear result after reading to prevent consuming it multiple times
         with Condition(mul_result_valid == Bits(1)(1)):
@@ -503,8 +507,8 @@ class Execution(Module):
         #
         # 这样确保MUL结果一定能够到达WB并写回寄存器
         
-        # 检测是否有pending的MUL结果需要写回
-        has_pending_mul_result = mul_pending_valid[0] & mul_result_valid
+        # 注意：has_pending_mul_result已在前面定义（mul_result_valid之后）
+        # 因为bypass更新逻辑需要在前面使用它
         
         # 决定本cycle发送到MEM的内容：
         # - 如果有pending MUL结果：发送MUL写回操作
