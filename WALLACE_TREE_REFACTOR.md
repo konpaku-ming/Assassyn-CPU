@@ -22,7 +22,7 @@ The inline computation was providing immediate results in the same cycle for bac
 
 ### 2. Updated ALU Result Selector (src/execution.py)
 
-**Changed Lines (287-290):**
+**Changed Lines (260-263):**
 ```python
 # BEFORE:
 mul_res,      # 11: MUL (新增)
@@ -36,6 +36,8 @@ mul_result_value,   # 12: MULH - from Wallace Tree (3-cycle)
 mul_result_value,   # 13: MULHSU - from Wallace Tree (3-cycle)
 mul_result_value,   # 14: MULHU - from Wallace Tree (3-cycle)
 ```
+
+**Note**: All four operations use the same `mul_result_value`, but the Wallace Tree multiplier internally selects the correct 32 bits (high or low) based on the `result_is_high` parameter passed to `start_multiply()`. This parameter is derived from the operation type (MUL→low bits, MULH/MULHSU/MULHU→high bits) and flows through the pipeline stages M1→M2→M3.
 
 **Rationale:**
 All multiplication operations now use `mul_result_value` which comes from the Wallace Tree multiplier's M3 stage result (`multiplier.get_result_if_ready()`). This ensures a single, unified multiplication path.
