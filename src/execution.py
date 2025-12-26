@@ -210,6 +210,18 @@ class Execution(Module):
         result_is_high = (ctrl.alu_func == ALUOp.MULH) | (ctrl.alu_func == ALUOp.MULHSU) | \
                          (ctrl.alu_func == ALUOp.MULHU)
 
+        # === 方案A：MUL指令状态保持与延迟写回 ===
+        # 
+        # 核心思路：
+        # 1. 当MUL指令启动时，保存其rd到专用寄存器
+        # 2. MUL未ready时，向MEM发送NOP (rd=0)
+        # 3. MUL结果ready时，使用保存的rd发送结果到MEM
+        # 4. 这样MUL结果能够正确地通过MEM→WB写回寄存器
+        
+        # MUL指令状态寄存器：保存正在执行的MUL的目标寄存器
+        mul_pending_rd = RegArray(Bits(5), 1)
+        mul_pending_valid = RegArray(Bits(1), 1)
+        
         # Initiate multiplication in the 3-cycle pipeline
         # Only start if multiplier is not busy to avoid overwriting in-flight operations
         # Stage 1 (EX_M1): Start partial product generation
@@ -218,9 +230,13 @@ class Execution(Module):
         mul_can_start = is_mul_op & ~flush_if & ~multiplier.is_busy()
         with Condition(mul_can_start):
             multiplier.start_multiply(real_rs1, real_rs2, op1_is_signed, op2_is_signed, result_is_high)
+            # 保存MUL指令的目标寄存器
+            mul_pending_rd[0] = mem_ctrl.rd_addr
+            mul_pending_valid[0] = Bits(1)(1)
             log("EX: Starting 3-cycle multiplication (Pure Wallace Tree)")
             log("EX:   Op1=0x{:x} (signed={}), Op2=0x{:x} (signed={})",
                 real_rs1, op1_is_signed, real_rs2, op2_is_signed)
+            log("EX:   Saved pending MUL rd=x{}", mem_ctrl.rd_addr)
 
         # Advance multiplier pipeline stages every cycle
         multiplier.cycle_m1()  # Stage 1 -> Stage 2: Generate 32 partial products
@@ -234,6 +250,8 @@ class Execution(Module):
         with Condition(mul_result_valid == Bits(1)(1)):
             log("EX: 3-cycle multiplier result ready and consumed: 0x{:x}", mul_result_value)
             multiplier.clear_result()
+            # MUL结果ready时，清除pending状态（结果将在本cycle发送到MEM）
+            mul_pending_valid[0] = Bits(1)(0)
 
         # Wallace Tree multiplier is now the ONLY interface for multiplication
         # All MUL/MULH/MULHSU/MULHU operations use the 3-cycle pipeline result
@@ -319,18 +337,19 @@ class Execution(Module):
 
         # 3. 更新本级 Bypass 寄存器
         # 修复：对于MUL指令，只有当结果ready时才更新bypass
-        # 这样可以避免在MUL开始的第一个周期错误地更新bypass为0
+        # 同时也需要在pending MUL result注入时更新bypass
         
         # 确定是否应该更新bypass：
+        # - 有pending MUL结果需要注入：更新（使用MUL结果）
         # - 非MUL指令：总是更新
         # - MUL指令第一个周期：不更新（mul_result_valid=0）
         # - MUL结果ready时：更新（mul_result_valid=1）
-        should_update_bypass = ~is_mul_op | mul_result_valid
+        should_update_bypass = has_pending_mul_result | (~is_mul_op | mul_result_valid)
         
         # 确定bypass的值：
-        # - 如果MUL结果ready，使用mul_result_value
+        # - 如果有pending MUL结果或当前MUL结果ready，使用mul_result_value
         # - 否则使用alu_result
-        bypass_value = mul_result_valid.select(mul_result_value, alu_result)
+        bypass_value = (has_pending_mul_result | mul_result_valid).select(mul_result_value, alu_result)
         
         # 只在should_update_bypass为true时更新bypass
         with Condition(should_update_bypass):
@@ -474,59 +493,84 @@ class Execution(Module):
 
         # --- 下一级绑定与状态反馈 ---
         # 构造发送给 MEM 的包
-        # 只有两个参数：控制 + 统一数据
         # 
-        # 方案A修复：MUL指令在EX阶段停留直到结果ready
+        # 方案A完整修复：MUL结果延迟注入
         # 
-        # 关键思路：
-        # 1. 总是向MEM发送数据（保持流水线连续）
-        # 2. 当MUL未ready时，发送rd=0（表示"无写回"），相当于发送NOP
-        # 3. 当MUL结果ready时，发送正确的rd和结果
+        # 核心机制：
+        # 1. 当MUL启动时：保存rd到mul_pending_rd，发送NOP到MEM
+        # 2. 后续周期：如果有pending的MUL result ready，优先发送MUL结果
+        # 3. 否则：发送当前指令到MEM
         #
-        # 这样MUL指令实际上"停留"在EX阶段：
-        # - Cycle N: MUL进入EX，rd=10，向MEM发送rd=0（NOP）
-        # - Cycle N+1: MUL仍在EX，M1阶段，向MEM发送rd=0（NOP）
-        # - Cycle N+2: MUL仍在EX，M2阶段，向MEM发送rd=0（NOP）
-        # - Cycle N+3: MUL结果ready，向MEM发送rd=10和正确结果
-        # - Cycle N+4: MUL的结果到达WB，写入x10
+        # 这样确保MUL结果一定能够到达WB并写回寄存器
+        
+        # 检测是否有pending的MUL结果需要写回
+        has_pending_mul_result = mul_pending_valid[0] & mul_result_valid
+        
+        # 决定本cycle发送到MEM的内容：
+        # - 如果有pending MUL结果：发送MUL写回操作
+        # - 否则：发送当前指令（可能是NOP）
+        
+        # 当前指令是否是MUL且未ready（需要发送NOP）
+        current_is_mul_not_ready = is_mul_op & ~mul_result_valid
         
         # 确定发送到MEM的rd：
-        # - 非MUL指令：使用final_rd（原始的rd或flush后的0）
-        # - MUL指令未ready：强制rd=0（不写回）
-        # - MUL指令ready：使用final_rd（正确的rd）
-        mul_not_ready = is_mul_op & ~mul_result_valid
-        mem_rd = mul_not_ready.select(Bits(5)(0), final_rd)
+        # 优先级1: 如果有pending MUL结果，使用保存的mul_pending_rd
+        # 优先级2: 如果当前指令是MUL且未ready，发送rd=0 (NOP)
+        # 优先级3: 否则使用final_rd（当前指令的rd）
+        mem_rd_mux = has_pending_mul_result.select(
+            mul_pending_rd[0],  # pending MUL result
+            current_is_mul_not_ready.select(
+                Bits(5)(0),     # current MUL not ready -> NOP
+                final_rd        # normal instruction
+            )
+        )
         
         # 确定发送到MEM的ALU结果：
-        # - 非MUL指令：使用alu_result
-        # - MUL指令：使用mul_result_value（ready时有效，not ready时为0也无妨因为rd=0）
-        mem_alu_result = is_mul_op.select(mul_result_value, alu_result)
+        # 如果有pending MUL结果或当前是MUL，使用mul_result_value
+        # 否则使用alu_result
+        use_mul_result = has_pending_mul_result | is_mul_op
+        mem_alu_result_mux = use_mul_result.select(mul_result_value, alu_result)
+        
+        # 确定发送到MEM的mem_opcode：
+        # 如果发送pending MUL结果，应该是NONE（只写回寄存器，不访存）
+        # 如果当前MUL未ready，发送NONE (NOP)
+        # 否则使用原始mem_opcode
+        mem_opcode_mux = (has_pending_mul_result | current_is_mul_not_ready).select(
+            MemOp.NONE,
+            final_mem_opcode
+        )
         
         # 重新构造发送给MEM的控制信号
         mem_ctrl_to_send = mem_ctrl_signals.bundle(
-            mem_opcode=final_mem_opcode,
+            mem_opcode=mem_opcode_mux,
             mem_width=final_mem_ctrl.mem_width,
             mem_unsigned=final_mem_ctrl.mem_unsigned,
-            rd_addr=mem_rd,
+            rd_addr=mem_rd_mux,
         )
         
-        # 总是向MEM发送（不再使用条件包装）
-        mem_call = mem_module.async_called(ctrl=mem_ctrl_to_send, alu_result=mem_alu_result)
+        # 总是向MEM发送
+        mem_call = mem_module.async_called(ctrl=mem_ctrl_to_send, alu_result=mem_alu_result_mux)
         mem_call.bind.set_fifo_depth(ctrl=1, alu_result=1)
         
         # 日志记录
-        with Condition(mul_not_ready):
-            log("EX: MUL not ready, sending NOP to MEM (rd=0)")
-        with Condition(is_mul_op & mul_result_valid):
-            log("EX: MUL ready, sending result to MEM (rd=0x{:x}, result=0x{:x})", mem_rd, mem_alu_result)
+        with Condition(has_pending_mul_result):
+            log("EX: Injecting pending MUL result to MEM (rd=x{}, result=0x{:x})", 
+                mul_pending_rd[0], mul_result_value)
+        with Condition(current_is_mul_not_ready & ~has_pending_mul_result):
+            log("EX: Current MUL not ready, sending NOP to MEM")
+        with Condition(is_mul_op & mul_result_valid & ~has_pending_mul_result):
+            log("EX: Current MUL ready, sending to MEM (rd=0x{:x}, result=0x{:x})", 
+                mem_rd_mux, mem_alu_result_mux)
 
         # 3. Return status (for HazardUnit to monitor)
         # rd_addr for scoreboarding/dependency detection
         # is_load for detecting Load-Use hazards
         # mul_busy for detecting MUL multi-cycle occupancy, requires pipeline stall
         # 
-        # 关键修复：返回实际发送到MEM的rd（mem_rd），而非原始的rd
-        # 当MUL未ready时，mem_rd=0，这样DataHazardUnit就知道没有实际的写回操作
-        # 避免了错误的forwarding路径
+        # 返回实际发送到MEM的rd值
+        # 这样DataHazardUnit能够正确识别：
+        # - pending MUL result注入时：返回mul_pending_rd
+        # - 当前MUL未ready时：返回0 (NOP)
+        # - 正常情况：返回final_rd
         mul_busy = multiplier.is_busy()
-        return mem_rd, is_load, mul_busy
+        return mem_rd_mux, is_load, mul_busy
