@@ -332,15 +332,17 @@ class Execution(Module):
         should_update_bypass = ~is_mul_op | mul_result_valid
         
         # 确定bypass的值：
-        # - 如果MUL结果ready，使用mul_result_value
+        # - 如果MUL结果ready（无论当前是什么指令），优先使用mul_result_value
         # - 否则使用alu_result
+        # 注意：mul_result_valid为1时，说明multiplier有ready的结果，
+        # 这个结果来自3个周期前开始的MUL指令，应该被用于bypass
         bypass_value = mul_result_valid.select(mul_result_value, alu_result)
         
         # 只在should_update_bypass为true时更新bypass
         with Condition(should_update_bypass):
             ex_bypass[0] = bypass_value
             log("EX: Bypass Update: 0x{:x}", bypass_value)
-        with Condition(~should_update_bypass):
+        with Condition(is_mul_op & ~mul_result_valid):
             log("EX: Bypass Update skipped for MUL (result not ready)")
         
         log("EX: ALU Result: 0x{:x}", alu_result)
