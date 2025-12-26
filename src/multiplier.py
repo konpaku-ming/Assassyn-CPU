@@ -1,68 +1,68 @@
 """
-Radix-4 Booth + Wallace Tree Multiplier with 3-cycle pipeline
+Pure Wallace Tree Multiplier with 3-cycle pipeline
 
 Architecture Overview:
 =====================
 
-This module implements a 32×32-bit multiplier using Radix-4 Booth encoding
-and Wallace Tree reduction, spread across 3 pipeline stages.
+This module implements a 32×32-bit multiplier using pure Wallace Tree reduction
+without Booth encoding, spread across 3 pipeline stages.
 
-## Radix-4 Booth Encoding
+## Partial Product Generation (No Booth Encoding)
 
-Radix-4 Booth encoding reduces the number of partial products by examining
-3 bits of the multiplier at a time (with 1-bit overlap):
-
-For bits [i+1, i, i-1]:
-- 000, 111 → multiply by 0
-- 001, 010 → multiply by +1
-- 011      → multiply by +2
-- 100      → multiply by -2
-- 101, 110 → multiply by -1
-
-For a 32-bit multiplier, this produces 17 partial products instead of 32.
+Instead of Booth encoding, we use simple AND-based partial product generation:
+- For each bit B[i] of the multiplier, generate: pp[i] = A & {32{B[i]}}
+- Where {32{B[i]}} means replicating bit B[i] 32 times
+- Each partial product pp[i] is left-shifted by i positions
+- This produces 32 partial products for a 32-bit multiplier
 
 ## Wallace Tree Compression
 
-The Wallace Tree uses 3:2 compressors (full adders) to reduce multiple
-partial products to two numbers that can be added by a final adder.
+The Wallace Tree uses 3:2 compressors (full adders) and 2:2 compressors (half adders)
+to reduce multiple partial products to two numbers that can be added by a final adder.
 
 A 3:2 compressor takes 3 inputs (a, b, c) and produces:
 - sum   = a ⊕ b ⊕ c
 - carry = (a&b) | (b&c) | (a&c)
 
+A 2:2 compressor (half adder) takes 2 inputs (a, b) and produces:
+- sum   = a ⊕ b
+- carry = a & b
+
 The carry output is shifted left by 1 bit position.
 
-Reduction levels for 17 partial products:
-- Level 0: 17 rows (initial partial products)
-- Level 1: 12 rows (reduce 15 → 10, keep 2)
-- Level 2:  8 rows (reduce 12 → 8)
-- Level 3:  6 rows (reduce 8 → 6, or 9 → 6)
-- Level 4:  4 rows (reduce 6 → 4)
-- Level 5:  3 rows (reduce 4 → 3, or keep 3)
-- Level 6:  2 rows (final reduction)
+Reduction levels for 32 partial products:
+- Level 0: 32 rows (initial partial products)
+- Level 1: 22 rows (reduce 30 → 20 with 10 compressors, keep 2)
+- Level 2: 15 rows (reduce 21 → 14 with 7 compressors, keep 1)
+- Level 3: 10 rows (reduce 15 → 10 with 5 compressors)
+- Level 4:  7 rows (reduce 9 → 6 with 3 compressors, keep 1)
+- Level 5:  5 rows (reduce 6 → 4 with 2 compressors, keep 1)
+- Level 6:  4 rows (reduce 5 → 4 with 1 compressor, keep 1)
+- Level 7:  3 rows (reduce 4 → 3 with 1 compressor, keep 1)
+- Level 8:  2 rows (final reduction: 3 → 2)
 
 ## 3-Cycle Pipeline Structure
 
-### Cycle 1 (EX1): Booth Encoding + Partial Product Generation
-- Recode multiplier into Radix-4 digits
-- Generate 17 partial products
-- Each partial product is: 0, ±multiplicand, or ±2×multiplicand
-- Sign-extend partial products to 65 bits
+### Cycle 1 (EX_M1): Partial Product Generation
+- For each bit i of multiplier B: pp[i] = A & {32{B[i]}}
+- Left-shift each pp[i] by i positions
+- Generate 32 partial products, each 64 bits wide (to accommodate shifts)
+- Sign extension is handled for signed multiplication
 
-### Cycle 2 (EX2): Wallace Tree Compression
-- Apply 4-5 levels of 3:2 compressors
-- Reduce 17 partial products down to 3-4 rows
-- Most of the reduction work happens here
+### Cycle 2 (EX_M2): Wallace Tree First Compression Layers
+- Apply multiple levels of 3:2 and 2:2 compressors
+- Reduce 32 partial products down to 6-8 rows
+- Most of the reduction work happens here (Levels 1-5)
 
-### Cycle 3 (EX3): Final Compression + CPA
-- Apply remaining compression levels to get 2 rows
+### Cycle 3 (EX_M3): Wallace Tree Final Compression + CPA
+- Apply remaining compression levels to reduce to 2 rows (Levels 6-8)
 - Use Carry-Propagate Adder (CPA) to sum final 2 rows
 - Output final 64-bit product (select high or low 32 bits)
 
 Implementation:
-- EX1 (Cycle 1): Booth encoding + partial product generation
-- EX2 (Cycle 2): Wallace Tree compression (most layers)  
-- EX3 (Cycle 3): Final compression layers + carry-propagate adder
+- EX_M1 (Cycle 1): Generate 32 partial products
+- EX_M2 (Cycle 2): Wallace Tree compression (32 → 6-8 rows)  
+- EX_M3 (Cycle 3): Wallace Tree final compression (6-8 → 2 rows) + CPA
 
 This implements a true 3-cycle pipelined multiplier that takes 3 cycles to produce results.
 """
@@ -87,9 +87,9 @@ def sign_zero_extend(op: Bits, signed: Bits) -> Bits:
     return concat(ext_high, op)
 
 
-class BoothWallaceMul:
+class WallaceTreeMul:
     """
-    Helper class to manage 3-cycle multiplication using Radix-4 Booth + Wallace Tree.
+    Helper class to manage 3-cycle multiplication using pure Wallace Tree (no Booth encoding).
     
     This class provides storage and control for multi-cycle multiplication operations.
     The multiplication proceeds through 3 stages spread across 3 clock cycles.
@@ -97,27 +97,27 @@ class BoothWallaceMul:
     
     def __init__(self):
         # Pipeline stage registers
-        # Stage 1 (EX1): Booth encoding + partial product generation
-        self.ex1_valid = RegArray(Bits(1), 1, initializer=[0])
-        self.ex1_op1 = RegArray(Bits(32), 1, initializer=[0])
-        self.ex1_op2 = RegArray(Bits(32), 1, initializer=[0])
-        self.ex1_op1_signed = RegArray(Bits(1), 1, initializer=[0])
-        self.ex1_op2_signed = RegArray(Bits(1), 1, initializer=[0])
-        self.ex1_result_high = RegArray(Bits(1), 1, initializer=[0])  # Whether to return high 32 bits
+        # Stage 1 (EX_M1): Partial product generation
+        self.m1_valid = RegArray(Bits(1), 1, initializer=[0])
+        self.m1_op1 = RegArray(Bits(32), 1, initializer=[0])
+        self.m1_op2 = RegArray(Bits(32), 1, initializer=[0])
+        self.m1_op1_signed = RegArray(Bits(1), 1, initializer=[0])
+        self.m1_op2_signed = RegArray(Bits(1), 1, initializer=[0])
+        self.m1_result_high = RegArray(Bits(1), 1, initializer=[0])  # Whether to return high 32 bits
         
-        # Stage 2 (EX2): Wallace Tree compression
-        self.ex2_valid = RegArray(Bits(1), 1, initializer=[0])
-        self.ex2_partial_low = RegArray(Bits(32), 1, initializer=[0])
-        self.ex2_partial_high = RegArray(Bits(32), 1, initializer=[0])
-        self.ex2_result_high = RegArray(Bits(1), 1, initializer=[0])
+        # Stage 2 (EX_M2): Wallace Tree compression (first layers)
+        self.m2_valid = RegArray(Bits(1), 1, initializer=[0])
+        self.m2_partial_low = RegArray(Bits(32), 1, initializer=[0])
+        self.m2_partial_high = RegArray(Bits(32), 1, initializer=[0])
+        self.m2_result_high = RegArray(Bits(1), 1, initializer=[0])
         
-        # Stage 3 (EX3): Final adder
-        self.ex3_valid = RegArray(Bits(1), 1, initializer=[0])
-        self.ex3_result = RegArray(Bits(32), 1, initializer=[0])
+        # Stage 3 (EX_M3): Wallace Tree final compression + CPA
+        self.m3_valid = RegArray(Bits(1), 1, initializer=[0])
+        self.m3_result = RegArray(Bits(32), 1, initializer=[0])
     
     def is_busy(self):
         """Check if multiplier has operations in flight"""
-        return (self.ex1_valid[0] | self.ex2_valid[0] | self.ex3_valid[0])
+        return (self.m1_valid[0] | self.m2_valid[0] | self.m3_valid[0])
     
     def start_multiply(self, op1, op2, op1_signed, op2_signed, result_high):
         """
@@ -131,56 +131,63 @@ class BoothWallaceMul:
             result_high: Whether to return high 32 bits (1) or low 32 bits (0)
         """
         # Load into stage 1 pipeline registers
-        self.ex1_valid[0] = Bits(1)(1)
-        self.ex1_op1[0] = op1
-        self.ex1_op2[0] = op2
-        self.ex1_op1_signed[0] = op1_signed
-        self.ex1_op2_signed[0] = op2_signed
-        self.ex1_result_high[0] = result_high
+        self.m1_valid[0] = Bits(1)(1)
+        self.m1_op1[0] = op1
+        self.m1_op2[0] = op2
+        self.m1_op1_signed[0] = op1_signed
+        self.m1_op2_signed[0] = op2_signed
+        self.m1_result_high[0] = result_high
     
-    def cycle_ex1(self):
+    def cycle_m1(self):
         """
-        Execute EX1 stage: Booth encoding + partial product generation
+        Execute EX_M1 stage: Partial Product Generation (No Booth Encoding)
         
         === Hardware Implementation Details ===
         
         In real hardware, this stage performs:
         
-        1. Radix-4 Booth Recoding:
-           - Append a 0 to LSB of multiplier: {op2, 0}
-           - Examine 3 bits at a time: [i+1, i, i-1]
-           - Generate 17 Booth digits for 32-bit multiplier
-           - Each digit encodes: -2, -1, 0, +1, +2
+        1. Simple Partial Product Generation:
+           - For each bit B[i] of the multiplier (i = 0 to 31):
+             pp[i] = A & {32{B[i]}}
+           - Where {32{B[i]}} means replicating bit B[i] 32 times
+           - This creates a 32-bit value that is either all 0s or equals A
+           
+        2. Left-Shift Alignment:
+           - Each pp[i] is left-shifted by i positions
+           - pp[0] is at bit positions [0:31]
+           - pp[1] is at bit positions [1:32]
+           - pp[31] is at bit positions [31:62]
+           - This creates 32 partial products, each 64 bits wide
         
-        2. Partial Product Generation:
-           - For each Booth digit, generate a partial product
-           - PP[i] = multiplicand × booth_digit[i] × 2^(2i)
-           - Use multiplexers to select: 0, ±op1, ±2×op1
-           - 2×op1 is computed by left shift (op1 << 1)
-           - Sign-extend each partial product to 65 bits
+        3. Sign Extension for Signed Multiplication:
+           - For unsigned multiplication: all partial products are as-is
+           - For signed multiplication:
+             * If op1 is signed: sign-extend op1 to 64 bits before generating pp
+             * If op2 is signed: the MSB partial product (pp[31]) needs sign correction
         
-        3. Partial Product Array:
-           - Output: 17 partial products, each 65 bits wide
+        4. Partial Product Array:
+           - Output: 32 partial products, each 64 bits wide
            - These form the input to the Wallace Tree
         
         === Simulation ===
         For simulation, we compute the full product directly and pass to next stage.
-        This is mathematically equivalent to the sum of all Booth partial products.
+        This is mathematically equivalent to the sum of all partial products.
         """
         # Only process if stage 1 is valid
-        with Condition(self.ex1_valid[0] == Bits(1)(1)):
+        with Condition(self.m1_valid[0] == Bits(1)(1)):
             # Read pipeline registers
-            op1 = self.ex1_op1[0]
-            op2 = self.ex1_op2[0]
-            op1_signed = self.ex1_op1_signed[0]
-            op2_signed = self.ex1_op2_signed[0]
+            op1 = self.m1_op1[0]
+            op2 = self.m1_op2[0]
+            op1_signed = self.m1_op1_signed[0]
+            op2_signed = self.m1_op2_signed[0]
             
             # Use helper function for sign/zero extension to 64 bits
             op1_extended = sign_zero_extend(op1, op1_signed)
             op2_extended = sign_zero_extend(op2, op2_signed)
             
-            # Perform multiplication (representing sum of Booth-encoded partial products)
-            # In hardware: This would be the array of 17 partial products
+            # Perform multiplication (representing sum of 32 partial products)
+            # In hardware: This would be the array of 32 partial products
+            # Each pp[i] = (A & {32{B[i]}}) << i
             product_64 = op1_extended.bitcast(UInt(64)) * op2_extended.bitcast(UInt(64))
             product_bits = product_64.bitcast(Bits(64))
             
@@ -189,92 +196,111 @@ class BoothWallaceMul:
             partial_high = product_bits[32:63].bitcast(Bits(32))
             
             # Advance to stage 2
-            self.ex2_valid[0] = Bits(1)(1)
-            self.ex2_partial_low[0] = partial_low
-            self.ex2_partial_high[0] = partial_high
-            self.ex2_result_high[0] = self.ex1_result_high[0]
+            self.m2_valid[0] = Bits(1)(1)
+            self.m2_partial_low[0] = partial_low
+            self.m2_partial_high[0] = partial_high
+            self.m2_result_high[0] = self.m1_result_high[0]
             
             # Clear stage 1
-            self.ex1_valid[0] = Bits(1)(0)
+            self.m1_valid[0] = Bits(1)(0)
     
-    def cycle_ex2(self):
+    def cycle_m2(self):
         """
-        Execute EX2 stage: Wallace Tree compression
+        Execute EX_M2 stage: Wallace Tree First Compression Layers
         
         === Hardware Implementation Details ===
         
         In real hardware, this stage performs Wallace Tree reduction using
-        3:2 compressors (full adders):
+        3:2 compressors (full adders) and 2:2 compressors (half adders):
         
         1. Wallace Tree Structure:
-           - Input: 17 partial products (from EX1)
-           - Uses ~50-70 full adders organized in layers
+           - Input: 32 partial products (from EX_M1)
+           - Uses multiple layers of full adders and half adders
            - Each layer reduces the number of rows
         
-        2. Compression Levels (most done in EX2):
-           Level 1: 17 → 12 rows
-           - Use 5 compressors to reduce 15 rows to 10
+        2. Compression Levels (most done in EX_M2):
+           Level 1: 32 → 22 rows
+           - Use 10 full adders (3:2 compressors) to reduce 30 rows to 20
            - Keep 2 rows unchanged
            
-           Level 2: 12 → 8 rows
-           - Use 4 compressors to reduce 12 rows to 8
+           Level 2: 22 → 15 rows
+           - Use 7 full adders to reduce 21 rows to 14
+           - Keep 1 row unchanged
            
-           Level 3: 8 → 6 rows
-           - Use 2-3 compressors
+           Level 3: 15 → 10 rows
+           - Use 5 full adders to reduce 15 rows to 10
            
-           Level 4: 6 → 4 rows
-           - Use 2 compressors
+           Level 4: 10 → 7 rows
+           - Use 3 full adders to reduce 9 rows to 6
+           - Keep 1 row unchanged
+           
+           Level 5: 7 → 5 rows
+           - Use 2 full adders to reduce 6 rows to 4
+           - Keep 1 row unchanged
         
-        3. 3:2 Compressor Operation:
+        3. 3:2 Compressor (Full Adder) Operation:
            For each bit position:
-           - sum[i]   = a[i] ⊕ b[i] ⊕ c[i]
+           - sum[i]     = a[i] ⊕ b[i] ⊕ c[i]
            - carry[i+1] = (a[i] & b[i]) | (b[i] & c[i]) | (a[i] & c[i])
         
-        4. Output:
-           - Typically 3-4 rows remaining
-           - Passed to EX3 for final reduction
+        4. 2:2 Compressor (Half Adder) Operation:
+           For each bit position:
+           - sum[i]     = a[i] ⊕ b[i]
+           - carry[i+1] = a[i] & b[i]
+        
+        5. Output:
+           - Typically 5-7 rows remaining after EX_M2
+           - Passed to EX_M3 for final reduction
         
         === Simulation ===
-        The partial products from EX1 already represent the summed result.
-        We pass them through to EX3.
+        The partial products from EX_M1 already represent the summed result.
+        We pass them through to EX_M3.
         """
         # Only process if stage 2 is valid
-        with Condition(self.ex2_valid[0] == Bits(1)(1)):
+        with Condition(self.m2_valid[0] == Bits(1)(1)):
             # In real hardware, multiple levels of Wallace Tree compression happen here
             # For simulation, partial products are already summed
-            # Hardware would have: compressed_rows = wallace_tree_compress(partial_products)
+            # Hardware would have: compressed_rows = wallace_tree_compress_layers_1_to_5(partial_products)
             
             # Select which 32 bits to return based on operation type
-            result = self.ex2_result_high[0].select(
-                self.ex2_partial_high[0],  # High 32 bits for MULH/MULHSU/MULHU
-                self.ex2_partial_low[0]    # Low 32 bits for MUL
+            result = self.m2_result_high[0].select(
+                self.m2_partial_high[0],  # High 32 bits for MULH/MULHSU/MULHU
+                self.m2_partial_low[0]    # Low 32 bits for MUL
             )
             
             # Advance to stage 3
-            self.ex3_valid[0] = Bits(1)(1)
-            self.ex3_result[0] = result
+            self.m3_valid[0] = Bits(1)(1)
+            self.m3_result[0] = result
             
             # Clear stage 2
-            self.ex2_valid[0] = Bits(1)(0)
+            self.m2_valid[0] = Bits(1)(0)
     
-    def cycle_ex3(self):
+    def cycle_m3(self):
         """
-        Execute EX3 stage: Final compression + carry-propagate adder
+        Execute EX_M3 stage: Final Wallace Tree Compression + Carry-Propagate Adder
         
         === Hardware Implementation Details ===
         
         In real hardware, this stage performs:
         
         1. Final Wallace Tree Compression:
-           - Input: 3-4 rows from EX2
-           - Use 1-2 more compression levels
-           - Output: 2 rows (sum and carry)
+           - Input: 5-7 rows from EX_M2
+           - Use remaining compression levels to reduce to 2 rows
            
-           Level 5: 4 → 3 rows (if needed)
-           Level 6: 3 → 2 rows (final)
+           Level 6: 5 → 4 rows (if needed)
+           - Use 1 full adder to reduce 3 rows to 2
+           - Keep 1-2 rows unchanged
+           
+           Level 7: 4 → 3 rows
+           - Use 1 full adder to reduce 3 rows to 2
+           - Keep 1 row unchanged
+           
+           Level 8: 3 → 2 rows (final)
+           - Use 1 full adder to reduce 3 rows to 2
+           - Output: 2 rows (sum and carry)
         
         2. Carry-Propagate Adder (CPA):
-           - Adds the final two rows
+           - Adds the final two rows (sum + carry)
            - Can use various architectures:
              a) Ripple-Carry Adder (simple, area-efficient, slower)
              b) Carry-Lookahead Adder (faster, more area)
@@ -292,17 +318,18 @@ class BoothWallaceMul:
            - Valid signal for result consumption
         
         === Simulation ===
-        The result is already computed and stored in ex3_result.
+        The result is already computed and stored in m3_result.
         This stage just maintains it for one cycle for the execution stage to read.
         """
         # Only process if stage 3 is valid
-        with Condition(self.ex3_valid[0] == Bits(1)(1)):
-            # Result is already in ex3_result[0]
-            # In real hardware, the final CPA (Carry-Propagate Adder) completes here:
-            # final_product = carry_propagate_add(sum_row, carry_row)
+        with Condition(self.m3_valid[0] == Bits(1)(1)):
+            # Result is already in m3_result[0]
+            # In real hardware, the final compression and CPA complete here:
+            # 1. Final Wallace Tree layers reduce to 2 rows
+            # 2. CPA adds the two rows: final_product = sum_row + carry_row
             
             # Keep result valid for one cycle for execution stage to read
-            # The execution stage will clear ex3_valid after reading
+            # The execution stage will clear m3_valid after reading
             pass
     
     def get_result_if_ready(self):
@@ -310,9 +337,9 @@ class BoothWallaceMul:
         Get the multiplication result if it's ready (stage 3 complete).
         Returns tuple: (result_valid, result_value)
         """
-        return (self.ex3_valid[0], self.ex3_result[0])
+        return (self.m3_valid[0], self.m3_result[0])
     
     def clear_result(self):
         """Clear the result after it has been consumed"""
-        self.ex3_valid[0] = Bits(1)(0)
+        self.m3_valid[0] = Bits(1)(0)
 
