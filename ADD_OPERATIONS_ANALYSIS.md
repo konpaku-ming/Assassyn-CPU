@@ -2,23 +2,23 @@
 ADD Operations Analysis Report for 0to100.log
 ================================================================================
 
-Total ADD operations found: 305
-Correct operations: 305
+Total ADD operations found: 131
+Correct operations: 131
 Incorrect operations: 0
 
 ✅ ALL ADD OPERATIONS ARE CORRECT!
 
 Sample ADD operations:
-  Cycle 4.00: 0x0 (0) + 0x0 (0) = 0x0 (0) ✓
-  Cycle 5.00: 0x0 (0) + 0xb8 (184) = 0xb8 (184) ✓
-  Cycle 6.00: 0xb8 (184) + 0x190 (400) = 0x248 (584) ✓
-  Cycle 7.00: 0x0 (0) + 0x0 (0) = 0x0 (0) ✓
-  Cycle 8.00: 0xb8 (184) + 0x0 (0) = 0xb8 (184) ✓
-  Cycle 9.00: 0xb8 (184) + 0x4 (4) = 0xbc (188) ✓
-  Cycle 10.00: 0x0 (0) + 0x0 (0) = 0x0 (0) ✓
-  Cycle 14.00: 0xbc (188) + 0x0 (0) = 0xbc (188) ✓
-  Cycle 15.00: 0xbc (188) + 0x4 (4) = 0xc0 (192) ✓
-  Cycle 16.00: 0x0 (0) + 0x0 (0) = 0x0 (0) ✓
+  Cycle 4.00: 0x0 (0) + 0x1000 (4096) = 0x1000 (4096) ✓
+  Cycle 5.00: 0x1000 (4096) + 0x0 (0) = 0x1000 (4096) ✓
+  Cycle 6.00: 0x8 (8) + 0x4 (4) = 0xc (12) ✓
+  Cycle 9.00: 0x1000 (4096) + 0xffffffe0 (-32) = 0xfe0 (4064) ✓
+  Cycle 10.00: 0xfe0 (4064) + 0x1c (28) = 0xffc (4092) ✓
+  Cycle 11.00: 0xfe0 (4064) + 0x20 (32) = 0x1000 (4096) ✓
+  Cycle 12.00: 0x0 (0) + 0x1 (1) = 0x1 (1) ✓
+  Cycle 13.00: 0x1000 (4096) + 0xffffffec (-20) = 0xfec (4076) ✓
+  Cycle 14.00: 0x1000 (4096) + 0xffffffe8 (-24) = 0xfe8 (4072) ✓
+  Cycle 15.00: 0x28 (40) + 0x4 (4) = 0x2c (44) ✓
 
 ================================================================================
 Analysis Complete
