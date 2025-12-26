@@ -517,17 +517,16 @@ Wallace Tree 压缩示意:
 │   └── m_ext_benchmark.exe        [新建] 编译后的性能测试
 │
 └── docs/
-    ├── RV32M_Extension_Plan.md        [修改] 更新为 Radix-4 Booth 实现
-    ├── RV32M_Implementation_Guide.md  [修改] 更新代码模板
-    ├── RV32M_Quick_Summary.md         [修改] 更新性能预期
-    ├── RV32M_Architecture_Diagram.md  [修改] 更新架构图
-    ├── Module/
-    │   ├── EX.md                      [修改] 更新执行单元文档
-    │   ├── ID.md                      [修改] 更新译码器文档
-    │   ├── DataHazard.md              [修改] 添加多周期暂停说明
-    │   ├── Multiplier.md              [新建] 乘法器模块文档
-    │   └── Divider.md                 [新建] 除法器模块文档
-    └── RV32M_Extension_Guide.md       [新建] 使用指南
+    ├── RV32M_Architecture_Diagram.md  [当前文档] 架构图
+    ├── RV32M_Radix4_Booth_Summary.md  [实施总结] Radix-4 Booth 实现
+    ├── RV32M_Multiplication_Implementation.md  [实现说明] 乘法指令实现
+    ├── Implementation_Summary.md      [技术总结] 3周期乘法器
+    ├── Radix4_Booth_Wallace_Tree_Multiplier.md  [详细文档] 乘法器算法
+    ├── Wallace_Tree_Implementation.md [实现细节] Wallace树
+    └── Module/
+        ├── EX.md                      [执行单元] 文档
+        ├── ID.md                      [译码器] 文档
+        └── DataHazard.md              [数据冒险] 处理
 
 预计代码行数变化:
 • 新增: ~1500 行 (原为 ~800 行)

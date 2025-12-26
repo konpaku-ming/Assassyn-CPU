@@ -1,10 +1,10 @@
 # RV32M Extension - Multiplication Instructions Implementation
 
-本文档说明了针对 Assassyn-CPU 项目实现 RV32M 扩展中乘法指令的修改。
+本文档说明了 Assassyn-CPU 项目中已实现的 RV32M 扩展乘法指令。
 
 ## 概述
 
-根据 `docs/RV32M_Extension_Plan.md` 和 `docs/RV32M_Implementation_Guide.md` 中的计划，本次实现了 RV32M 扩展的**乘法指令部分**（MUL, MULH, MULHSU, MULHU），暂不包括除法和取模指令。
+Assassyn-CPU 已完整实现 RV32M 扩展的**乘法指令部分**（MUL, MULH, MULHSU, MULHU），使用 3 周期 Radix-4 Booth + Wallace Tree 乘法器架构。
 
 ## 实现的指令
 
@@ -173,7 +173,7 @@ python -m pytest tests/
 
 ## 参考文档
 
-- `docs/RV32M_Extension_Plan.md` - 完整实施计划
-- `docs/RV32M_Implementation_Guide.md` - 实施指南和代码模板
-- `docs/RV32M_Quick_Summary.md` - 快速总结
+- `docs/Implementation_Summary.md` - 3周期乘法器实现总结
+- `docs/Radix4_Booth_Wallace_Tree_Multiplier.md` - Radix-4 Booth 乘法器详细文档
+- `docs/RV32M_Architecture_Diagram.md` - 架构图和设计细节
 - RISC-V 规范 Volume I, Chapter 7 - M Extension
