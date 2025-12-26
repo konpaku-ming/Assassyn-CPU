@@ -29,6 +29,7 @@ class DataHazardUnit(Downstream):
             # 各级 Module build() 的返回值
             ex_rd: Value,  # EX 级目标寄存器索引
             ex_is_load: Value,  # EX 级是否为 Load 指令
+            ex_mul_busy: Value,  # EX 级乘法器是否忙碌 (多周期 MUL 指令占用)
             mem_rd: Value,  # MEM 级目标寄存器索引
             wb_rd: Value,  # WB 级目标寄存器索引
     ):
@@ -39,17 +40,19 @@ class DataHazardUnit(Downstream):
         rs2_used_val = rs2_used.optional(Bits(1)(0))
         ex_rd_val = ex_rd.optional(Bits(5)(0))
         ex_is_load_val = ex_is_load.optional(Bits(1)(0))
+        ex_mul_busy_val = ex_mul_busy.optional(Bits(1)(0))
         mem_rd_val = mem_rd.optional(Bits(5)(0))
         wb_rd_val = wb_rd.optional(Bits(5)(0))
 
         log(
-            "Input Signals: rs1_idx={} rs2_idx={} rs1_used={} rs2_used={} ex_rd={} ex_is_load={} mem_rd={} wb_rd={}",
+            "Input Signals: rs1_idx={} rs2_idx={} rs1_used={} rs2_used={} ex_rd={} ex_is_load={} ex_mul_busy={} mem_rd={} wb_rd={}",
             rs1_idx_val,
             rs2_idx_val,
             rs1_used_val,
             rs2_used_val,
             ex_rd_val,
             ex_is_load_val,
+            ex_mul_busy_val,
             mem_rd_val,
             wb_rd_val,
         )
@@ -67,8 +70,14 @@ class DataHazardUnit(Downstream):
         load_use_hazard_rs1 = rs1_used_val & ~rs1_is_zero & ex_is_load_val & (rs1_idx_val == ex_rd_val)
         load_use_hazard_rs2 = rs2_used_val & ~rs2_is_zero & ex_is_load_val & (rs2_idx_val == ex_rd_val)
 
-        # 如果存在 Load-Use 冒险，需要停顿流水线
-        stall_if = load_use_hazard_rs1 | load_use_hazard_rs2
+        # 2. 检测 MUL 多周期占用 (必须 Stall)
+        # 条件：EX 级的乘法器正在忙碌（执行 3 周期的 MUL 指令）
+        # 这种情况下必须停顿整个流水线，直到 MUL 完成
+        # MUL 占用 EX 阶段，整个流水线 stall 3 个 cycle
+        mul_busy_stall = ex_mul_busy_val
+
+        # 如果存在 Load-Use 冒险或 MUL 占用，需要停顿流水线
+        stall_if = load_use_hazard_rs1 | load_use_hazard_rs2 | mul_busy_stall
 
         # 2. 检测 Forwarding (生成 Mux 选择码)
         # 如果没有 Load-Use 冒险，我们生成选择码 rs1_sel 与 rs2_sel
@@ -89,10 +98,11 @@ class DataHazardUnit(Downstream):
         rs2_sel = (rs2_used_val & ~rs2_is_zero).select(rs2_ex_bypass, Rs2Sel.RS2)
 
         log(
-            "DataHazardUnit: rs1_sel={} rs2_sel={} stall_if={}",
+            "DataHazardUnit: rs1_sel={} rs2_sel={} stall_if={} mul_busy_stall={}",
             rs1_sel,
             rs2_sel,
             stall_if,
+            mul_busy_stall,
         )
         # 返回旁路选择信号和停顿信号
         return rs1_sel, rs2_sel, stall_if

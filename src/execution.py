@@ -462,4 +462,6 @@ class Execution(Module):
         # 3. 返回状态 (供 HazardUnit 窃听)
         # rd_addr 用于记分牌/依赖检测
         # is_load 用于检测 Load-Use 冒险
-        return final_mem_ctrl.rd_addr, is_load
+        # mul_busy 用于检测 MUL 多周期占用，需要 stall 流水线
+        mul_busy = multiplier.is_busy()
+        return final_mem_ctrl.rd_addr, is_load, mul_busy

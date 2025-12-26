@@ -152,7 +152,7 @@ def build_cpu(depth_log):
         )
 
         # --- Step C: EX 阶段 ---
-        ex_rd, ex_is_load = executor.build(
+        ex_rd, ex_is_load, ex_mul_busy = executor.build(
             mem_module=memory_unit,
             ex_bypass=ex_bypass_reg,
             mem_bypass=mem_bypass_reg,
@@ -179,6 +179,7 @@ def build_cpu(depth_log):
             rs2_used=use2,
             ex_rd=ex_rd,
             ex_is_load=ex_is_load,
+            ex_mul_busy=ex_mul_busy,
             mem_rd=mem_rd,
             wb_rd=wb_rd,
         )
