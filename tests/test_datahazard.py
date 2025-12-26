@@ -24,21 +24,25 @@ class Driver(Module):
     @module.combinational
     # [修改] build 函数返回 cnt，使其成为 Output Wire
     def build(self, dut: Module, hazard_impl: Module):
-        # --- 测试向量定义 ---
-        # 格式: (rs1_idx, rs2_idx, rs1_used, rs2_used, ex_rd, ex_is_load, mem_rd, wb_rd)
+        # --- Test vector definition ---
+        # Format: [0]rs1_idx [1]rs2_idx [2]rs1_used [3]rs2_used [4]ex_rd 
+        #         [5]ex_is_load [6]ex_mul_busy [7]mem_rd [8]wb_rd
+        # Note: [6]ex_mul_busy is NEW parameter added for MUL stall implementation
         vectors = [
-            # 测试用例1：没有冒险的情况
-            (0x2, 0x3, 1, 1, 0x4, 0, 0x7, 0xA),
-            # 测试用例2：EX阶段旁路
-            (0x2, 0x4, 1, 1, 0x4, 0, 0x7, 0xA),
-            # 测试用例3：MEM阶段旁路
-            (0x2, 0x7, 1, 1, 0x4, 0, 0x7, 0xA),
-            # 测试用例4：WB阶段旁路
-            (0x2, 0xA, 1, 1, 0x4, 0, 0x7, 0xA),
-            # 测试用例5：Load-Use冒险（必须停顿）
-            (0x2, 0x4, 1, 1, 0x4, 1, 0x7, 0xA),
-            # 测试用例6：零寄存器（不应该产生冒险）
-            (0x0, 0x2, 1, 1, 0x0, 0, 0x7, 0xA),
+            # Test case 1: No hazard
+            (0x2, 0x3, 1, 1, 0x4, 0, 0, 0x7, 0xA),
+            # Test case 2: EX stage bypass (rs2)
+            (0x2, 0x4, 1, 1, 0x4, 0, 0, 0x7, 0xA),
+            # Test case 3: MEM stage bypass (rs2)
+            (0x2, 0x7, 1, 1, 0x4, 0, 0, 0x7, 0xA),
+            # Test case 4: WB stage bypass (rs2)
+            (0x2, 0xA, 1, 1, 0x4, 0, 0, 0x7, 0xA),
+            # Test case 5: Load-Use hazard (must stall)
+            (0x2, 0x4, 1, 1, 0x4, 1, 0, 0x7, 0xA),
+            # Test case 6: Zero register (should not cause hazard)
+            (0x0, 0x2, 1, 1, 0x0, 0, 0, 0x7, 0xA),
+            # Test case 7: MUL busy (must stall)
+            (0x2, 0x3, 1, 1, 0x4, 0, 1, 0x7, 0xA),
         ]
 
         # --- 激励生成逻辑 ---
@@ -56,11 +60,12 @@ class Driver(Module):
         rs2_used = Bits(1)(0)
         ex_rd = Bits(5)(0)
         ex_is_load = Bits(1)(0)
+        ex_mul_busy = Bits(1)(0)
         mem_rd = Bits(5)(0)
         wb_rd = Bits(5)(0)
 
         # 这里的循环展开会生成一棵 Mux 树
-        for i, (r1, r2, u1, u2, ex, ex_load, mem, wb) in enumerate(vectors):
+        for i, (r1, r2, u1, u2, ex, ex_load, ex_mul, mem, wb) in enumerate(vectors):
             is_match = idx == UInt(32)(i)
             rs1_idx = is_match.select(Bits(5)(r1), rs1_idx)
             rs2_idx = is_match.select(Bits(5)(r2), rs2_idx)
@@ -68,6 +73,7 @@ class Driver(Module):
             rs2_used = is_match.select(Bits(1)(u2), rs2_used)
             ex_rd = is_match.select(Bits(5)(ex), ex_rd)
             ex_is_load = is_match.select(Bits(1)(ex_load), ex_is_load)
+            ex_mul_busy = is_match.select(Bits(1)(ex_mul), ex_mul_busy)
             mem_rd = is_match.select(Bits(5)(mem), mem_rd)
             wb_rd = is_match.select(Bits(5)(wb), wb_rd)
 
@@ -78,12 +84,13 @@ class Driver(Module):
         with Condition(valid_test):
             # 打印 Driver 发出的请求，方便对比调试
             log(
-                "Driver: Case {} rs1=x{} rs2=x{} ex_rd=x{} ex_is_load={} mem_rd=x{} wb_rd=x{}",
+                "Driver: Case {} rs1=x{} rs2=x{} ex_rd=x{} ex_is_load={} ex_mul_busy={} mem_rd=x{} wb_rd=x{}",
                 idx,
                 rs1_idx,
                 rs2_idx,
                 ex_rd,
                 ex_is_load,
+                ex_mul_busy,
                 mem_rd,
                 wb_rd,
             )
@@ -96,6 +103,7 @@ class Driver(Module):
                 rs2_used=rs2_used,
                 ex_rd=ex_rd,
                 ex_is_load=ex_is_load,
+                ex_mul_busy=ex_mul_busy,
                 mem_rd=mem_rd,
                 wb_rd=wb_rd,
             )
@@ -106,6 +114,7 @@ class Driver(Module):
                 rs2_used=1,
                 ex_rd=1,
                 ex_is_load=1,
+                ex_mul_busy=1,
                 mem_rd=1,
                 wb_rd=1,
             )  # 设置 FIFO 深度，防止阻塞
@@ -127,6 +136,7 @@ class DataHazardUnitWrapper(Module):
                 "rs2_used": Port(Bits(1)),
                 "ex_rd": Port(Bits(5)),
                 "ex_is_load": Port(Bits(1)),
+                "ex_mul_busy": Port(Bits(1)),
                 "mem_rd": Port(Bits(5)),
                 "wb_rd": Port(Bits(5)),
             }
@@ -135,12 +145,12 @@ class DataHazardUnitWrapper(Module):
     @module.combinational
     def build(self):
         # 消费端口数据
-        rs1_idx, rs2_idx, rs1_used, rs2_used, ex_rd, ex_is_load, mem_rd, wb_rd = (
+        rs1_idx, rs2_idx, rs1_used, rs2_used, ex_rd, ex_is_load, ex_mul_busy, mem_rd, wb_rd = (
             self.pop_all_ports(False)
         )
 
         # 返回结果
-        return rs1_idx, rs2_idx, rs1_used, rs2_used, ex_rd, ex_is_load, mem_rd, wb_rd
+        return rs1_idx, rs2_idx, rs1_used, rs2_used, ex_rd, ex_is_load, ex_mul_busy, mem_rd, wb_rd
 
 
 # ==============================================================================
@@ -154,11 +164,12 @@ def check(raw_output):
     # Sel: 1=REG, 2=EX, 4=MEM, 8=WB
     expected_map = {
         0: (1, 1, 0),  # No Hazard
-        1: (1, 2, 0),  # EX Fwd (rs1)
-        2: (1, 4, 0),
-        3: (1, 8, 0),  # MEM Fwd
-        4: (1, 1, 1),  # WB Fwd
-        5: (1, 1, 0),  # EX Load 优先 -> Stall
+        1: (1, 2, 0),  # EX Fwd (rs2)
+        2: (1, 4, 0),  # MEM Fwd (rs2)
+        3: (1, 8, 0),  # WB Fwd (rs2)
+        4: (1, 1, 1),  # Load-Use hazard -> Stall
+        5: (1, 1, 0),  # Zero register (no hazard)
+        6: (1, 1, 1),  # MUL busy -> Stall
     }
 
     captured_data = {}
@@ -240,7 +251,7 @@ if __name__ == "__main__":
         driver_cnt = driver.build(hazard_wrapper, hazard_impl)
 
         # 获取 DUT 的返回值 (rs1_sel, rs2_sel, stall_if)
-        rs1_idx, rs2_idx, rs1_used, rs2_used, ex_rd, ex_is_load, mem_rd, wb_rd = (
+        rs1_idx, rs2_idx, rs1_used, rs2_used, ex_rd, ex_is_load, ex_mul_busy, mem_rd, wb_rd = (
             hazard_wrapper.build()
         )
 
@@ -251,6 +262,7 @@ if __name__ == "__main__":
             rs2_used=rs2_used,
             ex_rd=ex_rd,
             ex_is_load=ex_is_load,
+            ex_mul_busy=ex_mul_busy,
             mem_rd=mem_rd,
             wb_rd=wb_rd,
         )
