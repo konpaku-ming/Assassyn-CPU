@@ -338,7 +338,7 @@ class Execution(Module):
         dcache.build(
             we=is_store,  # 写使能信号（对于Store指令）
             wdata=real_rs2,  # 写入数据（经过Forwarding的rs2）
-            addr=alu_result[2:17],  # 地址（将字节地址转换为字地址：addr / 4）
+            addr=alu_result[0:15],  # 地址（ALU计算结果转换为字地址）
             re=is_load,  # 读使能信号（对于Load指令）
         )
 
