@@ -77,12 +77,12 @@ class DataHazardUnit(Downstream):
         stall_if = load_use_hazard_rs1 | load_use_hazard_rs2 | mul_busy_hazard
 
         # 3. Detect Forwarding (Generate Mux selection codes)
-        # If no Load-Use hazard or MUL busy, generate rs1_sel and rs2_sel selection codes
+        # EX result is not ready if it's a Load (data from memory) or MUL (multi-cycle operation)
+        ex_result_not_ready = ex_is_load_val | ex_mul_busy_val
 
         rs1_wb_pass = (rs1_idx_val == wb_rd_val).select(Rs1Sel.WB_BYPASS, Rs1Sel.RS1)
         rs1_mem_bypass = (rs1_idx_val == mem_rd_val).select(Rs1Sel.MEM_BYPASS, rs1_wb_pass)
-        # Don't forward from EX if it's a Load (data not ready) or MUL (result not ready)
-        rs1_ex_bypass = ((rs1_idx_val == ex_rd_val) & ~ex_is_load_val & ~ex_mul_busy_val).select(
+        rs1_ex_bypass = ((rs1_idx_val == ex_rd_val) & ~ex_result_not_ready).select(
             Rs1Sel.EX_BYPASS, rs1_mem_bypass
         )
         rs1_sel = (rs1_used_val & ~rs1_is_zero).select(rs1_ex_bypass, Rs1Sel.RS1)
@@ -90,8 +90,7 @@ class DataHazardUnit(Downstream):
         # For rs2 bypass selection
         rs2_wb_pass = (rs2_idx_val == wb_rd_val).select(Rs2Sel.WB_BYPASS, Rs2Sel.RS2)
         rs2_mem_bypass = (rs2_idx_val == mem_rd_val).select(Rs2Sel.MEM_BYPASS, rs2_wb_pass)
-        # Don't forward from EX if it's a Load (data not ready) or MUL (result not ready)
-        rs2_ex_bypass = ((rs2_idx_val == ex_rd_val) & ~ex_is_load_val & ~ex_mul_busy_val).select(
+        rs2_ex_bypass = ((rs2_idx_val == ex_rd_val) & ~ex_result_not_ready).select(
             Rs2Sel.EX_BYPASS, rs2_mem_bypass
         )
         rs2_sel = (rs2_used_val & ~rs2_is_zero).select(rs2_ex_bypass, Rs2Sel.RS2)
