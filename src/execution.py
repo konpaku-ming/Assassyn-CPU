@@ -230,7 +230,7 @@ class Execution(Module):
         
         # Clear result after reading to prevent consuming it multiple times
         with Condition(mul_result_valid == Bits(1)(1)):
-            log("EX: 3-cycle multiplier result ready: 0x{:x}", mul_result_value)
+            log("EX: 3-cycle multiplier result ready and consumed: 0x{:x}", mul_result_value)
             multiplier.clear_result()
         
         # Wallace Tree multiplier is now the ONLY interface for multiplication
@@ -338,7 +338,7 @@ class Execution(Module):
         dcache.build(
             we=is_store,  # 写使能信号（对于Store指令）
             wdata=real_rs2,  # 写入数据（经过Forwarding的rs2）
-            addr=alu_result[0:15],  # 地址（ALU计算结果转换为字地址）
+            addr=alu_result[2:17],  # 地址（将字节地址转换为字地址：addr / 4）
             re=is_load,  # 读使能信号（对于Load指令）
         )
 
