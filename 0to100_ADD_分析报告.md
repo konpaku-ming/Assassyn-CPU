@@ -101,6 +101,10 @@ python3 analyze_add_operations.py logs/0to100.log
 # 查看帮助信息
 python3 analyze_add_operations.py --help
 
+# 验证累加程序的正确性
+python3 verify_accumulation.py
+python3 verify_accumulation.py logs/0to100.log
+
 # 查看寄存器的最终值
 python3 show_register_value.py a0
 python3 show_register_value.py x15
@@ -108,10 +112,17 @@ python3 show_register_value.py x15
 
 ### 脚本功能
 
-- 自动提取所有ADD操作
-- 验证操作数和结果的正确性
-- 生成详细的分析报告
-- 支持命令行参数指定日志文件
+1. **analyze_add_operations.py** - 分析ADD指令操作数正确性
+   - 自动提取所有ADD操作
+   - 验证操作数和结果的正确性
+   - 生成详细的分析报告
+   - 支持命令行参数指定日志文件
+
+2. **verify_accumulation.py** - 验证累加程序的正确性
+   - 检查0to100程序的累加结果
+   - 验证是否正确计算 0+1+2+...+100 = 5050
+   - 识别数据初始化问题
+   - 提供详细的根本原因分析
 
 ### 查看寄存器值
 
