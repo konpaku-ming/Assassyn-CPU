@@ -405,15 +405,13 @@ class SRT4Divider:
                 with Condition(q == Bits(2)(0b10)):
                     new_rem_high = (rem_high_part.bitcast(UInt(33)) + shift_divisor_X2.bitcast(UInt(33))).bitcast(Bits(33))
             
-            # Shift left by 2 (radix-4): concatenate new_rem_high (33 bits) with rem_low_part (62 bits)
-            # Total: 33 + 62 = 95 bits, then take low 65 bits [64:0]
-            # This is equivalent to: new_shift_rem = {new_rem_high, rem_low_part[61:0]}
-            # which is already 33+62=95 bits, take [64:0] = shift right by 30 or take directly
-            # Actually, we want: {new_rem_high[32:0], rem_low_part[61:0]} = 95 bits
-            # Then [64:0] gives us the low 65 bits
-            new_shift_rem = concat(new_rem_high, rem_low_part)  # 33 + 62 = 95 bits
-            self.shift_rem[0] = new_shift_rem[64:0]  # Take low 65 bits
-            
+            # Shift left by 2 (radix-4): Following SRT4.v logic
+            # New shift_rem = {new_rem_high[32:0], rem_low_part[29:0], 2'b0}
+            # rem_low_part is 62 bits [61:0], so rem_low_part[29:0] extracts bits [29:0] = 30 bits
+            # Total: 33 + 30 + 2 = 65 bits exactly
+            # This is equivalent to: (shift_rem with operated high part) << 2
+            self.shift_rem[0] = concat(new_rem_high, rem_low_part[29:0], Bits(2)(0))  # 33 + 30 + 2 = 65 bits
+
             # Update Q and QM accumulators
             # Q accumulator update based on sign of quotient digit
             with Condition(neg == Bits(1)(0)):
@@ -423,7 +421,7 @@ class SRT4Divider:
                 # Negative quotient: Q = (QM << 2) | (~q & 0b11) | 0b100
                 # This is equivalent to (QM << 2) + (4 - q)
                 self.Q[0] = concat(self.QM[0][30:0], Bits(1)(1), q[0:0])
-            
+
             # QM accumulator: QM = Q - 1
             # When neg=0 and q!=0: QM = (Q << 2) | (q-1)
             # Otherwise: QM = (QM << 2) | (~q & 0b11)
@@ -434,24 +432,24 @@ class SRT4Divider:
             with Condition((neg != Bits(1)(0)) | (q == Bits(2)(0))):
                 # QM gets shifted with complement of q
                 self.QM[0] = concat(self.QM[0][30:0], ~q)
-            
+
             # Decrement counter
             self.div_cnt[0] = (self.div_cnt[0].bitcast(UInt(5)) - Bits(5)(1)).bitcast(Bits(5))
-            
+
             # Check if done (counter reaches 0)
             with Condition(self.div_cnt[0] == Bits(5)(0)):
                 self.state[0] = self.DIV_END
                 log("Divider: Iterations complete, entering post-processing")
-        
+
         # State: DIV_END - Post-processing
         with Condition(self.state[0] == self.DIV_END):
             # Adjust remainder if negative
             rem_is_negative = self.shift_rem[0][64:64]  # MSB of remainder
-            
+
             # Get shifted divisor for adjustment
             shift_amount = self.div_shift[0].bitcast(UInt(5))
             shift_divisor = ((self.divisor_r[0].bitcast(UInt(33)) << shift_amount) | Bits(33)(0)).bitcast(Bits(33))
-            
+
             with Condition(rem_is_negative == Bits(1)(1)):
                 # Remainder is negative, need to adjust
                 adjusted_rem = (self.shift_rem[0][64:32].bitcast(UInt(33)) + shift_divisor.bitcast(UInt(33))).bitcast(Bits(33))
@@ -460,23 +458,23 @@ class SRT4Divider:
             with Condition(rem_is_negative != Bits(1)(1)):
                 self.fin_rem[0] = self.shift_rem[0][64:32]
                 self.fin_q[0] = self.Q[0]
-            
+
             # Right-shift remainder back
             fin_rem_shifted = (self.fin_rem[0].bitcast(UInt(33)) >> shift_amount).bitcast(Bits(33))
-            
+
             # Apply sign correction
             # For quotient: if signs differ, negate
             # For remainder: same sign as dividend
             q_needs_neg = (self.div_sign[0] == Bits(2)(0b01)) | (self.div_sign[0] == Bits(2)(0b10))
             rem_needs_neg = self.div_sign[0][1:1]  # Dividend sign
-            
+
             # Check for signed overflow: (-2^31) / (-1)
             min_int = Bits(32)(0x80000000)
             neg_one = Bits(32)(0xFFFFFFFF)
             signed_overflow = (self.sign_r[0] == Bits(1)(1)) & \
                              (self.dividend_in[0] == min_int) & \
                              (self.divisor_in[0] == neg_one)
-            
+
             with Condition(signed_overflow):
                 # Handle signed overflow per RISC-V spec
                 self.result[0] = self.is_rem[0].select(
@@ -494,22 +492,22 @@ class SRT4Divider:
                     (~fin_rem_shifted[31:0] + Bits(32)(1)).bitcast(Bits(32)),
                     fin_rem_shifted[31:0]
                 )
-                
+
                 # Select quotient or remainder
                 self.result[0] = self.is_rem[0].select(rem_signed, q_signed)
-            
+
             self.ready[0] = Bits(1)(1)
             self.busy[0] = Bits(1)(0)
             self.state[0] = self.IDLE
             log("Divider: Completed, result=0x{:x}", self.result[0])
-    
+
     def get_result_if_ready(self):
         """
         Get result if division is complete.
         Returns: (ready, result, error)
         """
         return (self.ready[0], self.result[0], self.error[0])
-    
+
     def clear_result(self):
         """Clear result and reset ready flag"""
         self.ready[0] = Bits(1)(0)
