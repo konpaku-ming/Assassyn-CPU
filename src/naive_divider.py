@@ -246,8 +246,8 @@ class NaiveDivider:
             # Step 1: Shift remainder left and bring in MSB of quotient
             # remainder = (remainder << 1) | (quotient >> 31)
             quotient_msb = self.quotient[0][31:31]
-            # Shift remainder left by 1 and bring in quotient MSB at bit 0
-            # remainder[32:1] = remainder[31:0], remainder[0] = quotient[31]
+            # Shift remainder left by 1: remainder[0:31] become bits [1:32]
+            # Then bring in quotient MSB at bit 0
             shifted_remainder = concat(self.remainder[0][0:31], quotient_msb)
             
             # Step 2: Subtract divisor from remainder
@@ -262,12 +262,14 @@ class NaiveDivider:
                 # Restore: add divisor back
                 self.remainder[0] = shifted_remainder
                 # Shift quotient left and insert 0: quotient = (quotient << 1) | 0
+                # Takes bits [0:30] and appends 0, result: bits [1:31] = old[0:30], bit 0 = 0
                 self.quotient[0] = concat(self.quotient[0][0:30], Bits(1)(0))
             
             with Condition(is_negative != Bits(1)(1)):
                 # Keep subtraction result
                 self.remainder[0] = temp_remainder
                 # Shift quotient left and insert 1: quotient = (quotient << 1) | 1
+                # Takes bits [0:30] and appends 1, result: bits [1:31] = old[0:30], bit 0 = 1
                 self.quotient[0] = concat(self.quotient[0][0:30], Bits(1)(1))
             
             # Decrement counter
