@@ -2,7 +2,12 @@
 
 ## 执行摘要
 
-本报告详细分析了Assassyn CPU中除法指令出现的数值跳变问题。通过对日志的深入分析，定位到问题根源在于除法器（divider.py）中的 `find_leading_one()` 函数实现错误，导致除数归一化失败，进而使SRT-4算法产生错误结果。该问题已修复。
+本报告详细分析了Assassyn CPU中除法指令出现的数值跳变问题。经过深入调查，发现了两个关键bug：
+
+1. **除数归一化bug**：`find_leading_one()` 函数实现错误，导致除数归一化失败
+2. **流水线stall时序bug**：MUL/DIV指令启动时，busy信号延迟一个周期才生效，导致下一条指令错误地进入EX阶段
+
+这两个问题共同导致了除法结果错误和Op1数值跳变现象。
 
 ## 问题概述
 
@@ -63,9 +68,43 @@
 
 **但是**，写回的值是错误的（0x0 而不是 0x1baf80），说明问题出在除法器的计算逻辑上。
 
-## 问题根本原因
+## 问题根本原因 (更新)
 
-**已找到！** `find_leading_one()` 函数实现错误。
+**已找到两个关键bug！**
+
+### Bug 1: 除数归一化错误
+
+`find_leading_one()` 函数实现错误（已在第一次修复中解决）。
+
+### Bug 2: 流水线stall时序错误 ⭐ **新发现**
+
+**问题描述**：
+MUL/DIV指令启动时，busy信号存在一个周期的延迟，导致下一条指令错误地进入EX阶段。
+
+**时序分析**：
+```
+Cycle 16: DIV指令在EX阶段
+  - 调用 divider.start_divide()
+  - 设置 self.busy[0] = 1 （寄存器更新，在周期结束时生效）
+  - 返回 div_busy = divider.is_busy() = 0 （读取的是旧值）
+  
+End of Cycle 16: 
+  - self.busy[0] 寄存器更新为 1
+  
+Cycle 17: ADDI指令错误地进入EX阶段
+  - DataHazardUnit 读取 div_busy = 1
+  - 设置 stall_if = 1
+  - 但为时已晚，ADDI已经进入EX！
+```
+
+**根本原因**：
+在execution.py中，`div_busy = divider.is_busy()` 只检查divider内部的busy寄存器，但该寄存器在当前周期内还未更新。需要同时检查是否有DIV指令正在启动。
+
+**影响**：
+虽然流水线后续会正确stall，但DIV指令本身已经离开EX阶段，后续指令占据了EX。这导致：
+1. DIV指令的上下文（操作数、rd等）必须通过pending机制保存
+2. 如果pending机制有任何问题，会导致结果错误
+3. 违反了用户期望的"DIV指令应该在EX阶段停留18个周期"的行为
 
 ### 错误的实现
 ```python
@@ -99,7 +138,9 @@ def find_leading_one(self, d):
 
 ## 修复方案
 
-修改 divider.py 中的 `find_leading_one()` 函数：
+### 修复1: 除数归一化 (divider.py)
+
+修改 `find_leading_one()` 函数使其与Verilog find_1.v模块行为一致：
 
 ```python
 def find_leading_one(self, d):
@@ -113,6 +154,26 @@ def find_leading_one(self, d):
     pos_1 = (Bits(5)(30).bitcast(UInt(5)) - msb_pos.bitcast(UInt(5))).bitcast(Bits(5))
     return pos_1
 ```
+
+### 修复2: 流水线stall时序 (execution.py) ⭐ **新增**
+
+修改 `mul_busy` 和 `div_busy` 的计算，使其在MUL/DIV启动的同一周期就返回busy状态：
+
+```python
+# CRITICAL: Include mul_can_start/div_can_start to signal busy immediately
+# when a new MUL/DIV starts in the current cycle. Otherwise, there's a
+# one-cycle delay before the busy signal propagates, allowing the next
+# instruction to incorrectly enter EX.
+mul_busy = multiplier.is_busy() | mul_can_start
+div_busy = divider.is_busy() | div_can_start
+```
+
+这样当DIV指令在cycle N启动时：
+- `div_can_start = True`
+- `div_busy = True` (立即生效)
+- DataHazardUnit 在同一周期检测到 `div_busy=1`
+- 阻止下一条指令进入EX
+- DIV指令保持在EX阶段直到完成
 
 ## 日志关键信息摘要
 
@@ -136,6 +197,18 @@ Cycle 40: Divider: Start division, dividend=0x0, divisor=0x3 (使用了错误的
 
 ## 总结
 
-本次问题的根本原因是Python实现与Verilog参考代码的语义不一致。`find_leading_one()` 函数错误地返回了MSB的绝对位置，而不是用于归一化的偏移值。修复后，除法器应该能够正确计算所有除法运算，彻底解决Op1数值跳变的问题。
+本次问题源于两个独立但相互影响的bug：
+
+1. **除数归一化错误**：导致SRT-4算法无法正确计算商
+2. **流水线stall时序错误**：导致DIV指令无法在EX阶段停留完整周期
+
+两个bug必须同时修复才能彻底解决问题。第一次修复只解决了归一化问题，但stall时序问题仍然存在，导致用户测试时仍然失败。
+
+修复后的预期行为：
+1. DIV指令在cycle N进入EX并启动除法器
+2. div_busy在cycle N立即变为1
+3. 流水线从cycle N+1开始stall
+4. DIV指令在EX停留直到除法完成（约18个周期）
+5. 除法结果正确计算并写回目标寄存器
 
 建议在有条件时运行完整测试套件以验证修复效果。

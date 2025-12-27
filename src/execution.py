@@ -674,6 +674,11 @@ class Execution(Module):
         # - pending MUL result注入时：返回mul_pending_rd
         # - 当前MUL未ready时：返回0 (NOP)
         # - 正常情况：返回final_rd
-        mul_busy = multiplier.is_busy()
-        div_busy = divider.is_busy()
+        #
+        # CRITICAL: Include mul_can_start/div_can_start to signal busy immediately
+        # when a new MUL/DIV starts in the current cycle. Otherwise, there's a
+        # one-cycle delay before the busy signal propagates, allowing the next
+        # instruction to incorrectly enter EX.
+        mul_busy = multiplier.is_busy() | mul_can_start
+        div_busy = divider.is_busy() | div_can_start
         return mem_rd_mux, is_load, mul_busy, div_busy
