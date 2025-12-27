@@ -357,13 +357,13 @@ class SRT4Divider:
         # State: DIV_WORKING - Iterative SRT-4 calculation
         with Condition(self.state[0] == self.DIV_WORKING):
             # Extract high bits for quotient selection
-            rem_high = self.shift_rem[0][64:59]  # Top 6 bits
+            rem_high = self.shift_rem[0][59:64]  # Top 6 bits (bits 59-64)
             
             # Get high 4 bits of shifted divisor
             # shift_divisor = divisor_r << div_shift
             shift_amount = self.div_shift[0].bitcast(UInt(5))
             shift_divisor = ((self.divisor_r[0].bitcast(UInt(33)) << shift_amount) | Bits(33)(0)).bitcast(Bits(33))
-            d_high = shift_divisor[32:29]  # Top 4 bits (bits 32:29 of 33-bit value)
+            d_high = shift_divisor[29:32]  # Top 4 bits (bits 29-32 of 33-bit value)
             
             # Select quotient digit
             (q, neg) = self.quotient_select(rem_high, d_high)
@@ -378,7 +378,7 @@ class SRT4Divider:
             # Following SRT4.v logic: {shift_rem[62:30] + value, shift_rem[29:0], 2'b0}
             # Each case directly computes and assigns the new shift_rem in ONE expression
             # shift_rem is 65 bits: [64:0]
-            # High part: [64:32] = 33 bits, Low part: [29:0] = 30 bits, Plus 2'b0 = 2 bits
+            # High part: [32:64] = 33 bits (bits 32-64), Low part: [0:29] = 30 bits, Plus 2'b0 = 2 bits
             
             # Perform operation and assignment based on q and neg
             # neg=0: q=0,1,2 -> subtract 0, divisor, 2*divisor
@@ -387,38 +387,38 @@ class SRT4Divider:
                 # Positive quotient digit
                 with Condition(q == Bits(2)(0b00)):
                     # q=0, neg=0: add 0
-                    self.shift_rem[0] = concat(self.shift_rem[0][64:32], self.shift_rem[0][29:0], Bits(2)(0))
+                    self.shift_rem[0] = concat(self.shift_rem[0][32:64], self.shift_rem[0][0:29], Bits(2)(0))
                 with Condition(q == Bits(2)(0b01)):
                     # q=1, neg=0: subtract divisor
-                    new_rem_high = (self.shift_rem[0][64:32].bitcast(UInt(33)) + shift_divisor_n.bitcast(UInt(33))).bitcast(Bits(33))
-                    self.shift_rem[0] = concat(new_rem_high, self.shift_rem[0][29:0], Bits(2)(0))
+                    new_rem_high = (self.shift_rem[0][32:64].bitcast(UInt(33)) + shift_divisor_n.bitcast(UInt(33))).bitcast(Bits(33))
+                    self.shift_rem[0] = concat(new_rem_high, self.shift_rem[0][0:29], Bits(2)(0))
                 with Condition(q == Bits(2)(0b10)):
                     # q=2, neg=0: subtract 2*divisor
-                    new_rem_high = (self.shift_rem[0][64:32].bitcast(UInt(33)) + shift_divisor_X2n.bitcast(UInt(33))).bitcast(Bits(33))
-                    self.shift_rem[0] = concat(new_rem_high, self.shift_rem[0][29:0], Bits(2)(0))
+                    new_rem_high = (self.shift_rem[0][32:64].bitcast(UInt(33)) + shift_divisor_X2n.bitcast(UInt(33))).bitcast(Bits(33))
+                    self.shift_rem[0] = concat(new_rem_high, self.shift_rem[0][0:29], Bits(2)(0))
             with Condition(neg != Bits(1)(0)):
                 # Negative quotient digit (add instead of subtract)
                 with Condition(q == Bits(2)(0b00)):
                     # q=0, neg=1: add 0
-                    self.shift_rem[0] = concat(self.shift_rem[0][64:32], self.shift_rem[0][29:0], Bits(2)(0))
+                    self.shift_rem[0] = concat(self.shift_rem[0][32:64], self.shift_rem[0][0:29], Bits(2)(0))
                 with Condition(q == Bits(2)(0b01)):
                     # q=1, neg=1: add divisor
-                    new_rem_high = (self.shift_rem[0][64:32].bitcast(UInt(33)) + shift_divisor.bitcast(UInt(33))).bitcast(Bits(33))
-                    self.shift_rem[0] = concat(new_rem_high, self.shift_rem[0][29:0], Bits(2)(0))
+                    new_rem_high = (self.shift_rem[0][32:64].bitcast(UInt(33)) + shift_divisor.bitcast(UInt(33))).bitcast(Bits(33))
+                    self.shift_rem[0] = concat(new_rem_high, self.shift_rem[0][0:29], Bits(2)(0))
                 with Condition(q == Bits(2)(0b10)):
                     # q=2, neg=1: add 2*divisor
-                    new_rem_high = (self.shift_rem[0][64:32].bitcast(UInt(33)) + shift_divisor_X2.bitcast(UInt(33))).bitcast(Bits(33))
-                    self.shift_rem[0] = concat(new_rem_high, self.shift_rem[0][29:0], Bits(2)(0))
+                    new_rem_high = (self.shift_rem[0][32:64].bitcast(UInt(33)) + shift_divisor.bitcast(UInt(33))).bitcast(Bits(33))
+                    self.shift_rem[0] = concat(new_rem_high, self.shift_rem[0][0:29], Bits(2)(0))
 
             # Update Q and QM accumulators
             # Q accumulator update based on sign of quotient digit
             with Condition(neg == Bits(1)(0)):
                 # Positive quotient: Q = (Q << 2) | q
-                self.Q[0] = concat(self.Q[0][30:0], q)
+                self.Q[0] = concat(self.Q[0][0:30], q)
             with Condition(neg != Bits(1)(0)):
                 # Negative quotient: Q = (QM << 2) | (~q & 0b11) | 0b100
                 # This is equivalent to (QM << 2) + (4 - q)
-                self.Q[0] = concat(self.QM[0][30:0], Bits(1)(1), q[0:0])
+                self.Q[0] = concat(self.QM[0][0:30], Bits(1)(1), q[0:0])
 
             # QM accumulator: QM = Q - 1
             # When neg=0 and q!=0: QM = (Q << 2) | (q-1)
@@ -426,10 +426,10 @@ class SRT4Divider:
             with Condition((neg == Bits(1)(0)) & (q != Bits(2)(0))):
                 # Positive and non-zero: QM gets Q's shifted value with q-1
                 q_minus_1 = (q.bitcast(UInt(2)) - Bits(2)(1)).bitcast(Bits(2))
-                self.QM[0] = concat(self.Q[0][30:0], q_minus_1)
+                self.QM[0] = concat(self.Q[0][0:30], q_minus_1)
             with Condition((neg != Bits(1)(0)) | (q == Bits(2)(0))):
                 # QM gets shifted with complement of q
-                self.QM[0] = concat(self.QM[0][30:0], ~q)
+                self.QM[0] = concat(self.QM[0][0:30], ~q)
 
             # Decrement counter
             self.div_cnt[0] = (self.div_cnt[0].bitcast(UInt(5)) - Bits(5)(1)).bitcast(Bits(5))
@@ -442,7 +442,7 @@ class SRT4Divider:
         # State: DIV_END - Post-processing
         with Condition(self.state[0] == self.DIV_END):
             # Adjust remainder if negative
-            rem_is_negative = self.shift_rem[0][64:64]  # MSB of remainder
+            rem_is_negative = self.shift_rem[0][64:64]  # MSB of remainder (bit 64)
 
             # Get shifted divisor for adjustment
             shift_amount = self.div_shift[0].bitcast(UInt(5))
@@ -450,11 +450,11 @@ class SRT4Divider:
 
             with Condition(rem_is_negative == Bits(1)(1)):
                 # Remainder is negative, need to adjust
-                adjusted_rem = (self.shift_rem[0][64:32].bitcast(UInt(33)) + shift_divisor.bitcast(UInt(33))).bitcast(Bits(33))
+                adjusted_rem = (self.shift_rem[0][32:64].bitcast(UInt(33)) + shift_divisor.bitcast(UInt(33))).bitcast(Bits(33))
                 self.fin_rem[0] = adjusted_rem
                 self.fin_q[0] = (self.Q[0].bitcast(UInt(33)) - Bits(33)(1)).bitcast(Bits(33))
             with Condition(rem_is_negative != Bits(1)(1)):
-                self.fin_rem[0] = self.shift_rem[0][64:32]
+                self.fin_rem[0] = self.shift_rem[0][32:64]
                 self.fin_q[0] = self.Q[0]
 
             # Right-shift remainder back
@@ -483,12 +483,12 @@ class SRT4Divider:
             with Condition(~signed_overflow):
                 # Normal result with sign correction
                 q_signed = (self.sign_r[0] & q_needs_neg).select(
-                    (~self.fin_q[0][31:0] + Bits(32)(1)).bitcast(Bits(32)),
-                    self.fin_q[0][31:0]
+                    (~self.fin_q[0][0:31] + Bits(32)(1)).bitcast(Bits(32)),
+                    self.fin_q[0][0:31]
                 )
                 rem_signed = (self.sign_r[0] & rem_needs_neg).select(
-                    (~fin_rem_shifted[31:0] + Bits(32)(1)).bitcast(Bits(32)),
-                    fin_rem_shifted[31:0]
+                    (~fin_rem_shifted[0:31] + Bits(32)(1)).bitcast(Bits(32)),
+                    fin_rem_shifted[0:31]
                 )
 
                 # Select quotient or remainder
