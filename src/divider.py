@@ -406,11 +406,11 @@ class SRT4Divider:
                     new_rem_high = (rem_high_part.bitcast(UInt(33)) + shift_divisor_X2.bitcast(UInt(33))).bitcast(Bits(33))
             
             # Shift left by 2 (radix-4): Following SRT4.v logic
-            # New shift_rem = {new_rem_high[32:0], rem_low_part[31:2], 2'b0}
-            # rem_low_part is 62 bits [61:0], so rem_low_part[31:2] extracts bits [31:2] = 30 bits
+            # New shift_rem = {new_rem_high[32:0], rem_low_part[29:0], 2'b0}
+            # rem_low_part is 62 bits [61:0], so rem_low_part[29:0] extracts bits [29:0] = 30 bits
             # Total: 33 + 30 + 2 = 65 bits exactly
             # This is equivalent to: (shift_rem with operated high part) << 2
-            self.shift_rem[0] = concat(new_rem_high, rem_low_part[31:2], Bits(2)(0))  # 33 + 30 + 2 = 65 bits
+            self.shift_rem[0] = concat(new_rem_high, rem_low_part[29:0], Bits(2)(0))  # 33 + 30 + 2 = 65 bits
             
             # Update Q and QM accumulators
             # Q accumulator update based on sign of quotient digit
