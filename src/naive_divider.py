@@ -237,6 +237,11 @@ class NaiveDivider:
 
         # State: DIV_WORKING - Iterative restoring division
         with Condition(self.state[0] == self.DIV_WORKING):
+            # Check if done (counter reaches 1, meaning this is the last iteration)
+            with Condition(self.div_cnt[0] == Bits(6)(1)):
+                self.state[0] = self.DIV_END
+                log("NaiveDivider: Iterations complete, entering post-processing")
+            
             # Restoring division algorithm:
             # 1. Shift remainder left by 1 and bring in next bit from quotient
             # 2. Subtract divisor from remainder
@@ -274,11 +279,6 @@ class NaiveDivider:
 
             # Decrement counter
             self.div_cnt[0] = (self.div_cnt[0].bitcast(UInt(6)) - Bits(6)(1)).bitcast(Bits(6))
-
-            # Check if done (counter reaches 0)
-            with Condition(self.div_cnt[0] == Bits(6)(0)):
-                self.state[0] = self.DIV_END
-                log("NaiveDivider: Iterations complete, entering post-processing")
 
         # State: DIV_END - Post-processing
         with Condition(self.state[0] == self.DIV_END):
