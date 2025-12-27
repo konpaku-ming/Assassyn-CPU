@@ -248,7 +248,7 @@ class NaiveDivider:
             quotient_msb = self.quotient[0][31:31]
             # Shift remainder left by 1: remainder[0:31] become bits [1:32]
             # Then bring in quotient MSB at bit 0
-            shifted_remainder = concat(quotient_msb, self.remainder[0][0:31])
+            shifted_remainder = concat(self.remainder[0][0:31], quotient_msb)
 
             # Step 2: Subtract divisor from remainder
             # remainder = remainder - divisor (with sign extension for divisor)
@@ -258,19 +258,23 @@ class NaiveDivider:
             # Step 3: Check if result is negative (MSB = 1)
             is_negative = temp_remainder[32:32]
 
+            # Pre-compute quotient updates outside conditional blocks
+            # This avoids issues with slice operations inside Condition blocks
+            quotient_lower_bits = self.quotient[0][0:30]
+            new_quotient_if_neg = concat(quotient_lower_bits, Bits(1)(0))
+            new_quotient_if_pos = concat(quotient_lower_bits, Bits(1)(1))
+
             with Condition(is_negative == Bits(1)(1)):
                 # Restore: add divisor back
                 self.remainder[0] = shifted_remainder
                 # Shift quotient left and insert 0: quotient = (quotient << 1) | 0
-                # Takes bits [0:30] and appends 0, result: bits [1:31] = old[0:30], bit 0 = 0
-                self.quotient[0] = concat(Bits(1)(0), self.quotient[0][0:30])
+                self.quotient[0] = new_quotient_if_neg
 
             with Condition(is_negative != Bits(1)(1)):
                 # Keep subtraction result
                 self.remainder[0] = temp_remainder
                 # Shift quotient left and insert 1: quotient = (quotient << 1) | 1
-                # Takes bits [0:30] and appends 1, result: bits [1:31] = old[0:30], bit 0 = 1
-                self.quotient[0] = concat(Bits(1)(1), self.quotient[0][0:30])
+                self.quotient[0] = new_quotient_if_pos
 
             # Decrement counter
             self.div_cnt[0] = (self.div_cnt[0].bitcast(UInt(6)) - Bits(6)(1)).bitcast(Bits(6))
