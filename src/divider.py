@@ -54,41 +54,41 @@ class SRT4Divider:
     - Handles signed/unsigned division and remainder operations
     - Detects and handles special cases (div-by-zero, signed overflow)
     """
-    
+
     def __init__(self):
         # Control and status registers
         self.busy = RegArray(Bits(1), 1, initializer=[0])
         self.valid_in = RegArray(Bits(1), 1, initializer=[0])
-        
+
         # Input operands (captured when valid)
         self.dividend_in = RegArray(Bits(32), 1, initializer=[0])
         self.divisor_in = RegArray(Bits(32), 1, initializer=[0])
         self.is_signed = RegArray(Bits(1), 1, initializer=[0])
         self.is_rem = RegArray(Bits(1), 1, initializer=[0])  # 1=remainder, 0=quotient
-        
+
         # Output results
         self.result = RegArray(Bits(32), 1, initializer=[0])
         self.ready = RegArray(Bits(1), 1, initializer=[0])
         self.error = RegArray(Bits(1), 1, initializer=[0])  # Division by zero
-        
+
         # SRT-4 state machine registers
         self.state = RegArray(Bits(3), 1, initializer=[0])  # FSM state
         self.div_cnt = RegArray(Bits(5), 1, initializer=[0])  # Iteration counter (16 iterations for 32-bit)
-        
+
         # Internal working registers (similar to SRT4.v)
         self.dividend_r = RegArray(Bits(32), 1, initializer=[0])  # Unsigned dividend
-        self.divisor_r = RegArray(Bits(32), 1, initializer=[0])   # Unsigned divisor
-        self.div_shift = RegArray(Bits(5), 1, initializer=[0])    # Alignment shift amount
-        self.shift_rem = RegArray(Bits(65), 1, initializer=[0])   # Partial remainder (2*WID+1 = 65 bits)
-        self.Q = RegArray(Bits(33), 1, initializer=[0])           # Quotient accumulator (WID+1 = 33 bits)
-        self.QM = RegArray(Bits(33), 1, initializer=[0])          # Quotient-1 accumulator
-        self.div_sign = RegArray(Bits(2), 1, initializer=[0])     # Sign bits {dividend[31], divisor[31]}
-        self.sign_r = RegArray(Bits(1), 1, initializer=[0])       # Sign flag for result
-        
+        self.divisor_r = RegArray(Bits(32), 1, initializer=[0])  # Unsigned divisor
+        self.div_shift = RegArray(Bits(5), 1, initializer=[0])  # Alignment shift amount
+        self.shift_rem = RegArray(Bits(65), 1, initializer=[0])  # Partial remainder (2*WID+1 = 65 bits)
+        self.Q = RegArray(Bits(33), 1, initializer=[0])  # Quotient accumulator (WID+1 = 33 bits)
+        self.QM = RegArray(Bits(33), 1, initializer=[0])  # Quotient-1 accumulator
+        self.div_sign = RegArray(Bits(2), 1, initializer=[0])  # Sign bits {dividend[31], divisor[31]}
+        self.sign_r = RegArray(Bits(1), 1, initializer=[0])  # Sign flag for result
+
         # Intermediate values for post-processing
         self.fin_q = RegArray(Bits(33), 1, initializer=[0])
         self.fin_rem = RegArray(Bits(33), 1, initializer=[0])
-        
+
         # FSM states (matching SRT4.v)
         self.IDLE = Bits(3)(0)
         self.DIV_PRE = Bits(3)(1)
@@ -96,11 +96,11 @@ class SRT4Divider:
         self.DIV_END = Bits(3)(3)
         self.DIV_1 = Bits(3)(4)
         self.DIV_ERROR = Bits(3)(5)
-    
+
     def is_busy(self):
         """Check if divider is currently processing"""
         return self.busy[0]
-    
+
     def start_divide(self, dividend, divisor, is_signed, is_rem):
         """
         Start a division operation.
@@ -119,12 +119,12 @@ class SRT4Divider:
         self.busy[0] = Bits(1)(1)
         self.ready[0] = Bits(1)(0)
         self.error[0] = Bits(1)(0)
-        
+
         log("Divider: Start division, dividend=0x{:x}, divisor=0x{:x}, signed={}",
             dividend,
             divisor,
             is_signed)
-    
+
     def find_leading_one(self, d):
         """
         Find position of leading 1 in divisor (implements find_1.v logic).
@@ -143,15 +143,15 @@ class SRT4Divider:
         # Implementation using priority encoder logic with select chain
         # Start from position 0 and update if we find a 1 at higher position
         pos = Bits(5)(0)
-        
+
         # Check each bit from LSB to MSB, updating pos when we find a 1
         # This creates a priority encoder where higher bits take precedence
         for i in range(0, 32):
             bit_set = (d[i:i] == Bits(1)(1))
             pos = bit_set.select(Bits(5)(i), pos)
-        
+
         return pos
-    
+
     def quotient_select(self, rem_high, d_high):
         """
         Quotient digit selection logic (implements q_sel.v).
@@ -169,34 +169,34 @@ class SRT4Divider:
         """
         # Implementation of q_sel.v lookup table logic
         # This uses the same selection criteria as the Verilog version
-        
+
         # Determine which lookup table to use based on d_high (4 bits)
         # Tables are numbered 8-15 (0b1000 to 0b1111)
-        table_8  = (d_high == Bits(4)(0b1000))
-        table_9  = (d_high == Bits(4)(0b1001))
+        table_8 = (d_high == Bits(4)(0b1000))
+        table_9 = (d_high == Bits(4)(0b1001))
         table_10 = (d_high == Bits(4)(0b1010))
         table_11 = (d_high == Bits(4)(0b1011))
         table_12 = (d_high == Bits(4)(0b1100))
         table_13 = (d_high == Bits(4)(0b1101))
         table_14 = (d_high == Bits(4)(0b1110))
         table_15 = (d_high == Bits(4)(0b1111))
-        
+
         # Determine if quotient should be negative
         # Based on rem_high ranges for each table
-        neg = (table_8  & ((rem_high >= Bits(6)(0b110100)) & (rem_high < Bits(6)(0b111110)))) | \
-              (table_9  & ((rem_high >= Bits(6)(0b110010)) & (rem_high < Bits(6)(0b111101)))) | \
+        neg = (table_8 & ((rem_high >= Bits(6)(0b110100)) & (rem_high < Bits(6)(0b111110)))) | \
+              (table_9 & ((rem_high >= Bits(6)(0b110010)) & (rem_high < Bits(6)(0b111101)))) | \
               (table_10 & ((rem_high >= Bits(6)(0b110001)) & (rem_high < Bits(6)(0b111101)))) | \
               (table_11 & ((rem_high >= Bits(6)(0b110000)) & (rem_high < Bits(6)(0b111101)))) | \
               (table_12 & ((rem_high >= Bits(6)(0b101110)) & (rem_high < Bits(6)(0b111100)))) | \
               (table_13 & ((rem_high >= Bits(6)(0b101101)) & (rem_high < Bits(6)(0b111100)))) | \
               (table_14 & ((rem_high >= Bits(6)(0b101100)) & (rem_high < Bits(6)(0b111100)))) | \
               (table_15 & ((rem_high >= Bits(6)(0b101010)) & (rem_high < Bits(6)(0b111100))))
-        
+
         # Determine if quotient digit is 2
-        q2 = (table_8  & (((rem_high >= Bits(6)(0b110100)) & (rem_high < Bits(6)(0b111010))) | \
-                          ((rem_high >= Bits(6)(0b000110)) & (rem_high <= Bits(6)(0b001011))))) | \
-             (table_9  & (((rem_high >= Bits(6)(0b110010)) & (rem_high < Bits(6)(0b111001))) | \
-                          ((rem_high >= Bits(6)(0b000111)) & (rem_high <= Bits(6)(0b001101))))) | \
+        q2 = (table_8 & (((rem_high >= Bits(6)(0b110100)) & (rem_high < Bits(6)(0b111010))) | \
+                         ((rem_high >= Bits(6)(0b000110)) & (rem_high <= Bits(6)(0b001011))))) | \
+             (table_9 & (((rem_high >= Bits(6)(0b110010)) & (rem_high < Bits(6)(0b111001))) | \
+                         ((rem_high >= Bits(6)(0b000111)) & (rem_high <= Bits(6)(0b001101))))) | \
              (table_10 & (((rem_high >= Bits(6)(0b110001)) & (rem_high < Bits(6)(0b111000))) | \
                           ((rem_high >= Bits(6)(0b001000)) & (rem_high <= Bits(6)(0b001110))))) | \
              (table_11 & (((rem_high >= Bits(6)(0b110000)) & (rem_high < Bits(6)(0b110111))) | \
@@ -209,12 +209,12 @@ class SRT4Divider:
                           ((rem_high >= Bits(6)(0b001010)) & (rem_high <= Bits(6)(0b010011))))) | \
              (table_15 & (((rem_high >= Bits(6)(0b101010)) & (rem_high < Bits(6)(0b110100))) | \
                           ((rem_high >= Bits(6)(0b001011)) & (rem_high <= Bits(6)(0b010101)))))
-        
+
         # Determine if quotient digit is 0
-        q0 = (table_8  & (((rem_high >= Bits(6)(0b111110)) & (rem_high <= Bits(6)(0b111111))) | \
-                          ((rem_high >= Bits(6)(0)) & (rem_high < Bits(6)(0b000010))))) | \
-             (table_9  & (((rem_high >= Bits(6)(0b111101)) & (rem_high <= Bits(6)(0b111111))) | \
-                          ((rem_high >= Bits(6)(0)) & (rem_high < Bits(6)(0b000010))))) | \
+        q0 = (table_8 & (((rem_high >= Bits(6)(0b111110)) & (rem_high <= Bits(6)(0b111111))) | \
+                         ((rem_high >= Bits(6)(0)) & (rem_high < Bits(6)(0b000010))))) | \
+             (table_9 & (((rem_high >= Bits(6)(0b111101)) & (rem_high <= Bits(6)(0b111111))) | \
+                         ((rem_high >= Bits(6)(0)) & (rem_high < Bits(6)(0b000010))))) | \
              (table_10 & (((rem_high >= Bits(6)(0b111101)) & (rem_high <= Bits(6)(0b111111))) | \
                           ((rem_high >= Bits(6)(0)) & (rem_high < Bits(6)(0b000010))))) | \
              (table_11 & (((rem_high >= Bits(6)(0b111101)) & (rem_high <= Bits(6)(0b111111))) | \
@@ -227,12 +227,12 @@ class SRT4Divider:
                           ((rem_high >= Bits(6)(0)) & (rem_high < Bits(6)(0b000011))))) | \
              (table_15 & (((rem_high >= Bits(6)(0b111100)) & (rem_high <= Bits(6)(0b111111))) | \
                           ((rem_high >= Bits(6)(0)) & (rem_high < Bits(6)(0b000100)))))
-        
+
         # Select quotient digit: q2 -> 2, q0 -> 0, otherwise -> 1
         q = q2.select(Bits(2)(0b10), q0.select(Bits(2)(0b00), Bits(2)(0b01)))
-        
+
         return (q, neg)
-    
+
     def tick(self):
         """
         Execute one cycle of the SRT-4 state machine.
@@ -246,35 +246,35 @@ class SRT4Divider:
         - DIV_1: Fast path for divisor = 1
         - DIV_ERROR: Handle division by zero
         """
-        
+
         # State: IDLE - Wait for valid signal and check for special cases
         with Condition(self.state[0] == self.IDLE):
             with Condition(self.valid_in[0] == Bits(1)(1)):
                 # Check for special cases
                 div_by_zero = (self.divisor_in[0] == Bits(32)(0))
                 div_by_one = (self.divisor_in[0] == Bits(32)(1))
-                
+
                 with Condition(div_by_zero):
                     # Handle division by zero per RISC-V spec
                     self.state[0] = self.DIV_ERROR
                     self.valid_in[0] = Bits(1)(0)
                     log("Divider: Division by zero detected")
-                
+
                 with Condition(~div_by_zero & div_by_one):
                     # Fast path for divisor = 1
                     self.state[0] = self.DIV_1
                     self.valid_in[0] = Bits(1)(0)
                     log("Divider: Fast path (divisor=1)")
-                
+
                 with Condition(~div_by_zero & ~div_by_one):
                     # Normal division path - go to preprocessing
                     self.state[0] = self.DIV_PRE
                     self.valid_in[0] = Bits(1)(0)
-                    
+
                     # Convert to unsigned if signed
                     dividend_is_neg = self.is_signed[0] & self.dividend_in[0][31:31]
                     divisor_is_neg = self.is_signed[0] & self.divisor_in[0][31:31]
-                    
+
                     # Take absolute value if negative
                     dividend_abs = dividend_is_neg.select(
                         (~self.dividend_in[0] + Bits(32)(1)).bitcast(Bits(32)),
@@ -284,65 +284,65 @@ class SRT4Divider:
                         (~self.divisor_in[0] + Bits(32)(1)).bitcast(Bits(32)),
                         self.divisor_in[0]
                     )
-                    
+
                     self.dividend_r[0] = dividend_abs
                     self.divisor_r[0] = divisor_abs
                     self.div_sign[0] = concat(self.dividend_in[0][31:31], self.divisor_in[0][31:31])
                     self.sign_r[0] = self.is_signed[0]
-                    
+
                     log("Divider: Starting normal division (DIV_PRE)")
-        
+
         # State: DIV_ERROR - Handle division by zero
         with Condition(self.state[0] == self.DIV_ERROR):
             # Return RISC-V specified error values
             quotient_on_div0 = self.is_signed[0].select(
                 Bits(32)(0xFFFFFFFF),  # -1 for signed
-                Bits(32)(0xFFFFFFFF)   # 2^32-1 for unsigned (same bit pattern)
+                Bits(32)(0xFFFFFFFF)  # 2^32-1 for unsigned (same bit pattern)
             )
             self.result[0] = self.is_rem[0].select(
-                self.dividend_in[0],   # Remainder = dividend
-                quotient_on_div0       # Quotient = -1 or 2^32-1
+                self.dividend_in[0],  # Remainder = dividend
+                quotient_on_div0  # Quotient = -1 or 2^32-1
             )
             self.ready[0] = Bits(1)(1)
             self.error[0] = Bits(1)(1)
             self.busy[0] = Bits(1)(0)
             self.state[0] = self.IDLE
             log("Divider: Completed with division by zero error")
-        
+
         # State: DIV_1 - Fast path for divisor = 1
         with Condition(self.state[0] == self.DIV_1):
             # Fast path: quotient is dividend, remainder is 0
             self.result[0] = self.is_rem[0].select(
-                Bits(32)(0),           # Remainder = 0
-                self.dividend_in[0]    # Quotient = dividend
+                Bits(32)(0),  # Remainder = 0
+                self.dividend_in[0]  # Quotient = dividend
             )
             self.ready[0] = Bits(1)(1)
             self.busy[0] = Bits(1)(0)
             self.state[0] = self.IDLE
             log("Divider: Completed via fast path (divisor=1)")
-        
+
         # State: DIV_PRE - Preprocessing
         with Condition(self.state[0] == self.DIV_PRE):
             # Find leading 1 position in divisor for normalization
             # This is similar to find_1.v module
             pos_1 = self.find_leading_one(self.divisor_r[0])
             self.div_shift[0] = pos_1 + Bits(5)(1)
-            
+
             # Initialize partial remainder (left-shift dividend)
             # rem = {33'b0, dividend_r} << div_shift
             # For simplicity in simulation, we'll prepare it in next state
-            
+
             # Initialize iteration counter (WID/2 = 32/2 = 16 iterations)
             # Counter counts down from 16 to 1, checking for 0 after decrement
             self.div_cnt[0] = Bits(5)(16)
-            
+
             # Initialize Q and QM
             self.Q[0] = Bits(33)(0)
             self.QM[0] = Bits(33)(0)
-            
+
             # Transition to DIV_WORKING
             self.state[0] = self.DIV_WORKING
-            
+
             # Initialize shift_rem: {33'b0, dividend_r} << (pos_1 + 1)
             # This is a 65-bit value
             dividend_extended = concat(Bits(33)(0), self.dividend_r[0])
@@ -353,9 +353,9 @@ class SRT4Divider:
             # Shift the Bits value directly, not after converting to UInt
             dividend_shifted = dividend_extended << shift_amount
             self.shift_rem[0] = dividend_shifted
-            
+
             log("Divider: Preprocessing complete, shift={}, starting iterations", pos_1 + Bits(5)(1))
-        
+
         # State: DIV_WORKING - Iterative SRT-4 calculation
         with Condition(self.state[0] == self.DIV_WORKING):
             # Extract high bits for quotient selection
@@ -374,7 +374,8 @@ class SRT4Divider:
 
             # Compute multiples of shift_divisor
             shift_divisor_n = (~shift_divisor + Bits(33)(1)).bitcast(Bits(33))  # -divisor
-            shift_divisor_X2 = (shift_divisor.bitcast(UInt(33)) + shift_divisor.bitcast(UInt(33))).bitcast(Bits(33))  # 2*divisor
+            shift_divisor_X2 = (shift_divisor.bitcast(UInt(33)) + shift_divisor.bitcast(UInt(33))).bitcast(
+                Bits(33))  # 2*divisor
             shift_divisor_X2n = (~shift_divisor_X2 + Bits(33)(1)).bitcast(Bits(33))  # -2*divisor
 
             # Update partial remainder based on q and neg
@@ -394,11 +395,14 @@ class SRT4Divider:
                     self.shift_rem[0] = concat(self.shift_rem[0][32:64], self.shift_rem[0][0:29], Bits(2)(0))
                 with Condition(q == Bits(2)(0b01)):
                     # q=1, neg=0: subtract divisor
-                    new_rem_high = (self.shift_rem[0][32:64].bitcast(UInt(33)) + shift_divisor_n.bitcast(UInt(33))).bitcast(Bits(33))
+                    new_rem_high = (
+                                self.shift_rem[0][32:64].bitcast(UInt(33)) + shift_divisor_n.bitcast(UInt(33))).bitcast(
+                        Bits(33))
                     self.shift_rem[0] = concat(new_rem_high, self.shift_rem[0][0:29], Bits(2)(0))
                 with Condition(q == Bits(2)(0b10)):
                     # q=2, neg=0: subtract 2*divisor
-                    new_rem_high = (self.shift_rem[0][32:64].bitcast(UInt(33)) + shift_divisor_X2n.bitcast(UInt(33))).bitcast(Bits(33))
+                    new_rem_high = (self.shift_rem[0][32:64].bitcast(UInt(33)) + shift_divisor_X2n.bitcast(
+                        UInt(33))).bitcast(Bits(33))
                     self.shift_rem[0] = concat(new_rem_high, self.shift_rem[0][0:29], Bits(2)(0))
             with Condition(neg != Bits(1)(0)):
                 # Negative quotient digit (add instead of subtract)
@@ -407,11 +411,14 @@ class SRT4Divider:
                     self.shift_rem[0] = concat(self.shift_rem[0][32:64], self.shift_rem[0][0:29], Bits(2)(0))
                 with Condition(q == Bits(2)(0b01)):
                     # q=1, neg=1: add divisor
-                    new_rem_high = (self.shift_rem[0][32:64].bitcast(UInt(33)) + shift_divisor.bitcast(UInt(33))).bitcast(Bits(33))
+                    new_rem_high = (
+                                self.shift_rem[0][32:64].bitcast(UInt(33)) + shift_divisor.bitcast(UInt(33))).bitcast(
+                        Bits(33))
                     self.shift_rem[0] = concat(new_rem_high, self.shift_rem[0][0:29], Bits(2)(0))
                 with Condition(q == Bits(2)(0b10)):
                     # q=2, neg=1: add 2*divisor
-                    new_rem_high = (self.shift_rem[0][32:64].bitcast(UInt(33)) + shift_divisor_X2.bitcast(UInt(33))).bitcast(Bits(33))
+                    new_rem_high = (self.shift_rem[0][32:64].bitcast(UInt(33)) + shift_divisor_X2.bitcast(
+                        UInt(33))).bitcast(Bits(33))
                     self.shift_rem[0] = concat(new_rem_high, self.shift_rem[0][0:29], Bits(2)(0))
 
             # Update Q and QM accumulators
@@ -456,7 +463,8 @@ class SRT4Divider:
 
             with Condition(rem_is_negative == Bits(1)(1)):
                 # Remainder is negative, need to adjust
-                adjusted_rem = (self.shift_rem[0][32:64].bitcast(UInt(33)) + shift_divisor.bitcast(UInt(33))).bitcast(Bits(33))
+                adjusted_rem = (self.shift_rem[0][32:64].bitcast(UInt(33)) + shift_divisor.bitcast(UInt(33))).bitcast(
+                    Bits(33))
                 self.fin_rem[0] = adjusted_rem
                 self.fin_q[0] = (self.Q[0].bitcast(UInt(33)) - Bits(33)(1)).bitcast(Bits(33))
             with Condition(rem_is_negative != Bits(1)(1)):
@@ -478,14 +486,14 @@ class SRT4Divider:
             min_int = Bits(32)(0x80000000)
             neg_one = Bits(32)(0xFFFFFFFF)
             signed_overflow = (self.sign_r[0] == Bits(1)(1)) & \
-                             (self.dividend_in[0] == min_int) & \
-                             (self.divisor_in[0] == neg_one)
+                              (self.dividend_in[0] == min_int) & \
+                              (self.divisor_in[0] == neg_one)
 
             with Condition(signed_overflow):
                 # Handle signed overflow per RISC-V spec
                 self.result[0] = self.is_rem[0].select(
-                    Bits(32)(0),           # Remainder = 0
-                    Bits(32)(0x80000000)   # Quotient = -2^31 (no change)
+                    Bits(32)(0),  # Remainder = 0
+                    Bits(32)(0x80000000)  # Quotient = -2^31 (no change)
                 )
                 log("Divider: Signed overflow detected (-2^31 / -1)")
             with Condition(~signed_overflow):

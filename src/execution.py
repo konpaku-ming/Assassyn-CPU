@@ -112,7 +112,7 @@ class Execution(Module):
 
         # === Initialize 3-cycle Pure Wallace Tree Multiplier (No Booth Encoding) ===
         multiplier = WallaceTreeMul()
-        
+
         # === Initialize SRT-4 Divider (~18-cycle multi-cycle unit) ===
         divider = SRT4Divider()
 
@@ -319,7 +319,7 @@ class Execution(Module):
 
         # Clear result after reading
         with Condition(div_result_valid == Bits(1)(1)):
-            log("EX: SRT-4 divider result ready and consumed: 0x{:x}, error={}", 
+            log("EX: SRT-4 divider result ready and consumed: 0x{:x}, error={}",
                 div_result_value, div_error)
             divider.clear_result()
             # Clear pending status when result is ready
@@ -423,7 +423,7 @@ class Execution(Module):
         # - MUL/DIV指令第一个周期：不更新（result_valid=0）
         # - MUL/DIV结果ready时：更新（result_valid=1）
         should_update_bypass = has_pending_mul_result | has_pending_div_result | \
-                              (~(is_mul_op | is_div_op) | mul_result_valid | div_result_valid)
+                               (~(is_mul_op | is_div_op) | mul_result_valid | div_result_valid)
 
         # 确定bypass的值：
         # - 如果有pending MUL结果或当前MUL结果ready，使用mul_result_value
@@ -628,8 +628,8 @@ class Execution(Module):
         # 如果发送pending MUL/DIV结果，应该是NONE（只写回寄存器，不访存）
         # 如果当前MUL/DIV未ready，发送NONE (NOP)
         # 否则使用原始mem_opcode
-        mem_opcode_mux = (has_pending_mul_result | has_pending_div_result | 
-                         current_is_mul_not_ready | current_is_div_not_ready).select(
+        mem_opcode_mux = (has_pending_mul_result | has_pending_div_result |
+                          current_is_mul_not_ready | current_is_div_not_ready).select(
             MemOp.NONE,
             final_mem_opcode
         )
@@ -653,8 +653,8 @@ class Execution(Module):
         with Condition(has_pending_div_result & ~has_pending_mul_result):
             log("EX: Injecting pending DIV result to MEM (rd=x{}, result=0x{:x})",
                 div_pending_rd[0], div_result_value)
-        with Condition((current_is_mul_not_ready | current_is_div_not_ready) & 
-                      ~has_pending_mul_result & ~has_pending_div_result):
+        with Condition((current_is_mul_not_ready | current_is_div_not_ready) &
+                       ~has_pending_mul_result & ~has_pending_div_result):
             log("EX: Current MUL/DIV not ready, sending NOP to MEM")
         with Condition((is_mul_op & mul_result_valid) & ~has_pending_mul_result & ~has_pending_div_result):
             log("EX: Current MUL ready, sending to MEM (rd=0x{:x}, result=0x{:x})",
