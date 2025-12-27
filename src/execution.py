@@ -667,6 +667,7 @@ class Execution(Module):
         # rd_addr for scoreboarding/dependency detection
         # is_load for detecting Load-Use hazards
         # mul_busy for detecting MUL multi-cycle occupancy, requires pipeline stall
+        # div_busy for detecting DIV multi-cycle occupancy, requires pipeline stall
         #
         # 返回实际发送到MEM的rd值
         # 这样DataHazardUnit能够正确识别：
@@ -674,4 +675,5 @@ class Execution(Module):
         # - 当前MUL未ready时：返回0 (NOP)
         # - 正常情况：返回final_rd
         mul_busy = multiplier.is_busy()
-        return mem_rd_mux, is_load, mul_busy
+        div_busy = divider.is_busy()
+        return mem_rd_mux, is_load, mul_busy, div_busy

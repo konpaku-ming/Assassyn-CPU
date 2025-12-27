@@ -30,6 +30,7 @@ class DataHazardUnit(Downstream):
             ex_rd: Value,  # EX 级目标寄存器索引
             ex_is_load: Value,  # EX 级是否为 Load 指令
             ex_mul_busy: Value,  # EX stage multiplier busy status (multi-cycle MUL instruction occupancy)
+            ex_div_busy: Value,  # EX stage divider busy status (multi-cycle DIV instruction occupancy)
             mem_rd: Value,  # MEM 级目标寄存器索引
             wb_rd: Value,  # WB 级目标寄存器索引
     ):
@@ -41,11 +42,12 @@ class DataHazardUnit(Downstream):
         ex_rd_val = ex_rd.optional(Bits(5)(0))
         ex_is_load_val = ex_is_load.optional(Bits(1)(0))
         ex_mul_busy_val = ex_mul_busy.optional(Bits(1)(0))
+        ex_div_busy_val = ex_div_busy.optional(Bits(1)(0))
         mem_rd_val = mem_rd.optional(Bits(5)(0))
         wb_rd_val = wb_rd.optional(Bits(5)(0))
 
         log(
-            "Input Signals: rs1_idx={} rs2_idx={} rs1_used={} rs2_used={} ex_rd={} ex_is_load={} ex_mul_busy={} mem_rd={} wb_rd={}",
+            "Input Signals: rs1_idx={} rs2_idx={} rs1_used={} rs2_used={} ex_rd={} ex_is_load={} ex_mul_busy={} ex_div_busy={} mem_rd={} wb_rd={}",
             rs1_idx_val,
             rs2_idx_val,
             rs1_used_val,
@@ -53,6 +55,7 @@ class DataHazardUnit(Downstream):
             ex_rd_val,
             ex_is_load_val,
             ex_mul_busy_val,
+            ex_div_busy_val,
             mem_rd_val,
             wb_rd_val,
         )
@@ -73,12 +76,15 @@ class DataHazardUnit(Downstream):
         # 2. Detect MUL multi-cycle occupancy - stall pipeline until multiplier completes
         mul_busy_hazard = ex_mul_busy_val
         
+        # 3. Detect DIV multi-cycle occupancy - stall pipeline until divider completes
+        div_busy_hazard = ex_div_busy_val
+        
         # Combine all stall conditions
-        stall_if = load_use_hazard_rs1 | load_use_hazard_rs2 | mul_busy_hazard
+        stall_if = load_use_hazard_rs1 | load_use_hazard_rs2 | mul_busy_hazard | div_busy_hazard
 
-        # 3. Detect Forwarding (Generate Mux selection codes)
-        # EX result is not ready if it's a Load (data from memory) or MUL (multi-cycle operation)
-        ex_result_not_ready = ex_is_load_val | ex_mul_busy_val
+        # 4. Detect Forwarding (Generate Mux selection codes)
+        # EX result is not ready if it's a Load (data from memory), MUL (multi-cycle operation), or DIV (multi-cycle operation)
+        ex_result_not_ready = ex_is_load_val | ex_mul_busy_val | ex_div_busy_val
 
         rs1_wb_pass = (rs1_idx_val == wb_rd_val).select(Rs1Sel.WB_BYPASS, Rs1Sel.RS1)
         rs1_mem_bypass = (rs1_idx_val == mem_rd_val).select(Rs1Sel.MEM_BYPASS, rs1_wb_pass)
@@ -96,11 +102,12 @@ class DataHazardUnit(Downstream):
         rs2_sel = (rs2_used_val & ~rs2_is_zero).select(rs2_ex_bypass, Rs2Sel.RS2)
 
         log(
-            "DataHazardUnit: rs1_sel={} rs2_sel={} stall_if={} mul_busy_hazard={}",
+            "DataHazardUnit: rs1_sel={} rs2_sel={} stall_if={} mul_busy_hazard={} div_busy_hazard={}",
             rs1_sel,
             rs2_sel,
             stall_if,
             mul_busy_hazard,
+            div_busy_hazard,
         )
         # Return bypass selection signals and stall signal
         return rs1_sel, rs2_sel, stall_if
