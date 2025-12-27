@@ -243,52 +243,38 @@ class NaiveDivider:
             # 3. If remainder is negative, restore it and set quotient bit to 0
             # 4. Otherwise, keep remainder and set quotient bit to 1
             
-            # Debug: log state at start of first and last few iterations
-            with Condition((self.div_cnt[0] == Bits(6)(32)) | (self.div_cnt[0] <= Bits(6)(3))):
-                log("NaiveDivider[DIV_WORKING]: cnt={}, Q=0x{:x}, R=0x{:x}",
-                    self.div_cnt[0], self.quotient[0], self.remainder[0])
-            
             # Step 1: Shift remainder left and bring in MSB of quotient
             # remainder = (remainder << 1) | (quotient >> 31)
             quotient_msb = self.quotient[0][31:31]
             # Shift remainder left by 1: remainder[0:31] become bits [1:32]
             # Then bring in quotient MSB at bit 0
             shifted_remainder = concat(self.remainder[0][0:31], quotient_msb)
-            
+
             # Step 2: Subtract divisor from remainder
             # remainder = remainder - divisor (with sign extension for divisor)
             divisor_extended = concat(Bits(1)(0), self.divisor_r[0])
             temp_remainder = (shifted_remainder.bitcast(UInt(33)) - divisor_extended.bitcast(UInt(33))).bitcast(Bits(33))
-            
+
             # Step 3: Check if result is negative (MSB = 1)
             is_negative = temp_remainder[32:32]
-            
-            # Compute new quotient value for both cases
-            # Extract bits [0:30] once, before any conditional assignments
-            quotient_lower_bits = self.quotient[0][0:30]
-            new_quotient_if_neg = concat(quotient_lower_bits, Bits(1)(0))
-            new_quotient_if_pos = concat(quotient_lower_bits, Bits(1)(1))
-            
-            # Debug: log decision on first iteration
-            with Condition(self.div_cnt[0] == Bits(6)(32)):
-                log("NaiveDivider[DIV_WORKING]: First iter - qmsb={}, shifted_R=0x{:x}, temp_R=0x{:x}, is_neg={}",
-                    quotient_msb, shifted_remainder[0:31], temp_remainder[0:31], is_negative)
-            
+
             with Condition(is_negative == Bits(1)(1)):
                 # Restore: add divisor back
                 self.remainder[0] = shifted_remainder
                 # Shift quotient left and insert 0: quotient = (quotient << 1) | 0
-                self.quotient[0] = new_quotient_if_neg
-            
+                # Takes bits [0:30] and appends 0, result: bits [1:31] = old[0:30], bit 0 = 0
+                self.quotient[0] = concat(self.quotient[0][0:30], Bits(1)(0))
+
             with Condition(is_negative != Bits(1)(1)):
                 # Keep subtraction result
                 self.remainder[0] = temp_remainder
                 # Shift quotient left and insert 1: quotient = (quotient << 1) | 1
-                self.quotient[0] = new_quotient_if_pos
-            
+                # Takes bits [0:30] and appends 1, result: bits [1:31] = old[0:30], bit 0 = 1
+                self.quotient[0] = concat(self.quotient[0][0:30], Bits(1)(1))
+
             # Decrement counter
             self.div_cnt[0] = (self.div_cnt[0].bitcast(UInt(6)) - Bits(6)(1)).bitcast(Bits(6))
-            
+
             # Check if done (counter reaches 0)
             with Condition(self.div_cnt[0] == Bits(6)(0)):
                 self.state[0] = self.DIV_END
@@ -298,22 +284,22 @@ class NaiveDivider:
         with Condition(self.state[0] == self.DIV_END):
             log("NaiveDivider: DIV_END - quotient=0x{:x}, remainder=0x{:x}",
                 self.quotient[0], self.remainder[0][0:31])
-            
+
             # Apply sign correction
             # For quotient: if signs differ, negate
             # For remainder: same sign as dividend
             q_needs_neg = (self.div_sign[0] == Bits(2)(0b01)) | (self.div_sign[0] == Bits(2)(0b10))
             rem_needs_neg = self.div_sign[0][1:1]  # Dividend sign
-            
+
             log("NaiveDivider: div_sign=0x{:x}, q_needs_neg={}", self.div_sign[0], q_needs_neg)
-            
+
             # Check for signed overflow: (-2^31) / (-1)
             min_int = Bits(32)(0x80000000)
             neg_one = Bits(32)(0xFFFFFFFF)
             signed_overflow = (self.sign_r[0] == Bits(1)(1)) & \
                               (self.dividend_in[0] == min_int) & \
                               (self.divisor_in[0] == neg_one)
-            
+
             with Condition(signed_overflow):
                 # Handle signed overflow per RISC-V spec
                 self.result[0] = self.is_rem[0].select(
@@ -321,7 +307,7 @@ class NaiveDivider:
                     Bits(32)(0x80000000)  # Quotient = -2^31 (no change)
                 )
                 log("NaiveDivider: Signed overflow detected (-2^31 / -1)")
-            
+
             with Condition(~signed_overflow):
                 # Normal result with sign correction
                 q_signed = (self.sign_r[0] & q_needs_neg).select(
@@ -332,13 +318,13 @@ class NaiveDivider:
                     (~self.remainder[0][0:31] + Bits(32)(1)).bitcast(Bits(32)),
                     self.remainder[0][0:31]
                 )
-                
+
                 log("NaiveDivider: q_signed=0x{:x}, rem_signed=0x{:x}, is_rem={}",
                     q_signed, rem_signed, self.is_rem[0])
-                
+
                 # Select quotient or remainder
                 self.result[0] = self.is_rem[0].select(rem_signed, q_signed)
-            
+
             self.ready[0] = Bits(1)(1)
             self.busy[0] = Bits(1)(0)
             self.state[0] = self.IDLE
