@@ -1,6 +1,7 @@
 from assassyn.frontend import *
 from .control_signals import *
 from .multiplier import WallaceTreeMul, sign_zero_extend
+from .divider import SRT4Divider
 
 
 class Execution(Module):
@@ -111,6 +112,9 @@ class Execution(Module):
 
         # === Initialize 3-cycle Pure Wallace Tree Multiplier (No Booth Encoding) ===
         multiplier = WallaceTreeMul()
+        
+        # === Initialize SRT-4 Divider (~18-cycle multi-cycle unit) ===
+        divider = SRT4Divider()
 
         # --- 操作数 1 选择 ---
         alu_op1 = ctrl.op1_sel.select1hot(
@@ -261,6 +265,66 @@ class Execution(Module):
         # All MUL/MULH/MULHSU/MULHU operations use the 3-cycle pipeline result
         # No inline single-cycle computation is performed
 
+        # ============== M Extension - SRT-4 Divider ==============
+        #
+        # Implementation: ~18-cycle multi-cycle divider
+        # Architecture:
+        #   Cycle 1: Preprocessing (DIV_PRE) - normalize divisor
+        #   Cycles 2-17: Iterative calculation (DIV_WORKING) - 16 iterations, 2 bits per cycle
+        #   Cycle 18: Post-processing (DIV_END) - sign correction
+        #   Special: Fast paths for division by 0 (DIV_ERROR) or division by 1 (DIV_1)
+        #
+        # Supported Operations:
+        #   DIV:  signed ÷ signed → quotient
+        #   DIVU: unsigned ÷ unsigned → quotient
+        #   REM:  signed % signed → remainder
+        #   REMU: unsigned % unsigned → remainder
+        #
+        # Pipeline Integration:
+        #   - Pipeline stalls while divider is busy
+        #   - Result is written back when ready (similar to MUL pending result)
+
+        # Detect if current operation is division
+        is_div_op = (ctrl.alu_func == ALUOp.DIV) | (ctrl.alu_func == ALUOp.DIVU) | \
+                    (ctrl.alu_func == ALUOp.REM) | (ctrl.alu_func == ALUOp.REMU)
+
+        # Determine signedness and whether to return remainder
+        div_is_signed = (ctrl.alu_func == ALUOp.DIV) | (ctrl.alu_func == ALUOp.REM)
+        div_is_rem = (ctrl.alu_func == ALUOp.REM) | (ctrl.alu_func == ALUOp.REMU)
+
+        # DIV instruction state registers (similar to MUL)
+        div_pending_rd = RegArray(Bits(5), 1)
+        div_pending_valid = RegArray(Bits(1), 1)
+
+        # Start division if not already busy
+        div_can_start = is_div_op & ~flush_if & ~divider.is_busy()
+        with Condition(div_can_start):
+            divider.start_divide(real_rs1, real_rs2, div_is_signed, div_is_rem)
+            # Save DIV instruction's destination register
+            div_pending_rd[0] = mem_ctrl.rd_addr
+            div_pending_valid[0] = Bits(1)(1)
+            log("EX: Starting ~18-cycle division (SRT-4)")
+            log("EX:   Op1=0x{:x} (signed={}), Op2=0x{:x} (signed={}), is_rem={}",
+                real_rs1, div_is_signed, real_rs2, div_is_signed, div_is_rem)
+            log("EX:   Saved pending DIV rd=x{}", mem_ctrl.rd_addr)
+
+        # Advance divider state machine every cycle
+        divider.tick()
+
+        # Get division result if ready
+        div_result_valid, div_result_value, div_error = divider.get_result_if_ready()
+
+        # Check if there's a pending DIV result to write back
+        has_pending_div_result = div_pending_valid[0] & div_result_valid
+
+        # Clear result after reading
+        with Condition(div_result_valid == Bits(1)(1)):
+            log("EX: SRT-4 divider result ready and consumed: 0x{:x}, error={}", 
+                div_result_value, div_error)
+            divider.clear_result()
+            # Clear pending status when result is ready
+            div_pending_valid[0] = Bits(1)(0)
+
         # ebreak 停机
         with Condition((ctrl.alu_func == ALUOp.SYS) & ~flush_if):
             log("EBREAK encountered at PC=0x{:x}, halting simulation.", pc)
@@ -269,6 +333,7 @@ class Execution(Module):
         # 2. 结果选择
         # For MUL/MULH/MULHSU/MULHU, use the Wallace Tree multiplier result
         # All multiplication operations use mul_result_value from the 3-cycle pipeline
+        # For DIV/DIVU/REM/REMU, use the SRT-4 divider result
         alu_result = ctrl.alu_func.select1hot(
             add_res,  # 0:  ADD
             sub_res,  # 1:  SUB
@@ -285,10 +350,10 @@ class Execution(Module):
             mul_result_value,  # 12: MULH - from Wallace Tree (3-cycle)
             mul_result_value,  # 13: MULHSU - from Wallace Tree (3-cycle)
             mul_result_value,  # 14: MULHU - from Wallace Tree (3-cycle)
-            alu_op2,  # 15: 占位
-            alu_op2,  # 16: 占位
-            alu_op2,  # 17: 占位
-            alu_op2,  # 18: 占位
+            div_result_value,  # 15: DIV - from SRT-4 (~18-cycle)
+            div_result_value,  # 16: DIVU - from SRT-4 (~18-cycle)
+            div_result_value,  # 17: REM - from SRT-4 (~18-cycle)
+            div_result_value,  # 18: REMU - from SRT-4 (~18-cycle)
             alu_op2,  # 19-31: 占位（为未来扩展预留）
             alu_op2,
             alu_op2,
@@ -338,29 +403,43 @@ class Execution(Module):
             log("EX: ALU Operation: MULHSU")
         with Condition(ctrl.alu_func == ALUOp.MULHU):
             log("EX: ALU Operation: MULHU")
+        with Condition(ctrl.alu_func == ALUOp.DIV):
+            log("EX: ALU Operation: DIV")
+        with Condition(ctrl.alu_func == ALUOp.DIVU):
+            log("EX: ALU Operation: DIVU")
+        with Condition(ctrl.alu_func == ALUOp.REM):
+            log("EX: ALU Operation: REM")
+        with Condition(ctrl.alu_func == ALUOp.REMU):
+            log("EX: ALU Operation: REMU")
 
         # 3. 更新本级 Bypass 寄存器
         # 修复：对于MUL指令，只有当结果ready时才更新bypass
         # 同时也需要在pending MUL result注入时更新bypass
+        # 对于DIV指令，也是同样的处理
 
         # 确定是否应该更新bypass：
-        # - 有pending MUL结果需要注入：更新（使用MUL结果）
-        # - 非MUL指令：总是更新
-        # - MUL指令第一个周期：不更新（mul_result_valid=0）
-        # - MUL结果ready时：更新（mul_result_valid=1）
-        should_update_bypass = has_pending_mul_result | (~is_mul_op | mul_result_valid)
+        # - 有pending MUL/DIV结果需要注入：更新（使用MUL/DIV结果）
+        # - 非MUL/DIV指令：总是更新
+        # - MUL/DIV指令第一个周期：不更新（result_valid=0）
+        # - MUL/DIV结果ready时：更新（result_valid=1）
+        should_update_bypass = has_pending_mul_result | has_pending_div_result | \
+                              (~(is_mul_op | is_div_op) | mul_result_valid | div_result_valid)
 
         # 确定bypass的值：
         # - 如果有pending MUL结果或当前MUL结果ready，使用mul_result_value
+        # - 否则如果有pending DIV结果或当前DIV结果ready，使用div_result_value
         # - 否则使用alu_result
-        bypass_value = (has_pending_mul_result | mul_result_valid).select(mul_result_value, alu_result)
+        bypass_value = (has_pending_mul_result | mul_result_valid).select(
+            mul_result_value,
+            (has_pending_div_result | div_result_valid).select(div_result_value, alu_result)
+        )
 
         # 只在should_update_bypass为true时更新bypass
         with Condition(should_update_bypass):
             ex_bypass[0] = bypass_value
             log("EX: Bypass Update: 0x{:x}", bypass_value)
         with Condition(~should_update_bypass):
-            log("EX: Bypass Update skipped for MUL (result not ready)")
+            log("EX: Bypass Update skipped for MUL/DIV (result not ready)")
 
         log("EX: ALU Result: 0x{:x}", alu_result)
 
@@ -498,48 +577,59 @@ class Execution(Module):
         # --- 下一级绑定与状态反馈 ---
         # 构造发送给 MEM 的包
         #
-        # 方案A完整修复：MUL结果延迟注入
+        # 方案A完整修复：MUL/DIV结果延迟注入
         #
         # 核心机制：
-        # 1. 当MUL启动时：保存rd到mul_pending_rd，发送NOP到MEM
-        # 2. 后续周期：如果有pending的MUL result ready，优先发送MUL结果
+        # 1. 当MUL/DIV启动时：保存rd到pending_rd，发送NOP到MEM
+        # 2. 后续周期：如果有pending的MUL/DIV result ready，优先发送结果
         # 3. 否则：发送当前指令到MEM
         #
-        # 这样确保MUL结果一定能够到达WB并写回寄存器
+        # 这样确保MUL/DIV结果一定能够到达WB并写回寄存器
 
-        # 注意：has_pending_mul_result已在前面定义（mul_result_valid之后）
+        # 注意：has_pending_mul_result和has_pending_div_result已在前面定义
         # 因为bypass更新逻辑需要在前面使用它
 
         # 决定本cycle发送到MEM的内容：
-        # - 如果有pending MUL结果：发送MUL写回操作
+        # - 如果有pending MUL/DIV结果：发送写回操作
         # - 否则：发送当前指令（可能是NOP）
 
-        # 当前指令是否是MUL且未ready（需要发送NOP）
+        # 当前指令是否是MUL/DIV且未ready（需要发送NOP）
         current_is_mul_not_ready = is_mul_op & ~mul_result_valid
+        current_is_div_not_ready = is_div_op & ~div_result_valid
 
         # 确定发送到MEM的rd：
         # 优先级1: 如果有pending MUL结果，使用保存的mul_pending_rd
-        # 优先级2: 如果当前指令是MUL且未ready，发送rd=0 (NOP)
-        # 优先级3: 否则使用final_rd（当前指令的rd）
+        # 优先级2: 如果有pending DIV结果，使用保存的div_pending_rd
+        # 优先级3: 如果当前指令是MUL/DIV且未ready，发送rd=0 (NOP)
+        # 优先级4: 否则使用final_rd（当前指令的rd）
         mem_rd_mux = has_pending_mul_result.select(
             mul_pending_rd[0],  # pending MUL result
-            current_is_mul_not_ready.select(
-                Bits(5)(0),  # current MUL not ready -> NOP
-                final_rd  # normal instruction
+            has_pending_div_result.select(
+                div_pending_rd[0],  # pending DIV result
+                (current_is_mul_not_ready | current_is_div_not_ready).select(
+                    Bits(5)(0),  # current MUL/DIV not ready -> NOP
+                    final_rd  # normal instruction
+                )
             )
         )
 
         # 确定发送到MEM的ALU结果：
         # 如果有pending MUL结果或当前是MUL，使用mul_result_value
+        # 否则如果有pending DIV结果或当前是DIV，使用div_result_value
         # 否则使用alu_result
         use_mul_result = has_pending_mul_result | is_mul_op
-        mem_alu_result_mux = use_mul_result.select(mul_result_value, alu_result)
+        use_div_result = has_pending_div_result | is_div_op
+        mem_alu_result_mux = use_mul_result.select(
+            mul_result_value,
+            use_div_result.select(div_result_value, alu_result)
+        )
 
         # 确定发送到MEM的mem_opcode：
-        # 如果发送pending MUL结果，应该是NONE（只写回寄存器，不访存）
-        # 如果当前MUL未ready，发送NONE (NOP)
+        # 如果发送pending MUL/DIV结果，应该是NONE（只写回寄存器，不访存）
+        # 如果当前MUL/DIV未ready，发送NONE (NOP)
         # 否则使用原始mem_opcode
-        mem_opcode_mux = (has_pending_mul_result | current_is_mul_not_ready).select(
+        mem_opcode_mux = (has_pending_mul_result | has_pending_div_result | 
+                         current_is_mul_not_ready | current_is_div_not_ready).select(
             MemOp.NONE,
             final_mem_opcode
         )
@@ -560,10 +650,17 @@ class Execution(Module):
         with Condition(has_pending_mul_result):
             log("EX: Injecting pending MUL result to MEM (rd=x{}, result=0x{:x})",
                 mul_pending_rd[0], mul_result_value)
-        with Condition(current_is_mul_not_ready & ~has_pending_mul_result):
-            log("EX: Current MUL not ready, sending NOP to MEM")
-        with Condition(is_mul_op & mul_result_valid & ~has_pending_mul_result):
+        with Condition(has_pending_div_result & ~has_pending_mul_result):
+            log("EX: Injecting pending DIV result to MEM (rd=x{}, result=0x{:x})",
+                div_pending_rd[0], div_result_value)
+        with Condition((current_is_mul_not_ready | current_is_div_not_ready) & 
+                      ~has_pending_mul_result & ~has_pending_div_result):
+            log("EX: Current MUL/DIV not ready, sending NOP to MEM")
+        with Condition((is_mul_op & mul_result_valid) & ~has_pending_mul_result & ~has_pending_div_result):
             log("EX: Current MUL ready, sending to MEM (rd=0x{:x}, result=0x{:x})",
+                mem_rd_mux, mem_alu_result_mux)
+        with Condition((is_div_op & div_result_valid) & ~has_pending_mul_result & ~has_pending_div_result):
+            log("EX: Current DIV ready, sending to MEM (rd=0x{:x}, result=0x{:x})",
                 mem_rd_mux, mem_alu_result_mux)
 
         # 3. Return status (for HazardUnit to monitor)
