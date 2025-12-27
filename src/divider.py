@@ -260,13 +260,13 @@ class SRT4Divider:
                     self.valid_in[0] = Bits(1)(0)
                     log("Divider: Division by zero detected")
                 
-                with ElseCondition(div_by_one):
+                with Condition(~div_by_zero & div_by_one):
                     # Fast path for divisor = 1
                     self.state[0] = self.DIV_1
                     self.valid_in[0] = Bits(1)(0)
                     log("Divider: Fast path (divisor=1)")
                 
-                with ElseCondition():
+                with Condition(~div_by_zero & ~div_by_one):
                     # Normal division path - go to preprocessing
                     self.state[0] = self.DIV_PRE
                     self.valid_in[0] = Bits(1)(0)
@@ -396,7 +396,7 @@ class SRT4Divider:
                     new_rem_high = (rem_high_part.bitcast(UInt(33)) + shift_divisor_n.bitcast(UInt(33))).bitcast(Bits(33))
                 with Condition(q == Bits(2)(0b10)):
                     new_rem_high = (rem_high_part.bitcast(UInt(33)) + shift_divisor_X2n.bitcast(UInt(33))).bitcast(Bits(33))
-            with ElseCondition():
+            with Condition(neg != Bits(1)(0)):
                 # Negative quotient digit (add instead of subtract)
                 with Condition(q == Bits(2)(0b00)):
                     new_rem_high = rem_high_part
@@ -419,7 +419,7 @@ class SRT4Divider:
             with Condition(neg == Bits(1)(0)):
                 # Positive quotient: Q = (Q << 2) | q
                 self.Q[0] = concat(self.Q[0][30:0], q)
-            with ElseCondition():
+            with Condition(neg != Bits(1)(0)):
                 # Negative quotient: Q = (QM << 2) | (~q & 0b11) | 0b100
                 # This is equivalent to (QM << 2) + (4 - q)
                 self.Q[0] = concat(self.QM[0][30:0], Bits(1)(1), q[0:0])
@@ -431,7 +431,7 @@ class SRT4Divider:
                 # Positive and non-zero: QM gets Q's shifted value with q-1
                 q_minus_1 = (q.bitcast(UInt(2)) - Bits(2)(1)).bitcast(Bits(2))
                 self.QM[0] = concat(self.Q[0][30:0], q_minus_1)
-            with ElseCondition():
+            with Condition((neg != Bits(1)(0)) | (q == Bits(2)(0))):
                 # QM gets shifted with complement of q
                 self.QM[0] = concat(self.QM[0][30:0], ~q)
             
@@ -457,7 +457,7 @@ class SRT4Divider:
                 adjusted_rem = (self.shift_rem[0][64:32].bitcast(UInt(33)) + shift_divisor.bitcast(UInt(33))).bitcast(Bits(33))
                 self.fin_rem[0] = adjusted_rem
                 self.fin_q[0] = (self.Q[0].bitcast(UInt(33)) - Bits(33)(1)).bitcast(Bits(33))
-            with ElseCondition():
+            with Condition(rem_is_negative != Bits(1)(1)):
                 self.fin_rem[0] = self.shift_rem[0][64:32]
                 self.fin_q[0] = self.Q[0]
             
@@ -484,7 +484,7 @@ class SRT4Divider:
                     Bits(32)(0x80000000)   # Quotient = -2^31 (no change)
                 )
                 log("Divider: Signed overflow detected (-2^31 / -1)")
-            with ElseCondition():
+            with Condition(~signed_overflow):
                 # Normal result with sign correction
                 q_signed = (self.sign_r[0] & q_needs_neg).select(
                     (~self.fin_q[0][31:0] + Bits(32)(1)).bitcast(Bits(32)),
