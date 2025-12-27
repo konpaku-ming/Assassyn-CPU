@@ -349,8 +349,8 @@ class SRT4Divider:
             # Shift left by div_shift amount
             # For hardware, this would be a barrel shifter
             # For simulation, we use a simple shift
-            shift_amount = (pos_1 + Bits(5)(1)).bitcast(UInt(5))
-            self.shift_rem[0] = (dividend_extended.bitcast(UInt(65)) << shift_amount).bitcast(Bits(65))
+            shift_amount = pos_1 + Bits(5)(1)
+            self.shift_rem[0] = (dividend_extended.bitcast(UInt(65)) << shift_amount[0:4]).bitcast(Bits(65))
             
             log("Divider: Preprocessing complete, shift={}, starting iterations", pos_1 + Bits(5)(1))
         
@@ -361,8 +361,8 @@ class SRT4Divider:
 
             # Get high 4 bits of shifted divisor
             # shift_divisor = divisor_r << div_shift
-            shift_amount = self.div_shift[0].bitcast(UInt(5))
-            shift_divisor = ((self.divisor_r[0].bitcast(UInt(33)) << shift_amount) | Bits(33)(0)).bitcast(Bits(33))
+            shift_amount = self.div_shift[0]
+            shift_divisor = ((self.divisor_r[0].bitcast(UInt(33)) << shift_amount[0:4]) | Bits(33)(0)).bitcast(Bits(33))
             d_high = shift_divisor[29:32]  # Top 4 bits (bits 29-32 of 33-bit value)
 
             # Select quotient digit
@@ -370,7 +370,7 @@ class SRT4Divider:
 
             # Compute multiples of shift_divisor
             shift_divisor_n = (~shift_divisor + Bits(33)(1)).bitcast(Bits(33))  # -divisor
-            shift_divisor_X2 = (shift_divisor.bitcast(UInt(33)) << Bits(5)(1)).bitcast(Bits(33))  # 2*divisor
+            shift_divisor_X2 = (shift_divisor.bitcast(UInt(33)) + shift_divisor.bitcast(UInt(33))).bitcast(Bits(33))  # 2*divisor
             shift_divisor_X2n = (~shift_divisor_X2 + Bits(33)(1)).bitcast(Bits(33))  # -2*divisor
 
             # Update partial remainder based on q and neg
@@ -445,8 +445,8 @@ class SRT4Divider:
             rem_is_negative = self.shift_rem[0][64:64]  # MSB of remainder (bit 64)
 
             # Get shifted divisor for adjustment
-            shift_amount = self.div_shift[0].bitcast(UInt(5))
-            shift_divisor = ((self.divisor_r[0].bitcast(UInt(33)) << shift_amount) | Bits(33)(0)).bitcast(Bits(33))
+            shift_amount = self.div_shift[0]
+            shift_divisor = ((self.divisor_r[0].bitcast(UInt(33)) << shift_amount[0:4]) | Bits(33)(0)).bitcast(Bits(33))
 
             with Condition(rem_is_negative == Bits(1)(1)):
                 # Remainder is negative, need to adjust
@@ -458,7 +458,7 @@ class SRT4Divider:
                 self.fin_q[0] = self.Q[0]
 
             # Right-shift remainder back
-            fin_rem_shifted = (self.fin_rem[0].bitcast(UInt(33)) >> shift_amount).bitcast(Bits(33))
+            fin_rem_shifted = (self.fin_rem[0].bitcast(UInt(33)) >> shift_amount[0:4]).bitcast(Bits(33))
 
             # Apply sign correction
             # For quotient: if signs differ, negate
