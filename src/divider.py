@@ -349,9 +349,9 @@ class SRT4Divider:
             # Shift left by div_shift amount
             # For hardware, this would be a barrel shifter
             # For simulation, we use a simple shift
-            shift_amount = pos_1 + Bits(5)(1)
+            shift_amount = (pos_1 + Bits(5)(1))[0:4].bitcast(UInt(5))
             # Shift the Bits value directly, not after converting to UInt
-            dividend_shifted = dividend_extended << shift_amount[0:4]
+            dividend_shifted = dividend_extended << shift_amount
             self.shift_rem[0] = dividend_shifted
             
             log("Divider: Preprocessing complete, shift={}, starting iterations", pos_1 + Bits(5)(1))
@@ -363,9 +363,9 @@ class SRT4Divider:
 
             # Get high 4 bits of shifted divisor
             # shift_divisor = divisor_r << div_shift
-            shift_amount = self.div_shift[0]
+            shift_amount = self.div_shift[0][0:4].bitcast(UInt(5))
             # Shift the Bits value directly (32-bit divisor), then extend to 33 bits
-            divisor_shifted = self.divisor_r[0] << shift_amount[0:4]
+            divisor_shifted = self.divisor_r[0] << shift_amount
             shift_divisor = concat(divisor_shifted, Bits(1)(0))
             d_high = shift_divisor[29:32]  # Top 4 bits (bits 29-32 of 33-bit value)
 
@@ -449,9 +449,9 @@ class SRT4Divider:
             rem_is_negative = self.shift_rem[0][64:64]  # MSB of remainder (bit 64)
 
             # Get shifted divisor for adjustment
-            shift_amount = self.div_shift[0]
+            shift_amount = self.div_shift[0][0:4].bitcast(UInt(5))
             # Shift the Bits value directly (32-bit divisor), then extend to 33 bits
-            divisor_shifted = self.divisor_r[0] << shift_amount[0:4]
+            divisor_shifted = self.divisor_r[0] << shift_amount
             shift_divisor = concat(divisor_shifted, Bits(1)(0))
 
             with Condition(rem_is_negative == Bits(1)(1)):
@@ -465,7 +465,8 @@ class SRT4Divider:
 
             # Right-shift remainder back
             # Shift the Bits value directly, not after converting to UInt
-            fin_rem_shifted = self.fin_rem[0] >> shift_amount[0:4]
+            # Convert shift amount to UInt for the shift operation
+            fin_rem_shifted = self.fin_rem[0] >> shift_amount
 
             # Apply sign correction
             # For quotient: if signs differ, negate

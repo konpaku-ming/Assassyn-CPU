@@ -162,13 +162,13 @@ class Execution(Module):
         xor_res = alu_op1 ^ alu_op2
 
         # 逻辑左移 (使用低5位作为移位位数)
-        sll_res = alu_op1 << alu_op2[0:4]
+        sll_res = alu_op1 << alu_op2[0:4].bitcast(UInt(5))
 
         # 逻辑右移 (使用低5位作为移位位数)
-        srl_res = alu_op1 >> alu_op2[0:4]
+        srl_res = alu_op1 >> alu_op2[0:4].bitcast(UInt(5))
 
         # 算术右移 (使用低5位作为移位位数)
-        sra_res = op1_signed >> alu_op2[0:4]
+        sra_res = op1_signed >> alu_op2[0:4].bitcast(UInt(5))
         sra_res = sra_res.bitcast(Bits(32))
 
         # 有符号比较小于
