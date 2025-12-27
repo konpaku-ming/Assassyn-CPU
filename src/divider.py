@@ -476,8 +476,8 @@ class SRT4Divider:
             # Q accumulator update based on sign of quotient digit
             with Condition(neg == Bits(1)(0)):
                 # Positive quotient: Q = (Q << 2) | q
-                # Zero-extend to 33 bits: {1'b0, Q[29:0], q}
-                self.Q[0] = concat(Bits(1)(0), concat(self.Q[0][0:29], q))
+                # Keep bit 32 unchanged, update bits [31:0]: {Q[32], Q[29:0], q}
+                self.Q[0] = concat(self.Q[0][32:32], concat(self.Q[0][0:29], q))
             with Condition(neg != Bits(1)(0)):
                 # Negative quotient: Q = (QM << 2) + (4 - q)
                 # This requires handling the carry when q=0
@@ -487,8 +487,8 @@ class SRT4Divider:
                     #   (X + 1) * 4 = X * 4 + 4
                     # Implementation: add 1 to QM, then shift left 2 (via concat)
                     qm_plus_one = (self.QM[0].bitcast(UInt(33)) + Bits(33)(1)).bitcast(Bits(33))
-                    # Zero-extend to 33 bits: {1'b0, (QM+1)[29:0], 2'b00}
-                    self.Q[0] = concat(Bits(1)(0), concat(qm_plus_one[0:29], Bits(2)(0b00)))
+                    # Keep bit 32 unchanged, update bits [31:0]: {Q[32], (QM+1)[29:0], 2'b00}
+                    self.Q[0] = concat(self.Q[0][32:32], concat(qm_plus_one[0:29], Bits(2)(0b00)))
                 with Condition(q != Bits(2)(0)):
                     # q=1 or q=2: no carry needed
                     # Bottom 2 bits = (4 - q)
@@ -498,8 +498,8 @@ class SRT4Divider:
                     #   q=1 (0b01): ~0b01 + 1 = 0b10 + 1 = 0b11 ✓
                     #   q=2 (0b10): ~0b10 + 1 = 0b01 + 1 = 0b10 ✓
                     four_minus_q = ((~q).bitcast(UInt(2)) + Bits(2)(1)).bitcast(Bits(2))
-                    # Zero-extend to 33 bits: {1'b0, QM[29:0], (4-q)}
-                    self.Q[0] = concat(Bits(1)(0), concat(self.QM[0][0:29], four_minus_q))
+                    # Keep bit 32 unchanged, update bits [31:0]: {Q[32], QM[29:0], (4-q)}
+                    self.Q[0] = concat(self.Q[0][32:32], concat(self.QM[0][0:29], four_minus_q))
 
             # QM accumulator: QM = Q - 1
             # When neg=0 and q!=0: QM = (Q << 2) | (q-1)
@@ -507,12 +507,12 @@ class SRT4Divider:
             with Condition((neg == Bits(1)(0)) & (q != Bits(2)(0))):
                 # Positive and non-zero: QM gets Q's shifted value with q-1
                 q_minus_1 = (q.bitcast(UInt(2)) - Bits(2)(1)).bitcast(Bits(2))
-                # Zero-extend to 33 bits: {1'b0, Q[29:0], (q-1)}
-                self.QM[0] = concat(Bits(1)(0), concat(self.Q[0][0:29], q_minus_1))
+                # Keep bit 32 unchanged, update bits [31:0]: {QM[32], Q[29:0], (q-1)}
+                self.QM[0] = concat(self.QM[0][32:32], concat(self.Q[0][0:29], q_minus_1))
             with Condition((neg != Bits(1)(0)) | (q == Bits(2)(0))):
                 # QM gets shifted with complement of q
-                # Zero-extend to 33 bits: {1'b0, QM[29:0], ~q}
-                self.QM[0] = concat(Bits(1)(0), concat(self.QM[0][0:29], ~q))
+                # Keep bit 32 unchanged, update bits [31:0]: {QM[32], QM[29:0], ~q}
+                self.QM[0] = concat(self.QM[0][32:32], concat(self.QM[0][0:29], ~q))
 
             # Decrement counter
             self.div_cnt[0] = (self.div_cnt[0].bitcast(UInt(5)) - Bits(5)(1)).bitcast(Bits(5))
