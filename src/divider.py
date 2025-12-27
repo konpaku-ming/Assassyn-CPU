@@ -407,7 +407,7 @@ class SRT4Divider:
                     self.shift_rem[0] = concat(new_rem_high, self.shift_rem[0][0:29], Bits(2)(0))
                 with Condition(q == Bits(2)(0b10)):
                     # q=2, neg=1: add 2*divisor
-                    new_rem_high = (self.shift_rem[0][32:64].bitcast(UInt(33)) + shift_divisor.bitcast(UInt(33))).bitcast(Bits(33))
+                    new_rem_high = (self.shift_rem[0][32:64].bitcast(UInt(33)) + shift_divisor_X2.bitcast(UInt(33))).bitcast(Bits(33))
                     self.shift_rem[0] = concat(new_rem_high, self.shift_rem[0][0:29], Bits(2)(0))
 
             # Update Q and QM accumulators
