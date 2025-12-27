@@ -128,29 +128,39 @@ class SRT4Divider:
     def find_leading_one(self, d):
         """
         Find position of leading 1 in divisor (implements find_1.v logic).
-        Returns the bit position for normalization.
+        Returns the value needed for normalization shift amount.
         
         This implements the same logic as find_1.v module:
-        - Finds the position of the most significant 1 bit
-        - Used for divisor alignment to minimize iterations
+        - For a divisor with MSB at position P, returns (30 - P)
+        - This allows div_shift = pos_1 + 1 = 31 - P
+        - After shifting by div_shift, the divisor's MSB will be at bit 31
+        
+        For example:
+        - divisor = 2 = 0b10, MSB at position 1
+        - Returns 30 - 1 = 29
+        - div_shift = 29 + 1 = 30
+        - 2 << 30 = 0x80000000 (MSB now at bit 31) ✓
         
         Args:
             d: 32-bit divisor
             
         Returns:
-            Position of leading 1 (0-31), or 0 if all zeros
+            Position value for normalization (30 - MSB_position)
         """
-        # Implementation using priority encoder logic with select chain
-        # Start from position 0 and update if we find a 1 at higher position
-        pos = Bits(5)(0)
-
-        # Check each bit from LSB to MSB, updating pos when we find a 1
+        # Find the MSB position first
+        msb_pos = Bits(5)(0)
+        
+        # Check each bit from LSB to MSB, updating msb_pos when we find a 1
         # This creates a priority encoder where higher bits take precedence
         for i in range(0, 32):
             bit_set = (d[i:i] == Bits(1)(1))
-            pos = bit_set.select(Bits(5)(i), pos)
-
-        return pos
+            msb_pos = bit_set.select(Bits(5)(i), msb_pos)
+        
+        # Return 30 - MSB_position to match Verilog find_1 behavior
+        # This is equivalent to (WID-2) - msb_pos for WID=32
+        pos_1 = (Bits(5)(30).bitcast(UInt(5)) - msb_pos.bitcast(UInt(5))).bitcast(Bits(5))
+        
+        return pos_1
 
     def power_of_2(self, exponent, width):
         """
