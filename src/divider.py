@@ -375,9 +375,12 @@ class SRT4Divider:
             
             # Update partial remainder based on q and neg
             # new_rem = (old_rem << 2) - q * divisor
-            # The shift_rem is 65 bits, we work with high part [64:32]
-            rem_high_part = self.shift_rem[0][64:32]  # 33 bits
-            rem_low_part = self.shift_rem[0][31:0]    # 32 bits
+            # Following SRT4.v logic: {shift_rem[62:30] + value, shift_rem[29:0], 2'b0}
+            # shift_rem is 65 bits: [64:0]
+            # High part: [64:32] = 33 bits -> after operation, still 33 bits
+            # Low part to shift: [61:0] = 62 bits -> becomes [63:2] after left shift by 2
+            rem_high_part = self.shift_rem[0][64:32]  # 33 bits for operation
+            rem_low_part = self.shift_rem[0][61:0]    # 62 bits to preserve (will be shifted left)
             
             # Initialize new_rem_high to avoid unassigned variable
             new_rem_high = rem_high_part
@@ -402,8 +405,13 @@ class SRT4Divider:
                 with Condition(q == Bits(2)(0b10)):
                     new_rem_high = (rem_high_part.bitcast(UInt(33)) + shift_divisor_X2.bitcast(UInt(33))).bitcast(Bits(33))
             
-            # Shift left by 2 (radix-4)
-            new_shift_rem = concat(new_rem_high, rem_low_part, Bits(2)(0))  # Concatenate and shift
+            # Shift left by 2 (radix-4): concatenate new_rem_high (33 bits) with rem_low_part (62 bits)
+            # Total: 33 + 62 = 95 bits, then take low 65 bits [64:0]
+            # This is equivalent to: new_shift_rem = {new_rem_high, rem_low_part[61:0]}
+            # which is already 33+62=95 bits, take [64:0] = shift right by 30 or take directly
+            # Actually, we want: {new_rem_high[32:0], rem_low_part[61:0]} = 95 bits
+            # Then [64:0] gives us the low 65 bits
+            new_shift_rem = concat(new_rem_high, rem_low_part)  # 33 + 62 = 95 bits
             self.shift_rem[0] = new_shift_rem[64:0]  # Take low 65 bits
             
             # Update Q and QM accumulators
