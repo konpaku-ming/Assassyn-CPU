@@ -142,9 +142,8 @@ class DividerDriver(Module):
                 )
                 result.bind.set_fifo_depth(ctrl=1, pc=1, rs1_data=1, rs2_data=1, imm=1)
                 
-                log(f"Test {idx + 1}: {test_name}")
-                log(f"  Dividend: 0x{dividend:08x}, Divisor: 0x{divisor:08x}")
-                log(f"  Expected: 0x{expected:08x}")
+                log("Test {}: Dividend=0x{:08x}, Divisor=0x{:08x}, Expected=0x{:08x}", 
+                    Bits(32)(idx + 1), Bits(32)(dividend), Bits(32)(divisor), Bits(32)(expected))
         
         # 停止条件 - 给予足够的时间让除法器完成所有测试
         # 每个除法约需18个周期，加上一些额外的余量
