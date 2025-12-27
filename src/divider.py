@@ -380,7 +380,6 @@ class SRT4Divider:
             # shift_rem is 65 bits: [64:0]
             # High part: [64:32] = 33 bits, Low part: [29:0] = 30 bits, Plus 2'b0 = 2 bits
             rem_high_part = self.shift_rem[0][64:32]  # 33 bits for operation
-            rem_low_part = self.shift_rem[0][29:0]    # 30 bits to preserve
             
             # Perform operation and assignment based on q and neg
             # neg=0: q=0,1,2 -> subtract 0, divisor, 2*divisor
@@ -389,28 +388,28 @@ class SRT4Divider:
                 # Positive quotient digit
                 with Condition(q == Bits(2)(0b00)):
                     # q=0, neg=0: add 0
-                    self.shift_rem[0] = concat(rem_high_part, rem_low_part, Bits(2)(0))
+                    self.shift_rem[0] = concat(rem_high_part, self.shift_rem[0][29:0], Bits(2)(0))
                 with Condition(q == Bits(2)(0b01)):
                     # q=1, neg=0: subtract divisor
                     new_rem_high = (rem_high_part.bitcast(UInt(33)) + shift_divisor_n.bitcast(UInt(33))).bitcast(Bits(33))
-                    self.shift_rem[0] = concat(new_rem_high, rem_low_part, Bits(2)(0))
+                    self.shift_rem[0] = concat(new_rem_high, self.shift_rem[0][29:0], Bits(2)(0))
                 with Condition(q == Bits(2)(0b10)):
                     # q=2, neg=0: subtract 2*divisor
                     new_rem_high = (rem_high_part.bitcast(UInt(33)) + shift_divisor_X2n.bitcast(UInt(33))).bitcast(Bits(33))
-                    self.shift_rem[0] = concat(new_rem_high, rem_low_part, Bits(2)(0))
+                    self.shift_rem[0] = concat(new_rem_high, self.shift_rem[0][29:0], Bits(2)(0))
             with Condition(neg != Bits(1)(0)):
                 # Negative quotient digit (add instead of subtract)
                 with Condition(q == Bits(2)(0b00)):
                     # q=0, neg=1: add 0
-                    self.shift_rem[0] = concat(rem_high_part, rem_low_part, Bits(2)(0))
+                    self.shift_rem[0] = concat(rem_high_part, self.shift_rem[0][29:0], Bits(2)(0))
                 with Condition(q == Bits(2)(0b01)):
                     # q=1, neg=1: add divisor
                     new_rem_high = (rem_high_part.bitcast(UInt(33)) + shift_divisor.bitcast(UInt(33))).bitcast(Bits(33))
-                    self.shift_rem[0] = concat(new_rem_high, rem_low_part, Bits(2)(0))
+                    self.shift_rem[0] = concat(new_rem_high, self.shift_rem[0][29:0], Bits(2)(0))
                 with Condition(q == Bits(2)(0b10)):
                     # q=2, neg=1: add 2*divisor
                     new_rem_high = (rem_high_part.bitcast(UInt(33)) + shift_divisor_X2.bitcast(UInt(33))).bitcast(Bits(33))
-                    self.shift_rem[0] = concat(new_rem_high, rem_low_part, Bits(2)(0))
+                    self.shift_rem[0] = concat(new_rem_high, self.shift_rem[0][29:0], Bits(2)(0))
 
             # Update Q and QM accumulators
             # Q accumulator update based on sign of quotient digit
