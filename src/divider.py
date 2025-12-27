@@ -378,9 +378,7 @@ class SRT4Divider:
             # Following SRT4.v logic: {shift_rem[62:30] + value, shift_rem[29:0], 2'b0}
             # shift_rem is 65 bits: [64:0]
             # High part: [64:32] = 33 bits -> after operation, still 33 bits
-            # Low part to shift: [61:0] = 62 bits -> becomes [63:2] after left shift by 2
             rem_high_part = self.shift_rem[0][64:32]  # 33 bits for operation
-            rem_low_part = self.shift_rem[0][61:0]    # 62 bits to preserve (will be shifted left)
             
             # Initialize new_rem_high to avoid unassigned variable
             new_rem_high = rem_high_part
