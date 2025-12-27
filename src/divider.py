@@ -120,10 +120,10 @@ class SRT4Divider:
         self.ready[0] = Bits(1)(0)
         self.error[0] = Bits(1)(0)
         
-        log("Divider: Start {} division, dividend=0x{:x}, divisor=0x{:x}",
-            is_signed.select("signed", "unsigned"),
+        log("Divider: Start division, dividend=0x{:x}, divisor=0x{:x}, signed={}",
             dividend,
-            divisor)
+            divisor,
+            is_signed)
     
     def find_leading_one(self, d):
         """
