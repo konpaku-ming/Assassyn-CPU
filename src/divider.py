@@ -407,7 +407,8 @@ class SRT4Divider:
             
             # Shift left by 2 (radix-4): Following SRT4.v logic
             # New shift_rem = {new_rem_high[32:0], rem_low_part[31:2], 2'b0}
-            # This gives us exactly 65 bits: 33 + 30 + 2 = 65
+            # rem_low_part is 62 bits [61:0], so rem_low_part[31:2] extracts bits [31:2] = 30 bits
+            # Total: 33 + 30 + 2 = 65 bits exactly
             # This is equivalent to: (shift_rem with operated high part) << 2
             self.shift_rem[0] = concat(new_rem_high, rem_low_part[31:2], Bits(2)(0))  # 33 + 30 + 2 = 65 bits
             
