@@ -139,7 +139,7 @@ rv32i_table = [
     # 通过 funct3 区分不同的除法指令
     
     # 除法指令 (Division)
-    ('div', OP_R_TYPE, 0x4, 0x01, ImmType.R, ALUOp.DIV,
+    ('single_div.exe', OP_R_TYPE, 0x4, 0x01, ImmType.R, ALUOp.DIV,
      RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
     

@@ -174,7 +174,7 @@ stall_signal = divider_busy       # 停顿整个流水线
 # --- M Extension (Division & Remainder) ---
 # 所有除法指令共享 OP_R_TYPE (0b0110011), funct7=0x01
 
-('div', OP_R_TYPE, 0x4, 0x01, ImmType.R, ALUOp.DIV, 
+('single_div.exe', OP_R_TYPE, 0x4, 0x01, ImmType.R, ALUOp.DIV, 
  RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
  MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
 
@@ -247,7 +247,7 @@ class SRT4Divider:
     - Implements SRT-4 algorithm: radix-4, quotient digit q ∈ {-2, -1, 0, 1, 2}
     - Uses quotient selection logic (q_sel) based on partial remainder and divisor
     - Handles signed/unsigned division and remainder operations
-    - Detects and handles special cases (div-by-zero, signed overflow)
+    - Detects and handles special cases (single_div.exe-by-zero, signed overflow)
     """
     
     def __init__(self):
