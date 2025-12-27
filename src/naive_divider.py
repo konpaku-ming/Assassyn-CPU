@@ -237,12 +237,17 @@ class NaiveDivider:
 
         # State: DIV_WORKING - Iterative restoring division
         with Condition(self.state[0] == self.DIV_WORKING):
+            # Check if done (counter reaches 1, meaning this is the last iteration)
+            with Condition(self.div_cnt[0] == Bits(6)(1)):
+                self.state[0] = self.DIV_END
+                log("NaiveDivider: Iterations complete, entering post-processing")
+
             # Restoring division algorithm:
             # 1. Shift remainder left by 1 and bring in next bit from quotient
             # 2. Subtract divisor from remainder
             # 3. If remainder is negative, restore it and set quotient bit to 0
             # 4. Otherwise, keep remainder and set quotient bit to 1
-            
+
             # Step 1: Shift remainder left and bring in MSB of quotient
             # remainder = (remainder << 1) | (quotient >> 31)
             quotient_msb = self.quotient[0][31:31]
@@ -262,23 +267,18 @@ class NaiveDivider:
                 # Restore: add divisor back
                 self.remainder[0] = shifted_remainder
                 # Shift quotient left and insert 0: quotient = (quotient << 1) | 0
-                # Takes bits [0:30] and appends 0, result: bits [1:31] = old[0:30], bit 0 = 0
+                # Compute concat directly in assignment to avoid intermediate variable issues
                 self.quotient[0] = concat(self.quotient[0][0:30], Bits(1)(0))
 
             with Condition(is_negative != Bits(1)(1)):
                 # Keep subtraction result
                 self.remainder[0] = temp_remainder
                 # Shift quotient left and insert 1: quotient = (quotient << 1) | 1
-                # Takes bits [0:30] and appends 1, result: bits [1:31] = old[0:30], bit 0 = 1
+                # Compute concat directly in assignment to avoid intermediate variable issues
                 self.quotient[0] = concat(self.quotient[0][0:30], Bits(1)(1))
 
             # Decrement counter
             self.div_cnt[0] = (self.div_cnt[0].bitcast(UInt(6)) - Bits(6)(1)).bitcast(Bits(6))
-
-            # Check if done (counter reaches 0)
-            with Condition(self.div_cnt[0] == Bits(6)(0)):
-                self.state[0] = self.DIV_END
-                log("NaiveDivider: Iterations complete, entering post-processing")
 
         # State: DIV_END - Post-processing
         with Condition(self.state[0] == self.DIV_END):
