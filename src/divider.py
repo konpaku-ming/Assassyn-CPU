@@ -157,8 +157,16 @@ class SRT4Divider:
         Compute 2^exponent for a given exponent value.
         
         This function computes the power of 2 by iteratively selecting
-        between the current power and double the current power based on
+        between the current result and result * power based on
         each bit of the exponent.
+        
+        The algorithm works by representing the exponent in binary:
+        - If bit i of exponent is set, multiply result by 2^(2^i)
+        - bit 0 -> multiply by 2^1 = 2
+        - bit 1 -> multiply by 2^2 = 4
+        - bit 2 -> multiply by 2^4 = 16
+        - bit 3 -> multiply by 2^8 = 256
+        - bit 4 -> multiply by 2^16 = 65536
         
         Args:
             exponent: The exponent value (as Bits type)
@@ -172,18 +180,17 @@ class SRT4Divider:
         
         # For each bit in the exponent, if the bit is set, 
         # we multiply by the corresponding power of 2
-        # We build this up iteratively: bit 0 -> *2^1, bit 1 -> *2^2, bit 2 -> *2^4, etc.
-        power = Bits(width)(2)  # Start with 2^1
+        power = Bits(width)(2)  # Start with 2^(2^0) = 2^1 = 2
         
-        # Process each bit of the exponent (assuming max 5 bits for shift amounts)
+        # Process each bit of the exponent (assuming max 5 bits for shift amounts 0-31)
         for i in range(5):
             bit_is_set = exponent[i:i] == Bits(1)(1)
             result = bit_is_set.select(
                 (result.bitcast(UInt(width)) * power.bitcast(UInt(width))).bitcast(Bits(width)),
                 result
             )
-            # Double the power for the next bit: 2 -> 4 -> 8 -> 16 -> 32
-            power = (power.bitcast(UInt(width)) * Bits(width)(2)).bitcast(Bits(width))
+            # Square the power for the next bit: 2 -> 4 -> 16 -> 256 -> 65536
+            power = (power.bitcast(UInt(width)) * power.bitcast(UInt(width))).bitcast(Bits(width))
         
         return result
 
