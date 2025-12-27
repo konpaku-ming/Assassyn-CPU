@@ -149,16 +149,119 @@ self.quotient[0] = concat(self.quotient[0][0:30], Bits(1)(0))  # 或 Bits(1)(1)
 
 ## 建议的修复方案
 
-需要修改 DIV_WORKING 状态中的商更新逻辑。可能的修复方向：
+### 问题分析
 
-1. **检查位切片语法**：确认 `[0:30]` 是否正确提取了 31 位
-2. **重构 concat 操作**：尝试使用不同的方式实现左移
-3. **添加调试日志**：在迭代过程中输出商的值，观察变化
-4. **参考 SRT 除法器**：查看 `divider.py` 中类似的移位操作如何实现
+在 Assassyn 框架中，条件块内的赋值操作类似于硬件中的 Mux 选择。当两个条件分支都需要读取同一个寄存器并进行更新时：
 
-## 下一步行动
+```python
+with Condition(cond):
+    reg[0] = concat(reg[0][0:30], 0)
+with Condition(~cond):
+    reg[0] = concat(reg[0][0:30], 1)
+```
 
-1. 修改代码以修复商寄存器更新问题
-2. 重新运行 single_div 测试验证修复
-3. 运行其他除法测试（div1to10 等）确保修复的通用性
-4. 更新测试日志
+两个分支都会读取 `reg[0][0:30]`，但读取的是**同一个时刻**（当前周期开始时）的值。这应该是正确的行为，但可能存在以下问题：
+
+1. 每个条件块内独立计算 `reg[0][0:30]` 可能导致综合工具产生冗余逻辑
+2. 在某些情况下，重复的slice操作可能导致意外的行为
+
+### 修复实施
+
+修改 `src/naive_divider.py` 第 263-285 行，将位切片操作提前到条件判断之前：
+
+**修改前：**
+```python
+with Condition(is_negative == Bits(1)(1)):
+    self.remainder[0] = shifted_remainder
+    self.quotient[0] = concat(self.quotient[0][0:30], Bits(1)(0))
+
+with Condition(is_negative != Bits(1)(1)):
+    self.remainder[0] = temp_remainder
+    self.quotient[0] = concat(self.quotient[0][0:30], Bits(1)(1))
+```
+
+**修改后：**
+```python
+# 在条件判断之前提取位切片
+quotient_lower_bits = self.quotient[0][0:30]
+new_quotient_if_neg = concat(quotient_lower_bits, Bits(1)(0))
+new_quotient_if_pos = concat(quotient_lower_bits, Bits(1)(1))
+
+with Condition(is_negative == Bits(1)(1)):
+    self.remainder[0] = shifted_remainder
+    self.quotient[0] = new_quotient_if_neg
+
+with Condition(is_negative != Bits(1)(1)):
+    self.remainder[0] = temp_remainder
+    self.quotient[0] = new_quotient_if_pos
+```
+
+### 修复原理
+
+1. **消除重复计算**：`quotient[0][0:30]` 只计算一次，避免在两个条件分支中重复计算
+2. **预计算 concat 结果**：两个可能的新商值（带 0 或带 1）都在条件判断之前计算好
+3. **简化条件逻辑**：条件分支内只需要简单的赋值操作，降低综合复杂度
+
+这种写法更接近硬件设计的最佳实践，明确地表达了"先计算，后选择"的意图。
+
+## 修复验证
+
+修复后需要进行以下验证：
+
+1. **重新生成并运行 single_div 测试**
+   ```bash
+   # 重新编译并运行
+   python src/main.py workloads/single_div.exe workloads/single_div.data > logs/single_div_fixed.log
+   ```
+
+2. **检查关键日志输出**
+   - 查看 DIV_END 阶段的 quotient 值，应该是 0x1BAF80 而不是 0x375f00
+   - 查看最终写入 x10 的结果，应该是 0x1BAF80
+
+3. **运行其他除法测试**
+   - `div1to10.exe`：测试 1÷1 到 10÷1 的除法
+   - 确保修复没有引入新的问题
+
+## 技术要点总结
+
+1. **恢复除法算法**：通过 32 次迭代，每次处理 1 位，逐步计算商和余数
+2. **移位寄存器方法**：使用商寄存器同时存储未处理的被除数位和已计算的商位
+3. **Assassyn 编程规范**：
+   - 避免在条件块内重复访问同一寄存器的切片
+   - 预先计算可能的结果，用条件选择最终值
+   - 遵循"先计算，后选择"的设计模式
+
+## 下一步工作
+
+1. ✅ 修改代码实现修复
+2. ⏳ 生成新的测试日志并验证结果
+3. ⏳ 运行完整的除法测试套件
+4. ⏳ 更新项目文档
+
+## 附录：正确的计算过程
+
+对于 0x375f00 / 2：
+
+```
+被除数：0x375f00 = 0b00000000001101110101111100000000 = 3629824
+除数：  2 = 0b10
+
+恢复除法 32 次迭代：
+- 迭代 1-21: 处理前 21 个 0 位，余数始终 < 2，商位都是 0
+- 迭代 22: 处理位 21 (=1)，余数=1 < 2，商位=0
+- 迭代 23: 处理位 20 (=1)，余数=3 >= 2，减法后余数=1，商位=1
+- 迭代 24: 处理位 19 (=0)，余数=2 >= 2，减法后余数=0，商位=1
+- ... （类似处理剩余位）
+- 迭代 32: 处理位 0 (=0)，余数=0 < 2，商位=0
+
+最终商：0x1BAF80 = 0b00000000000110111010111110000000 = 1814912
+最终余数：0x0
+
+验证：1814912 × 2 + 0 = 3629824 ✓
+```
+
+---
+
+**报告完成时间**：2025-12-27
+**问题定位**：计算错误（非流水线问题）
+**修复状态**：已实施，待验证
