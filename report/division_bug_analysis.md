@@ -1,8 +1,166 @@
-# 除法器错误分析报告 - 修正版
+# 除法器错误分析报告 - 最终正确版本
 
 ## 问题描述
 
 使用新的恢复除法器（naive_divider）运行 single_div 测试时，计算 0x375f00 / 2 得到错误的结果 0x375f00（即被除数本身），而不是期望的结果 0x1BAF80。
+
+## 问题根源（经过三次分析）
+
+**真正的问题**：在 Assassyn 中，不能将中间计算的 wire 值赋给 RegArray，必须直接在赋值语句中进行计算。
+
+### 错误的代码模式
+
+```python
+# 错误：使用中间变量
+quotient_lower_bits = self.quotient[0][0:30]
+new_quotient_if_neg = concat(quotient_lower_bits, Bits(1)(0))
+
+with Condition(is_negative == Bits(1)(1)):
+    self.quotient[0] = new_quotient_if_neg  # 赋值不生效！
+```
+
+### 正确的代码模式
+
+```python
+# 正确：直接在赋值中计算
+with Condition(is_negative == Bits(1)(1)):
+    self.quotient[0] = concat(self.quotient[0][0:30], Bits(1)(0))  # 赋值生效
+```
+
+## 分析过程
+
+### 第一次错误分析（已推翻）
+
+错误地认为问题是 `concat()` 参数顺序错误，并反转了参数。这是完全错误的：
+- `concat(a, b)` 在 Assassyn 中将 a 放在高位，b 放在低位
+- 原始代码的 concat 参数顺序本来就是正确的
+
+### 第二次错误分析（已推翻）
+
+错误地认为问题是 Assassyn 框架不支持在条件块内执行位切片操作，因此将切片操作移到条件块外预计算。这也是错误的：
+- SRT4 divider 在条件块内大量使用位切片操作，工作正常
+- 问题不在于位切片的位置，而在于使用中间变量
+
+### 第三次正确分析（最终答案）
+
+通过对比 SRT4 divider 的工作代码（`divider.py` 第 480 行）：
+
+```python
+self.Q[0] = concat(self.Q[0][32:32], concat(self.Q[0][0:29], q))
+```
+
+发现它直接在 Condition 块内进行切片和 concat 计算，**没有使用中间变量**。
+
+而错误的代码使用了中间变量：
+```python
+quotient_lower_bits = self.quotient[0][0:30]  # 中间变量
+new_quotient_if_neg = concat(quotient_lower_bits, Bits(1)(0))  # 中间变量
+self.quotient[0] = new_quotient_if_neg  # 赋值失败
+```
+
+## 日志证据分析
+
+从用户提供的 raw.log 可以看到：
+
+```
+Cycle @43.00: NaiveDivider: DIV_END - quotient=0x375f00, remainder=0x0
+Cycle @43.00: NaiveDivider: q_signed=0x375f00, rem_signed=0x0, is_rem=0
+Cycle @43.00: NaiveDivider: Completed, result=0x0
+```
+
+**关键观察**：
+1. 经过 32 次迭代后，quotient 仍然是 0x375f00（没有更新）
+2. q_signed = 0x375f00，is_rem = 0，应该选择 q_signed
+3. 但 result = 0x0，说明 select 操作失败
+
+这证明：使用中间变量的赋值操作完全没有生效！
+
+## 是流水线问题还是计算错误？
+
+**结论：这是除法器计算错误，不是CPU五级流水线的处理问题。**
+
+理由：
+1. 流水线正确处理了除法器的多周期操作（暂停、等待、继续）
+2. 数据冒险单元正确检测到 div_busy 并暂停流水线
+3. 除法完成后正确将结果注入 MEM 阶段
+4. 问题出在除法器内部的商寄存器更新操作未生效
+
+## 修复方案
+
+### 解决方案
+
+恢复原始代码结构，直接在 Condition 块内进行计算，不使用中间变量：
+
+**修改后：**
+```python
+with Condition(is_negative == Bits(1)(1)):
+    self.remainder[0] = shifted_remainder
+    self.quotient[0] = concat(self.quotient[0][0:30], Bits(1)(0))
+
+with Condition(is_negative != Bits(1)(1)):
+    self.remainder[0] = temp_remainder
+    self.quotient[0] = concat(self.quotient[0][0:30], Bits(1)(1))
+```
+
+### 修复原理
+
+这与 SRT4 divider 的实现模式完全一致：
+- 在 Condition 块内直接进行位切片、concat 和算术运算
+- 不使用中间 wire 变量来存储计算结果
+- 直接将计算表达式写在赋值语句的右侧
+
+## Assassyn 编程规则（经验总结）
+
+通过这次调试，总结出以下 Assassyn 编程规则：
+
+1. ✅ **可以**在 Condition 块内进行位切片操作：`reg[0][0:30]`
+2. ✅ **可以**在 Condition 块内进行 concat 操作：`concat(a, b)`
+3. ✅ **可以**在 Condition 块内进行算术运算：`(a + b).bitcast(...)`
+4. ❌ **不能**使用中间 wire 变量赋值给 RegArray
+5. ✅ **必须**直接在赋值语句中进行所有计算
+
+**正确模式**：
+```python
+with Condition(cond):
+    reg[0] = concat(reg[0][0:30], bit)  # ✅ 直接计算
+```
+
+**错误模式**：
+```python
+temp = concat(reg[0][0:30], bit)  # 中间变量
+with Condition(cond):
+    reg[0] = temp  # ❌ 赋值不生效
+```
+
+## 技术要点总结
+
+1. **恢复除法算法**：通过 32 次迭代，每次处理 1 位，逐步计算商和余数
+2. **移位寄存器方法**：使用商寄存器同时存储未处理的被除数位和已计算的商位
+3. **Assassyn 硬件描述约束**：
+   - 必须直接在赋值语句中进行计算
+   - 避免使用中间变量来传递计算结果给 RegArray
+   - 参考已有的工作代码（如 SRT4 divider）来确定正确的编程模式
+
+## 附录：正确的计算过程
+
+对于 0x375f00 / 2：
+
+```
+被除数：0x375f00 = 0b00000000001101110101111100000000 = 3628800
+除数：  2 = 0b10
+
+恢复除法 32 次迭代：
+- 迭代 1-23: 处理前 23 个 0 位，余数始终 < 2，商位都是 0
+- 迭代 24: 处理第一个 1，余数=1 < 2，商位=0
+- 迭代 25: 余数=3 >= 2，余数变为 1，商位=1
+- ... 继续处理剩余位 ...
+
+最终结果：
+- 商：0x1BAF80 = 1814400 ✓
+- 余数：0x0
+
+验证：1814400 × 2 + 0 = 3628800 ✓
+```
 
 ## 测试程序分析
 
