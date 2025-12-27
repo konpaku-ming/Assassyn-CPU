@@ -2,7 +2,7 @@
 
 ## 1. 项目概述
 
-本计划书旨在详细说明如何在 Assassyn CPU 中实现 RV32IM 指令集扩展中的除法（DIV）和取模（REM）指令。我们将使用 SRT-4 除法算法，参考 `SRT4/` 目录下已有的 Verilog 实现，并将其集成到现有的流水线架构中。
+本计划书旨在详细说明如何在 Assassyn CPU 中实现 RV32IM 指令集扩展中的除法（DIV）和取模（REM）指令。我们将使用 SRT-4 除法算法，深入理解 `SRT4/` 目录下已有的 Verilog 实现，并用 Assassyn/Python 重写以集成到现有的流水线架构中。
 
 ### 1.1 目标指令
 
@@ -86,17 +86,17 @@ module SRT4 #(parameter WID=8) (
 
 由于 Assassyn 是高级硬件描述语言（Python DSL），而 SRT4 是 Verilog 实现，有以下两种移植策略：
 
-**策略 A：直接实例化 Verilog 模块（推荐）**
+**策略 A：直接实例化 Verilog 模块**
 - 优点：复用已验证的实现，减少错误
-- 缺点：需要 Assassyn 支持外部 Verilog 模块实例化
+- 缺点：需要 Assassyn 支持外部 Verilog 模块实例化，接口适配复杂
 - 实现：使用 `ExternalModule` 或类似机制
 
-**策略 B：用 Assassyn/Python 重写**
-- 优点：完全使用 Assassyn 语言，便于调试
-- 缺点：需要重新实现和验证，工作量大
-- 实现：参考 `multiplier.py` 的实现风格
+**策略 B：用 Assassyn/Python 重写（推荐）**
+- 优点：完全使用 Assassyn 语言，便于调试，与当前 CPU 接口无缝集成
+- 缺点：需要重新实现和验证，但工作量可控
+- 实现：参考 `multiplier.py` 的实现风格，理解 SRT-4 算法后用 Python 实现
 
-**本计划采用策略 A**，通过外部模块实例化的方式集成 SRT4 除法器。
+**本计划采用策略 B**，通过 Assassyn/Python 重写的方式实现 SRT4 除法器，以确保与当前 CPU 架构的接口兼容性。
 
 ## 3. 流水线集成方案
 
@@ -216,31 +216,38 @@ class ALUOp(Enum):
 
 #### 4.3.1 模块封装
 
-创建 `SRT4Divider` 类，封装 Verilog 除法器：
+创建 `SRT4Divider` 类，用 Assassyn/Python 实现 SRT-4 除法器：
 
 ```python
 """
 SRT-4 Divider Module for RV32IM Division Instructions
 
-This module wraps the SRT-4 divider implemented in Verilog (SRT4/SRT4.v)
-and provides a Python interface compatible with the Assassyn CPU pipeline.
+This module implements the SRT-4 divider algorithm in Python/Assassyn,
+based on the reference Verilog implementation in SRT4/SRT4.v.
+It provides a native interface compatible with the Assassyn CPU pipeline.
 """
 
 from assassyn.frontend import *
 
 class SRT4Divider:
     """
-    Wrapper class for SRT-4 32-bit divider.
+    Pure Python/Assassyn implementation of SRT-4 32-bit divider.
     
     The divider is a multi-cycle functional unit that takes ~18 cycles:
-    - 1 cycle: Preprocessing (alignment)
-    - 16 cycles: Iterative calculation (2 bits per cycle)
+    - 1 cycle: Preprocessing (alignment via find_1)
+    - 16 cycles: Iterative calculation (2 bits per cycle using q_sel)
     - 1 cycle: Post-processing (sign correction)
     
     Pipeline Integration:
     - When a division instruction enters EX stage, the divider is started
     - The pipeline stalls (IF/ID/EX) until divider completes
     - Result is written back to register file through normal WB path
+    
+    Implementation Notes:
+    - Implements SRT-4 algorithm: radix-4, quotient digit q ∈ {-2, -1, 0, 1, 2}
+    - Uses quotient selection logic (q_sel) based on partial remainder and divisor
+    - Handles signed/unsigned division and remainder operations
+    - Detects and handles special cases (div-by-zero, signed overflow)
     """
     
     def __init__(self):
@@ -259,9 +266,26 @@ class SRT4Divider:
         self.ready = RegArray(Bits(1), 1, initializer=[0])
         self.error = RegArray(Bits(1), 1, initializer=[0])  # Division by zero
         
-        # TODO: Instantiate Verilog module or implement in Python
-        # Option A: self.srt4_instance = ExternalModule("SRT4", ...)
-        # Option B: Implement SRT-4 algorithm in Python/Assassyn
+        # SRT-4 state machine registers
+        self.state = RegArray(Bits(3), 1, initializer=[0])  # FSM state
+        self.div_cnt = RegArray(Bits(5), 1, initializer=[0])  # Iteration counter
+        
+        # Internal working registers (similar to SRT4.v)
+        self.dividend_u = RegArray(Bits(32), 1, initializer=[0])  # Unsigned dividend
+        self.divisor_u = RegArray(Bits(32), 1, initializer=[0])   # Unsigned divisor
+        self.div_shift = RegArray(Bits(5), 1, initializer=[0])    # Alignment shift amount
+        self.shift_rem = RegArray(Bits(65), 1, initializer=[0])   # Partial remainder (2*WID+1)
+        self.Q = RegArray(Bits(33), 1, initializer=[0])           # Quotient accumulator
+        self.QM = RegArray(Bits(33), 1, initializer=[0])          # Quotient-1 accumulator
+        self.div_sign = RegArray(Bits(2), 1, initializer=[0])     # Sign bits {dividend, divisor}
+        
+        # FSM states (matching SRT4.v)
+        self.IDLE = Bits(3)(0)
+        self.DIV_PRE = Bits(3)(1)
+        self.DIV_WORKING = Bits(3)(2)
+        self.DIV_END = Bits(3)(3)
+        self.DIV_1 = Bits(3)(4)
+        self.DIV_ERROR = Bits(3)(5)
     
     def is_busy(self):
         """Check if divider is currently processing"""
@@ -289,15 +313,49 @@ class SRT4Divider:
             dividend,
             divisor)
     
+    def find_leading_one(self, d):
+        """
+        Find position of leading 1 in divisor (implements find_1.v logic).
+        Returns the bit position for normalization.
+        
+        This implements the same logic as find_1.v module.
+        """
+        # Implementation of find_1 logic
+        # For now, use simplified version - full implementation in actual code
+        pass
+    
+    def quotient_select(self, rem_high, d_high):
+        """
+        Quotient digit selection logic (implements q_sel.v).
+        
+        Args:
+            rem_high: High 6 bits of partial remainder
+            d_high: High 4 bits of normalized divisor
+        
+        Returns:
+            (q, neg): quotient digit and sign flag
+            q ∈ {0, 1, 2} with neg indicating if q should be negative
+        """
+        # Implementation of q_sel.v lookup table logic
+        # Full implementation in actual code
+        pass
+    
     def tick(self):
         """
-        Execute one cycle of division.
+        Execute one cycle of the SRT-4 state machine.
         Should be called every clock cycle when busy.
+        
+        This implements the main FSM from SRT4.v, including:
+        - IDLE: Wait for valid signal
+        - DIV_PRE: Preprocessing (convert to unsigned, find alignment)
+        - DIV_WORKING: Iterative SRT-4 calculation (16 cycles)
+        - DIV_END: Post-processing (sign correction)
+        - DIV_1: Fast path for divisor=1
+        - DIV_ERROR: Handle division by zero
         """
-        with Condition(self.busy[0] == Bits(1)(1)):
-            # TODO: Drive SRT4 module or implement algorithm
-            # For now, placeholder logic
-            pass
+        # Full FSM implementation matching SRT4.v logic
+        # Will be implemented in actual code
+        pass
     
     def get_result_if_ready(self):
         """
@@ -315,54 +373,117 @@ class SRT4Divider:
 
 #### 4.3.2 特殊情况处理
 
-在 `tick()` 方法中添加边界情况检测：
+特殊情况将在 FSM 的 `tick()` 方法中处理，包括：
+
+**1. 除数为零检测**：在 IDLE 状态检测，直接跳转到 DIV_ERROR 状态
+
+**2. 除数为 1 快速路径**：在 IDLE 状态检测，直接跳转到 DIV_1 状态
+
+**3. 有符号溢出检测**：在 DIV_WORKING 或 DIV_END 状态处理 -2³¹ / -1 的情况
+
+示例代码框架：
 
 ```python
 def tick(self):
-    with Condition(self.busy[0] == Bits(1)(1)):
-        # Check for division by zero
-        div_by_zero = (self.divisor[0] == Bits(32)(0))
-        
-        # Check for signed overflow: (-2^31) / (-1)
+    """Execute one FSM cycle"""
+    with Condition(self.state[0] == self.IDLE):
+        with Condition(self.start[0] == Bits(1)(1)):
+            # Check for special cases
+            div_by_zero = (self.divisor[0] == Bits(32)(0))
+            div_by_one = (self.divisor[0] == Bits(32)(1))
+            
+            with Condition(div_by_zero):
+                # Handle division by zero per RISC-V spec
+                self.state[0] = self.DIV_ERROR
+            with ElseCondition(div_by_one):
+                # Fast path for divisor = 1
+                self.state[0] = self.DIV_1
+            with ElseCondition():
+                # Normal division path
+                self.state[0] = self.DIV_PRE
+                # Convert to unsigned if needed
+                # ...
+    
+    with Condition(self.state[0] == self.DIV_ERROR):
+        # Return RISC-V specified error values
+        quotient_on_div0 = self.is_signed[0].select(
+            Bits(32)(0xFFFFFFFF),  # -1 for signed
+            Bits(32)(0xFFFFFFFF)   # 2^32-1 for unsigned
+        )
+        self.result[0] = self.is_rem[0].select(
+            self.dividend[0],      # Remainder = dividend
+            quotient_on_div0       # Quotient = -1 or 2^32-1
+        )
+        self.ready[0] = Bits(1)(1)
+        self.error[0] = Bits(1)(1)
+        self.state[0] = self.IDLE
+        log("Divider: Division by zero")
+    
+    with Condition(self.state[0] == self.DIV_1):
+        # Fast path: result is dividend (quotient) or 0 (remainder)
+        self.result[0] = self.is_rem[0].select(
+            Bits(32)(0),        # Remainder = 0
+            self.dividend[0]    # Quotient = dividend
+        )
+        self.ready[0] = Bits(1)(1)
+        self.state[0] = self.IDLE
+        log("Divider: Fast path (divisor=1)")
+    
+    with Condition(self.state[0] == self.DIV_PRE):
+        # Preprocessing: normalize divisor, convert to unsigned
+        # Call find_leading_one() to get alignment shift
+        # Initialize partial remainder
+        # ...
+        self.state[0] = self.DIV_WORKING
+    
+    with Condition(self.state[0] == self.DIV_WORKING):
+        # Iterative SRT-4 calculation
+        # Each cycle: select quotient digit q, update partial remainder
+        # Call quotient_select() to determine q
+        # Update Q and QM registers
+        # Decrement counter
+        with Condition(self.div_cnt[0] == Bits(5)(0)):
+            self.state[0] = self.DIV_END
+        # ...
+    
+    with Condition(self.state[0] == self.DIV_END):
+        # Post-processing: adjust remainder if negative, apply sign correction
+        # Check for signed overflow: -2^31 / -1
         min_int = Bits(32)(0x80000000)
         neg_one = Bits(32)(0xFFFFFFFF)
         signed_overflow = (self.is_signed[0] == Bits(1)(1)) & \
                          (self.dividend[0] == min_int) & \
                          (self.divisor[0] == neg_one)
         
-        # Handle special cases
-        with Condition(div_by_zero):
-            # Division by zero
-            quotient_on_div0 = self.is_signed[0].select(
-                Bits(32)(0xFFFFFFFF),  # -1 for signed
-                Bits(32)(0xFFFFFFFF)   # 2^32-1 for unsigned (same value)
-            )
-            result = self.is_rem[0].select(
-                self.dividend[0],      # Remainder = dividend
-                quotient_on_div0       # Quotient = -1 or 2^32-1
-            )
-            self.result[0] = result
-            self.error[0] = Bits(1)(1)
-            self.ready[0] = Bits(1)(1)
-            self.busy[0] = Bits(1)(0)
-            log("Divider: Division by zero detected")
-        
-        with ElseCondition(signed_overflow):
-            # Signed overflow: -2^31 / -1
-            result = self.is_rem[0].select(
+        with Condition(signed_overflow):
+            # Handle signed overflow per RISC-V spec
+            self.result[0] = self.is_rem[0].select(
                 Bits(32)(0),           # Remainder = 0
                 Bits(32)(0x80000000)   # Quotient = -2^31
             )
-            self.result[0] = result
-            self.ready[0] = Bits(1)(1)
-            self.busy[0] = Bits(1)(0)
-            log("Divider: Signed overflow detected")
-        
         with ElseCondition():
-            # Normal division using SRT-4
-            # TODO: Call SRT4 module or implement algorithm
-            pass
+            # Normal result with sign correction
+            # Apply sign based on div_sign register
+            # ...
+        
+        self.ready[0] = Bits(1)(1)
+        self.state[0] = self.IDLE
+        log("Divider: Completed")
 ```
+
+**关键实现细节**：
+
+1. **find_leading_one()**：实现 find_1.v 的前导 1 检测逻辑
+   - 找到除数最高有效位位置
+   - 用于对齐除数，优化迭代次数
+
+2. **quotient_select()**：实现 q_sel.v 的商选择查找表
+   - 根据部分余数高位和除数高位选择 q ∈ {-2, -1, 0, 1, 2}
+   - 使用与 Verilog 实现相同的查找表逻辑
+
+3. **部分余数更新**：每次迭代
+   - 计算：新余数 = (旧余数 << 2) - q × (除数 << div_shift)
+   - 使用 Q 和 QM 寄存器累积商位
 
 ### 4.4 阶段四：集成到 EX 阶段
 
@@ -599,9 +720,10 @@ def test_division_latency():
    - 更新 `instruction_table.py`
    - 更新 `control_signals.py`
 
-2. **Phase 2**：除法器 Python 实现（2 天）
+2. **Phase 2**：除法器 Python/Assassyn 实现（3 天）
    - 创建 `divider.py`
-   - 实现简化版 SRT-4 或使用 Python 除法（功能验证）
+   - 深入理解 SRT4.v 的 FSM 和算法逻辑
+   - 用 Python/Assassyn 实现 SRT-4 算法（find_1, q_sel, 状态机）
    - 特殊情况处理
 
 3. **Phase 3**：EX 阶段集成（1 天）
@@ -617,15 +739,16 @@ def test_division_latency():
    - 编写单元测试
    - 简单集成测试
 
-**MVP 总计**：约 5 天
+**MVP 总计**：约 5.5 天
 
 ### 7.2 完整实现
 
 在 MVP 基础上：
 
-6. **Phase 6**：Verilog 集成（2 天）
-   - 实例化 `SRT4.v` 模块
-   - 如需支持外部模块，可能需要扩展 Assassyn 框架
+6. **Phase 6**：完整 SRT-4 算法优化（1.5 天）
+   - 优化 find_1 和 q_sel 实现
+   - 确保与 Verilog 参考实现的功能等价性
+   - 代码重构与性能优化
 
 7. **Phase 7**：完整测试（2 天）
    - 边界情况测试
@@ -648,14 +771,17 @@ def test_division_latency():
 
 ### 8.1 技术风险
 
-1. **Verilog 集成**：Assassyn 可能不原生支持外部 Verilog 模块
-   - **缓解**：先用 Python 实现功能验证，后续优化性能
+1. **算法复杂度**：SRT-4 算法较为复杂，需要深入理解 Verilog 实现
+   - **缓解**：仔细研究 SRT4.v、find_1.v、q_sel.v 的逻辑，逐步实现和验证
+
+2. **Python/Assassyn 表达能力**：某些硬件逻辑可能难以用高级语言表达
+   - **缓解**：参考 multiplier.py 的实现模式，必要时查阅 Assassyn 文档
 
 2. **停顿信号传播**：流水线停顿可能影响分支预测、旁路等复杂逻辑
    - **缓解**：仔细测试停顿期间的流水线状态
 
-3. **时序问题**：除法器延迟可能影响时钟频率
-   - **缓解**：SRT-4 已经是分级设计，每级逻辑深度较小
+3. **功能等价性验证**：确保 Python 实现与 Verilog 参考实现功能一致
+   - **缓解**：使用相同的测试用例进行交叉验证，逐步对比中间状态
 
 ### 8.2 验证风险
 
