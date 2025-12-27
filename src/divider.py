@@ -388,10 +388,6 @@ class SRT4Divider:
             # Counter counts down from 16 to 1, checking for 0 after decrement
             self.div_cnt[0] = Bits(5)(16)
 
-            # Initialize Q and QM
-            self.Q[0] = Bits(33)(0)
-            self.QM[0] = Bits(33)(0)
-
             # Transition to DIV_WORKING
             self.state[0] = self.DIV_WORKING
 
@@ -597,6 +593,12 @@ class SRT4Divider:
             self.busy[0] = Bits(1)(0)
             self.state[0] = self.IDLE
             log("Divider: Completed, result=0x{:x}", self.result[0])
+
+        # Clear Q and QM when not in DIV_WORKING state (matches Verilog behavior)
+        # This ensures Q and QM are reset between divisions
+        with Condition(self.state[0] != self.DIV_WORKING):
+            self.Q[0] = Bits(33)(0)
+            self.QM[0] = Bits(33)(0)
 
     def get_result_if_ready(self):
         """
