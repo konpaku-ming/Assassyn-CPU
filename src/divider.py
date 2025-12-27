@@ -411,13 +411,14 @@ class SRT4Divider:
             rem_high = self.shift_rem[0][59:64]  # Top 6 bits (bits 59-64)
 
             # Get high 4 bits of shifted divisor
-            # shift_divisor = divisor_r << div_shift
+            # shift_divisor = divisor_r << div_shift (33-bit with zero extension)
             shift_amount = self.div_shift[0][0:4].bitcast(UInt(5))
             # Replace left shift with multiplication: x << n = x * (2^n)
             power = self.power_of_2(shift_amount.bitcast(Bits(5)), 32)
             divisor_shifted = (self.divisor_r[0].bitcast(UInt(32)) * power.bitcast(UInt(32))).bitcast(Bits(32))
-            shift_divisor = concat(divisor_shifted, Bits(1)(0))
-            d_high = shift_divisor[29:32]  # Top 4 bits (bits 29-32 of 33-bit value)
+            # Zero-extend to 33 bits: {1'b0, divisor_shifted[31:0]}
+            shift_divisor = concat(Bits(1)(0), divisor_shifted)
+            d_high = shift_divisor[28:31]  # Top 4 bits (Verilog [31:28] of 33-bit value)
 
             # Select quotient digit
             (q, neg) = self.quotient_select(rem_high, d_high)
@@ -529,7 +530,8 @@ class SRT4Divider:
             # Replace left shift with multiplication: x << n = x * (2^n)
             power = self.power_of_2(shift_amount.bitcast(Bits(5)), 32)
             divisor_shifted = (self.divisor_r[0].bitcast(UInt(32)) * power.bitcast(UInt(32))).bitcast(Bits(32))
-            shift_divisor = concat(divisor_shifted, Bits(1)(0))
+            # Zero-extend to 33 bits: {1'b0, divisor_shifted[31:0]}
+            shift_divisor = concat(Bits(1)(0), divisor_shifted)
 
             with Condition(rem_is_negative == Bits(1)(1)):
                 # Remainder is negative, need to adjust
