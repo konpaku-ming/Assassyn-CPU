@@ -152,6 +152,41 @@ class SRT4Divider:
 
         return pos
 
+    def power_of_2(self, exponent, width):
+        """
+        Compute 2^exponent for a given exponent value.
+        
+        This function computes the power of 2 by iteratively selecting
+        between the current power and double the current power based on
+        each bit of the exponent.
+        
+        Args:
+            exponent: The exponent value (as Bits type)
+            width: The bit width of the result
+            
+        Returns:
+            2^exponent as a Bits value of specified width
+        """
+        # Start with 2^0 = 1
+        result = Bits(width)(1)
+        
+        # For each bit in the exponent, if the bit is set, 
+        # we multiply by the corresponding power of 2
+        # We build this up iteratively: bit 0 -> *2^1, bit 1 -> *2^2, bit 2 -> *2^4, etc.
+        power = Bits(width)(2)  # Start with 2^1
+        
+        # Process each bit of the exponent (assuming max 5 bits for shift amounts)
+        for i in range(5):
+            bit_is_set = exponent[i:i] == Bits(1)(1)
+            result = bit_is_set.select(
+                (result.bitcast(UInt(width)) * power.bitcast(UInt(width))).bitcast(Bits(width)),
+                result
+            )
+            # Double the power for the next bit: 2 -> 4 -> 8 -> 16 -> 32
+            power = (power.bitcast(UInt(width)) * Bits(width)(2)).bitcast(Bits(width))
+        
+        return result
+
     def quotient_select(self, rem_high, d_high):
         """
         Quotient digit selection logic (implements q_sel.v).
@@ -346,12 +381,13 @@ class SRT4Divider:
             # Initialize shift_rem: {33'b0, dividend_r} << (pos_1 + 1)
             # This is a 65-bit value
             dividend_extended = concat(Bits(33)(0), self.dividend_r[0])
-            # Shift left by div_shift amount
+            # Shift left by div_shift amount using multiplication by power of 2
             # For hardware, this would be a barrel shifter
-            # For simulation, we use a simple shift
+            # For simulation, we replace shift with multiplication
             shift_amount = (pos_1 + Bits(5)(1))[0:4].bitcast(UInt(5))
-            # Shift the Bits value directly, not after converting to UInt
-            dividend_shifted = dividend_extended << shift_amount
+            # Replace left shift with multiplication: x << n = x * (2^n)
+            power = self.power_of_2(shift_amount.bitcast(Bits(5)), 65)
+            dividend_shifted = (dividend_extended.bitcast(UInt(65)) * power.bitcast(UInt(65))).bitcast(Bits(65))
             self.shift_rem[0] = dividend_shifted
 
             log("Divider: Preprocessing complete, shift={}, starting iterations", pos_1 + Bits(5)(1))
@@ -364,8 +400,9 @@ class SRT4Divider:
             # Get high 4 bits of shifted divisor
             # shift_divisor = divisor_r << div_shift
             shift_amount = self.div_shift[0][0:4].bitcast(UInt(5))
-            # Shift the Bits value directly (32-bit divisor), then extend to 33 bits
-            divisor_shifted = self.divisor_r[0] << shift_amount
+            # Replace left shift with multiplication: x << n = x * (2^n)
+            power = self.power_of_2(shift_amount.bitcast(Bits(5)), 32)
+            divisor_shifted = (self.divisor_r[0].bitcast(UInt(32)) * power.bitcast(UInt(32))).bitcast(Bits(32))
             shift_divisor = concat(divisor_shifted, Bits(1)(0))
             d_high = shift_divisor[29:32]  # Top 4 bits (bits 29-32 of 33-bit value)
 
@@ -457,8 +494,9 @@ class SRT4Divider:
 
             # Get shifted divisor for adjustment
             shift_amount = self.div_shift[0][0:4].bitcast(UInt(5))
-            # Shift the Bits value directly (32-bit divisor), then extend to 33 bits
-            divisor_shifted = self.divisor_r[0] << shift_amount
+            # Replace left shift with multiplication: x << n = x * (2^n)
+            power = self.power_of_2(shift_amount.bitcast(Bits(5)), 32)
+            divisor_shifted = (self.divisor_r[0].bitcast(UInt(32)) * power.bitcast(UInt(32))).bitcast(Bits(32))
             shift_divisor = concat(divisor_shifted, Bits(1)(0))
 
             with Condition(rem_is_negative == Bits(1)(1)):
