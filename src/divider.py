@@ -128,38 +128,48 @@ class SRT4Divider:
     def find_leading_one(self, d):
         """
         Find position of leading 1 in divisor (implements find_1.v logic).
-        Returns the bit position for normalization.
-        
+        Returns the value needed for normalization shift amount.
+
         This implements the same logic as find_1.v module:
-        - Finds the position of the most significant 1 bit
-        - Used for divisor alignment to minimize iterations
-        
+        - For a divisor with MSB at position P, returns (30 - P)
+        - This allows div_shift = pos_1 + 1 = 31 - P
+        - After shifting by div_shift, the divisor's MSB will be at bit 31
+
+        For example:
+        - divisor = 2 = 0b10, MSB at position 1
+        - Returns 30 - 1 = 29
+        - div_shift = 29 + 1 = 30
+        - 2 << 30 = 0x80000000 (MSB now at bit 31) ✓
+
         Args:
             d: 32-bit divisor
-            
-        Returns:
-            Position of leading 1 (0-31), or 0 if all zeros
-        """
-        # Implementation using priority encoder logic with select chain
-        # Start from position 0 and update if we find a 1 at higher position
-        pos = Bits(5)(0)
 
-        # Check each bit from LSB to MSB, updating pos when we find a 1
+        Returns:
+            Position value for normalization (30 - MSB_position)
+        """
+        # Find the MSB position first
+        msb_pos = Bits(5)(0)
+
+        # Check each bit from LSB to MSB, updating msb_pos when we find a 1
         # This creates a priority encoder where higher bits take precedence
         for i in range(0, 32):
             bit_set = (d[i:i] == Bits(1)(1))
-            pos = bit_set.select(Bits(5)(i), pos)
+            msb_pos = bit_set.select(Bits(5)(i), msb_pos)
 
-        return pos
+        # Return 30 - MSB_position to match Verilog find_1 behavior
+        # This is equivalent to (WID-2) - msb_pos for WID=32
+        pos_1 = (Bits(5)(30).bitcast(UInt(5)) - msb_pos.bitcast(UInt(5))).bitcast(Bits(5))
+
+        return pos_1
 
     def power_of_2(self, exponent, width):
         """
         Compute 2^exponent for a given exponent value.
-        
+
         This function computes the power of 2 by iteratively selecting
         between the current result and result * power based on
         each bit of the exponent.
-        
+
         The algorithm works by representing the exponent in binary:
         - If bit i of exponent is set, multiply result by 2^(2^i)
         - bit 0 -> multiply by 2^1 = 2
@@ -167,21 +177,21 @@ class SRT4Divider:
         - bit 2 -> multiply by 2^4 = 16
         - bit 3 -> multiply by 2^8 = 256
         - bit 4 -> multiply by 2^16 = 65536
-        
+
         Args:
             exponent: The exponent value (as Bits type)
             width: The bit width of the result
-            
+
         Returns:
             2^exponent as a Bits value of specified width
         """
         # Start with 2^0 = 1
         result = Bits(width)(1)
-        
-        # For each bit in the exponent, if the bit is set, 
+
+        # For each bit in the exponent, if the bit is set,
         # we multiply by the corresponding power of 2
         power = Bits(width)(2)  # Start with 2^(2^0) = 2^1 = 2
-        
+
         # Process each bit of the exponent (assuming max 5 bits for shift amounts 0-31)
         for i in range(5):
             bit_is_set = exponent[i:i] == Bits(1)(1)
@@ -191,20 +201,20 @@ class SRT4Divider:
             )
             # Square the power for the next bit: 2 -> 4 -> 16 -> 256 -> 65536
             power = (power.bitcast(UInt(width)) * power.bitcast(UInt(width))).bitcast(Bits(width))
-        
+
         return result
 
     def quotient_select(self, rem_high, d_high):
         """
         Quotient digit selection logic (implements q_sel.v).
-        
+
         Based on the high bits of partial remainder and divisor, select
         the next quotient digit q ∈ {-2, -1, 0, 1, 2}.
-        
+
         Args:
             rem_high: High 6 bits of partial remainder (bits [64:59] of shift_rem)
             d_high: High 4 bits of normalized divisor (bits [32:29] of divisor_r << div_shift)
-        
+
         Returns:
             (q, neg): quotient digit (0, 1, 2) and sign flag
             If neg=1, q should be negated: actual q = -q
@@ -279,7 +289,7 @@ class SRT4Divider:
         """
         Execute one cycle of the SRT-4 state machine.
         Should be called every clock cycle.
-        
+
         This implements the main FSM from SRT4.v, including:
         - IDLE: Wait for valid signal, detect special cases
         - DIV_PRE: Preprocessing (convert to unsigned, find alignment)
