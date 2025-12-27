@@ -21,12 +21,12 @@
 @line:285   Cycle @4.00: [Executor]	EX: RS2 source: No Bypass
 @line:392   Cycle @4.00: [Executor]	EX: ALU Op1 source: ZERO (0x0)
 @line:443   Cycle @4.00: [Executor]	EX: ALU Op2 source: IMM (0x376000)
-@line:4247  Cycle @4.00: [Executor]	EX: ALU Operation: ADD
-@line:4581  Cycle @4.00: [Executor]	EX: Bypass Update: 0x376000
-@line:4591  Cycle @4.00: [Executor]	EX: ALU Result: 0x376000
-@line:4659  Cycle @4.00: [Executor]	EX: Branch Immediate: 0x376000
-@line:4663  Cycle @4.00: [Executor]	EX: Branch Target Base: 0x0
-@line:4832  Cycle @4.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:4282  Cycle @4.00: [Executor]	EX: ALU Operation: ADD
+@line:4616  Cycle @4.00: [Executor]	EX: Bypass Update: 0x376000
+@line:4626  Cycle @4.00: [Executor]	EX: ALU Result: 0x376000
+@line:4694  Cycle @4.00: [Executor]	EX: Branch Immediate: 0x376000
+@line:4698  Cycle @4.00: [Executor]	EX: Branch Target Base: 0x0
+@line:4867  Cycle @4.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:159   Cycle @4.00: [DataHazardUnit]	Input Signals: rs1_idx=10 rs2_idx=0 rs1_used=1 rs2_used=0 ex_rd=10 ex_is_load=0 ex_mul_busy=0 ex_div_busy=0 mem_rd=0 wb_rd=0
 @line:283   Cycle @4.00: [DataHazardUnit]	DataHazardUnit: rs1_sel=2 rs2_sel=1 stall_if=0 mul_busy_hazard=0 div_busy_hazard=0
 @line:64    Cycle @4.00: [Fetcher_Impl]	IF: Final Current PC=0x8
@@ -43,12 +43,12 @@
 @line:285   Cycle @5.00: [Executor]	EX: RS2 source: No Bypass
 @line:364   Cycle @5.00: [Executor]	EX: ALU Op1 source: RS1 (0x376000)
 @line:443   Cycle @5.00: [Executor]	EX: ALU Op2 source: IMM (0xffffff00)
-@line:4247  Cycle @5.00: [Executor]	EX: ALU Operation: ADD
-@line:4581  Cycle @5.00: [Executor]	EX: Bypass Update: 0x375f00
-@line:4591  Cycle @5.00: [Executor]	EX: ALU Result: 0x375f00
-@line:4659  Cycle @5.00: [Executor]	EX: Branch Immediate: 0xffffff00
-@line:4663  Cycle @5.00: [Executor]	EX: Branch Target Base: 0x4
-@line:4832  Cycle @5.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:4282  Cycle @5.00: [Executor]	EX: ALU Operation: ADD
+@line:4616  Cycle @5.00: [Executor]	EX: Bypass Update: 0x375f00
+@line:4626  Cycle @5.00: [Executor]	EX: ALU Result: 0x375f00
+@line:4694  Cycle @5.00: [Executor]	EX: Branch Immediate: 0xffffff00
+@line:4698  Cycle @5.00: [Executor]	EX: Branch Target Base: 0x4
+@line:4867  Cycle @5.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @5.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @5.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @5.00: [MEM]	MEM: SIGNED.
@@ -69,12 +69,12 @@
 @line:285   Cycle @6.00: [Executor]	EX: RS2 source: No Bypass
 @line:364   Cycle @6.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @6.00: [Executor]	EX: ALU Op2 source: IMM (0x2)
-@line:4247  Cycle @6.00: [Executor]	EX: ALU Operation: ADD
-@line:4581  Cycle @6.00: [Executor]	EX: Bypass Update: 0x2
-@line:4591  Cycle @6.00: [Executor]	EX: ALU Result: 0x2
-@line:4659  Cycle @6.00: [Executor]	EX: Branch Immediate: 0x2
-@line:4663  Cycle @6.00: [Executor]	EX: Branch Target Base: 0x8
-@line:4832  Cycle @6.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:4282  Cycle @6.00: [Executor]	EX: ALU Operation: ADD
+@line:4616  Cycle @6.00: [Executor]	EX: Bypass Update: 0x2
+@line:4626  Cycle @6.00: [Executor]	EX: ALU Result: 0x2
+@line:4694  Cycle @6.00: [Executor]	EX: Branch Immediate: 0x2
+@line:4698  Cycle @6.00: [Executor]	EX: Branch Target Base: 0x8
+@line:4867  Cycle @6.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @6.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @6.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @6.00: [MEM]	MEM: SIGNED.
@@ -101,13 +101,13 @@
 @line:1151  Cycle @7.00: [Executor]	EX: Starting ~18-cycle division (SRT-4)
 @line:1154  Cycle @7.00: [Executor]	EX:   Op1=0x375f00 (signed=1), Op2=0x2 (signed=1), is_rem=0
 @line:1172  Cycle @7.00: [Executor]	EX:   Saved pending DIV rd=x10
-@line:4487  Cycle @7.00: [Executor]	EX: ALU Operation: DIV
-@line:4587  Cycle @7.00: [Executor]	EX: Bypass Update skipped for MUL/DIV (result not ready)
-@line:4591  Cycle @7.00: [Executor]	EX: ALU Result: 0x0
-@line:4659  Cycle @7.00: [Executor]	EX: Branch Immediate: 0x0
-@line:4663  Cycle @7.00: [Executor]	EX: Branch Target Base: 0xc
-@line:4832  Cycle @7.00: [Executor]	EX: Branch Type: NO_BRANCH
-@line:5231  Cycle @7.00: [Executor]	EX: Current MUL/DIV not ready, sending NOP to MEM
+@line:4522  Cycle @7.00: [Executor]	EX: ALU Operation: DIV
+@line:4622  Cycle @7.00: [Executor]	EX: Bypass Update skipped for MUL/DIV (result not ready)
+@line:4626  Cycle @7.00: [Executor]	EX: ALU Result: 0x0
+@line:4694  Cycle @7.00: [Executor]	EX: Branch Immediate: 0x0
+@line:4698  Cycle @7.00: [Executor]	EX: Branch Target Base: 0xc
+@line:4867  Cycle @7.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:5266  Cycle @7.00: [Executor]	EX: Current MUL/DIV not ready, sending NOP to MEM
 @line:55    Cycle @7.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @7.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @7.00: [MEM]	MEM: SIGNED.
@@ -133,12 +133,12 @@
 @line:364   Cycle @8.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @8.00: [Executor]	EX: ALU Op2 source: IMM (0x1)
 @line:1363  Cycle @8.00: [Executor]	Divider: Starting normal division (DIV_PRE)
-@line:4412  Cycle @8.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:4581  Cycle @8.00: [Executor]	EX: Bypass Update: 0x1
-@line:4591  Cycle @8.00: [Executor]	EX: ALU Result: 0x1
-@line:4659  Cycle @8.00: [Executor]	EX: Branch Immediate: 0x1
-@line:4663  Cycle @8.00: [Executor]	EX: Branch Target Base: 0x10
-@line:4832  Cycle @8.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:4447  Cycle @8.00: [Executor]	EX: ALU Operation: NOP or Reserved
+@line:4616  Cycle @8.00: [Executor]	EX: Bypass Update: 0x1
+@line:4626  Cycle @8.00: [Executor]	EX: ALU Result: 0x1
+@line:4694  Cycle @8.00: [Executor]	EX: Branch Immediate: 0x1
+@line:4698  Cycle @8.00: [Executor]	EX: Branch Target Base: 0x10
+@line:4867  Cycle @8.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @8.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @8.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @8.00: [MEM]	MEM: SIGNED.
@@ -163,13 +163,13 @@
 @line:285   Cycle @9.00: [Executor]	EX: RS2 source: No Bypass
 @line:364   Cycle @9.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @9.00: [Executor]	EX: ALU Op2 source: IMM (0x1)
-@line:2240  Cycle @9.00: [Executor]	Divider: Preprocessing complete, shift=30, starting iterations
-@line:4412  Cycle @9.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:4581  Cycle @9.00: [Executor]	EX: Bypass Update: 0x1
-@line:4591  Cycle @9.00: [Executor]	EX: ALU Result: 0x1
-@line:4659  Cycle @9.00: [Executor]	EX: Branch Immediate: 0x1
-@line:4663  Cycle @9.00: [Executor]	EX: Branch Target Base: 0x10
-@line:4832  Cycle @9.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:2228  Cycle @9.00: [Executor]	Divider: Preprocessing complete, shift=30, starting iterations
+@line:4447  Cycle @9.00: [Executor]	EX: ALU Operation: NOP or Reserved
+@line:4616  Cycle @9.00: [Executor]	EX: Bypass Update: 0x1
+@line:4626  Cycle @9.00: [Executor]	EX: ALU Result: 0x1
+@line:4694  Cycle @9.00: [Executor]	EX: Branch Immediate: 0x1
+@line:4698  Cycle @9.00: [Executor]	EX: Branch Target Base: 0x10
+@line:4867  Cycle @9.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @9.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @9.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @9.00: [MEM]	MEM: SIGNED.
@@ -193,12 +193,12 @@
 @line:285   Cycle @10.00: [Executor]	EX: RS2 source: No Bypass
 @line:364   Cycle @10.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @10.00: [Executor]	EX: ALU Op2 source: IMM (0x1)
-@line:4412  Cycle @10.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:4581  Cycle @10.00: [Executor]	EX: Bypass Update: 0x1
-@line:4591  Cycle @10.00: [Executor]	EX: ALU Result: 0x1
-@line:4659  Cycle @10.00: [Executor]	EX: Branch Immediate: 0x1
-@line:4663  Cycle @10.00: [Executor]	EX: Branch Target Base: 0x10
-@line:4832  Cycle @10.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:4447  Cycle @10.00: [Executor]	EX: ALU Operation: NOP or Reserved
+@line:4616  Cycle @10.00: [Executor]	EX: Bypass Update: 0x1
+@line:4626  Cycle @10.00: [Executor]	EX: ALU Result: 0x1
+@line:4694  Cycle @10.00: [Executor]	EX: Branch Immediate: 0x1
+@line:4698  Cycle @10.00: [Executor]	EX: Branch Target Base: 0x10
+@line:4867  Cycle @10.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @10.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @10.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @10.00: [MEM]	MEM: SIGNED.
@@ -222,12 +222,12 @@
 @line:285   Cycle @11.00: [Executor]	EX: RS2 source: No Bypass
 @line:364   Cycle @11.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @11.00: [Executor]	EX: ALU Op2 source: IMM (0x1)
-@line:4412  Cycle @11.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:4581  Cycle @11.00: [Executor]	EX: Bypass Update: 0x1
-@line:4591  Cycle @11.00: [Executor]	EX: ALU Result: 0x1
-@line:4659  Cycle @11.00: [Executor]	EX: Branch Immediate: 0x1
-@line:4663  Cycle @11.00: [Executor]	EX: Branch Target Base: 0x10
-@line:4832  Cycle @11.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:4447  Cycle @11.00: [Executor]	EX: ALU Operation: NOP or Reserved
+@line:4616  Cycle @11.00: [Executor]	EX: Bypass Update: 0x1
+@line:4626  Cycle @11.00: [Executor]	EX: ALU Result: 0x1
+@line:4694  Cycle @11.00: [Executor]	EX: Branch Immediate: 0x1
+@line:4698  Cycle @11.00: [Executor]	EX: Branch Target Base: 0x10
+@line:4867  Cycle @11.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @11.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @11.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @11.00: [MEM]	MEM: SIGNED.
@@ -251,12 +251,12 @@
 @line:285   Cycle @12.00: [Executor]	EX: RS2 source: No Bypass
 @line:364   Cycle @12.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @12.00: [Executor]	EX: ALU Op2 source: IMM (0x1)
-@line:4412  Cycle @12.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:4581  Cycle @12.00: [Executor]	EX: Bypass Update: 0x1
-@line:4591  Cycle @12.00: [Executor]	EX: ALU Result: 0x1
-@line:4659  Cycle @12.00: [Executor]	EX: Branch Immediate: 0x1
-@line:4663  Cycle @12.00: [Executor]	EX: Branch Target Base: 0x10
-@line:4832  Cycle @12.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:4447  Cycle @12.00: [Executor]	EX: ALU Operation: NOP or Reserved
+@line:4616  Cycle @12.00: [Executor]	EX: Bypass Update: 0x1
+@line:4626  Cycle @12.00: [Executor]	EX: ALU Result: 0x1
+@line:4694  Cycle @12.00: [Executor]	EX: Branch Immediate: 0x1
+@line:4698  Cycle @12.00: [Executor]	EX: Branch Target Base: 0x10
+@line:4867  Cycle @12.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @12.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @12.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @12.00: [MEM]	MEM: SIGNED.
@@ -280,12 +280,12 @@
 @line:285   Cycle @13.00: [Executor]	EX: RS2 source: No Bypass
 @line:364   Cycle @13.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @13.00: [Executor]	EX: ALU Op2 source: IMM (0x1)
-@line:4412  Cycle @13.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:4581  Cycle @13.00: [Executor]	EX: Bypass Update: 0x1
-@line:4591  Cycle @13.00: [Executor]	EX: ALU Result: 0x1
-@line:4659  Cycle @13.00: [Executor]	EX: Branch Immediate: 0x1
-@line:4663  Cycle @13.00: [Executor]	EX: Branch Target Base: 0x10
-@line:4832  Cycle @13.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:4447  Cycle @13.00: [Executor]	EX: ALU Operation: NOP or Reserved
+@line:4616  Cycle @13.00: [Executor]	EX: Bypass Update: 0x1
+@line:4626  Cycle @13.00: [Executor]	EX: ALU Result: 0x1
+@line:4694  Cycle @13.00: [Executor]	EX: Branch Immediate: 0x1
+@line:4698  Cycle @13.00: [Executor]	EX: Branch Target Base: 0x10
+@line:4867  Cycle @13.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @13.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @13.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @13.00: [MEM]	MEM: SIGNED.
@@ -309,12 +309,12 @@
 @line:285   Cycle @14.00: [Executor]	EX: RS2 source: No Bypass
 @line:364   Cycle @14.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @14.00: [Executor]	EX: ALU Op2 source: IMM (0x1)
-@line:4412  Cycle @14.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:4581  Cycle @14.00: [Executor]	EX: Bypass Update: 0x1
-@line:4591  Cycle @14.00: [Executor]	EX: ALU Result: 0x1
-@line:4659  Cycle @14.00: [Executor]	EX: Branch Immediate: 0x1
-@line:4663  Cycle @14.00: [Executor]	EX: Branch Target Base: 0x10
-@line:4832  Cycle @14.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:4447  Cycle @14.00: [Executor]	EX: ALU Operation: NOP or Reserved
+@line:4616  Cycle @14.00: [Executor]	EX: Bypass Update: 0x1
+@line:4626  Cycle @14.00: [Executor]	EX: ALU Result: 0x1
+@line:4694  Cycle @14.00: [Executor]	EX: Branch Immediate: 0x1
+@line:4698  Cycle @14.00: [Executor]	EX: Branch Target Base: 0x10
+@line:4867  Cycle @14.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @14.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @14.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @14.00: [MEM]	MEM: SIGNED.
@@ -338,12 +338,12 @@
 @line:285   Cycle @15.00: [Executor]	EX: RS2 source: No Bypass
 @line:364   Cycle @15.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @15.00: [Executor]	EX: ALU Op2 source: IMM (0x1)
-@line:4412  Cycle @15.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:4581  Cycle @15.00: [Executor]	EX: Bypass Update: 0x1
-@line:4591  Cycle @15.00: [Executor]	EX: ALU Result: 0x1
-@line:4659  Cycle @15.00: [Executor]	EX: Branch Immediate: 0x1
-@line:4663  Cycle @15.00: [Executor]	EX: Branch Target Base: 0x10
-@line:4832  Cycle @15.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:4447  Cycle @15.00: [Executor]	EX: ALU Operation: NOP or Reserved
+@line:4616  Cycle @15.00: [Executor]	EX: Bypass Update: 0x1
+@line:4626  Cycle @15.00: [Executor]	EX: ALU Result: 0x1
+@line:4694  Cycle @15.00: [Executor]	EX: Branch Immediate: 0x1
+@line:4698  Cycle @15.00: [Executor]	EX: Branch Target Base: 0x10
+@line:4867  Cycle @15.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @15.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @15.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @15.00: [MEM]	MEM: SIGNED.
@@ -367,12 +367,12 @@
 @line:285   Cycle @16.00: [Executor]	EX: RS2 source: No Bypass
 @line:364   Cycle @16.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @16.00: [Executor]	EX: ALU Op2 source: IMM (0x1)
-@line:4412  Cycle @16.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:4581  Cycle @16.00: [Executor]	EX: Bypass Update: 0x1
-@line:4591  Cycle @16.00: [Executor]	EX: ALU Result: 0x1
-@line:4659  Cycle @16.00: [Executor]	EX: Branch Immediate: 0x1
-@line:4663  Cycle @16.00: [Executor]	EX: Branch Target Base: 0x10
-@line:4832  Cycle @16.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:4447  Cycle @16.00: [Executor]	EX: ALU Operation: NOP or Reserved
+@line:4616  Cycle @16.00: [Executor]	EX: Bypass Update: 0x1
+@line:4626  Cycle @16.00: [Executor]	EX: ALU Result: 0x1
+@line:4694  Cycle @16.00: [Executor]	EX: Branch Immediate: 0x1
+@line:4698  Cycle @16.00: [Executor]	EX: Branch Target Base: 0x10
+@line:4867  Cycle @16.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @16.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @16.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @16.00: [MEM]	MEM: SIGNED.
@@ -396,12 +396,12 @@
 @line:285   Cycle @17.00: [Executor]	EX: RS2 source: No Bypass
 @line:364   Cycle @17.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @17.00: [Executor]	EX: ALU Op2 source: IMM (0x1)
-@line:4412  Cycle @17.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:4581  Cycle @17.00: [Executor]	EX: Bypass Update: 0x1
-@line:4591  Cycle @17.00: [Executor]	EX: ALU Result: 0x1
-@line:4659  Cycle @17.00: [Executor]	EX: Branch Immediate: 0x1
-@line:4663  Cycle @17.00: [Executor]	EX: Branch Target Base: 0x10
-@line:4832  Cycle @17.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:4447  Cycle @17.00: [Executor]	EX: ALU Operation: NOP or Reserved
+@line:4616  Cycle @17.00: [Executor]	EX: Bypass Update: 0x1
+@line:4626  Cycle @17.00: [Executor]	EX: ALU Result: 0x1
+@line:4694  Cycle @17.00: [Executor]	EX: Branch Immediate: 0x1
+@line:4698  Cycle @17.00: [Executor]	EX: Branch Target Base: 0x10
+@line:4867  Cycle @17.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @17.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @17.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @17.00: [MEM]	MEM: SIGNED.
@@ -425,12 +425,12 @@
 @line:285   Cycle @18.00: [Executor]	EX: RS2 source: No Bypass
 @line:364   Cycle @18.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @18.00: [Executor]	EX: ALU Op2 source: IMM (0x1)
-@line:4412  Cycle @18.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:4581  Cycle @18.00: [Executor]	EX: Bypass Update: 0x1
-@line:4591  Cycle @18.00: [Executor]	EX: ALU Result: 0x1
-@line:4659  Cycle @18.00: [Executor]	EX: Branch Immediate: 0x1
-@line:4663  Cycle @18.00: [Executor]	EX: Branch Target Base: 0x10
-@line:4832  Cycle @18.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:4447  Cycle @18.00: [Executor]	EX: ALU Operation: NOP or Reserved
+@line:4616  Cycle @18.00: [Executor]	EX: Bypass Update: 0x1
+@line:4626  Cycle @18.00: [Executor]	EX: ALU Result: 0x1
+@line:4694  Cycle @18.00: [Executor]	EX: Branch Immediate: 0x1
+@line:4698  Cycle @18.00: [Executor]	EX: Branch Target Base: 0x10
+@line:4867  Cycle @18.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @18.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @18.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @18.00: [MEM]	MEM: SIGNED.
@@ -454,12 +454,12 @@
 @line:285   Cycle @19.00: [Executor]	EX: RS2 source: No Bypass
 @line:364   Cycle @19.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @19.00: [Executor]	EX: ALU Op2 source: IMM (0x1)
-@line:4412  Cycle @19.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:4581  Cycle @19.00: [Executor]	EX: Bypass Update: 0x1
-@line:4591  Cycle @19.00: [Executor]	EX: ALU Result: 0x1
-@line:4659  Cycle @19.00: [Executor]	EX: Branch Immediate: 0x1
-@line:4663  Cycle @19.00: [Executor]	EX: Branch Target Base: 0x10
-@line:4832  Cycle @19.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:4447  Cycle @19.00: [Executor]	EX: ALU Operation: NOP or Reserved
+@line:4616  Cycle @19.00: [Executor]	EX: Bypass Update: 0x1
+@line:4626  Cycle @19.00: [Executor]	EX: ALU Result: 0x1
+@line:4694  Cycle @19.00: [Executor]	EX: Branch Immediate: 0x1
+@line:4698  Cycle @19.00: [Executor]	EX: Branch Target Base: 0x10
+@line:4867  Cycle @19.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @19.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @19.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @19.00: [MEM]	MEM: SIGNED.
@@ -483,12 +483,12 @@
 @line:285   Cycle @20.00: [Executor]	EX: RS2 source: No Bypass
 @line:364   Cycle @20.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @20.00: [Executor]	EX: ALU Op2 source: IMM (0x1)
-@line:4412  Cycle @20.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:4581  Cycle @20.00: [Executor]	EX: Bypass Update: 0x1
-@line:4591  Cycle @20.00: [Executor]	EX: ALU Result: 0x1
-@line:4659  Cycle @20.00: [Executor]	EX: Branch Immediate: 0x1
-@line:4663  Cycle @20.00: [Executor]	EX: Branch Target Base: 0x10
-@line:4832  Cycle @20.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:4447  Cycle @20.00: [Executor]	EX: ALU Operation: NOP or Reserved
+@line:4616  Cycle @20.00: [Executor]	EX: Bypass Update: 0x1
+@line:4626  Cycle @20.00: [Executor]	EX: ALU Result: 0x1
+@line:4694  Cycle @20.00: [Executor]	EX: Branch Immediate: 0x1
+@line:4698  Cycle @20.00: [Executor]	EX: Branch Target Base: 0x10
+@line:4867  Cycle @20.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @20.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @20.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @20.00: [MEM]	MEM: SIGNED.
@@ -512,12 +512,12 @@
 @line:285   Cycle @21.00: [Executor]	EX: RS2 source: No Bypass
 @line:364   Cycle @21.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @21.00: [Executor]	EX: ALU Op2 source: IMM (0x1)
-@line:4412  Cycle @21.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:4581  Cycle @21.00: [Executor]	EX: Bypass Update: 0x1
-@line:4591  Cycle @21.00: [Executor]	EX: ALU Result: 0x1
-@line:4659  Cycle @21.00: [Executor]	EX: Branch Immediate: 0x1
-@line:4663  Cycle @21.00: [Executor]	EX: Branch Target Base: 0x10
-@line:4832  Cycle @21.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:4447  Cycle @21.00: [Executor]	EX: ALU Operation: NOP or Reserved
+@line:4616  Cycle @21.00: [Executor]	EX: Bypass Update: 0x1
+@line:4626  Cycle @21.00: [Executor]	EX: ALU Result: 0x1
+@line:4694  Cycle @21.00: [Executor]	EX: Branch Immediate: 0x1
+@line:4698  Cycle @21.00: [Executor]	EX: Branch Target Base: 0x10
+@line:4867  Cycle @21.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @21.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @21.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @21.00: [MEM]	MEM: SIGNED.
@@ -541,12 +541,12 @@
 @line:285   Cycle @22.00: [Executor]	EX: RS2 source: No Bypass
 @line:364   Cycle @22.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @22.00: [Executor]	EX: ALU Op2 source: IMM (0x1)
-@line:4412  Cycle @22.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:4581  Cycle @22.00: [Executor]	EX: Bypass Update: 0x1
-@line:4591  Cycle @22.00: [Executor]	EX: ALU Result: 0x1
-@line:4659  Cycle @22.00: [Executor]	EX: Branch Immediate: 0x1
-@line:4663  Cycle @22.00: [Executor]	EX: Branch Target Base: 0x10
-@line:4832  Cycle @22.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:4447  Cycle @22.00: [Executor]	EX: ALU Operation: NOP or Reserved
+@line:4616  Cycle @22.00: [Executor]	EX: Bypass Update: 0x1
+@line:4626  Cycle @22.00: [Executor]	EX: ALU Result: 0x1
+@line:4694  Cycle @22.00: [Executor]	EX: Branch Immediate: 0x1
+@line:4698  Cycle @22.00: [Executor]	EX: Branch Target Base: 0x10
+@line:4867  Cycle @22.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @22.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @22.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @22.00: [MEM]	MEM: SIGNED.
@@ -570,12 +570,12 @@
 @line:285   Cycle @23.00: [Executor]	EX: RS2 source: No Bypass
 @line:364   Cycle @23.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @23.00: [Executor]	EX: ALU Op2 source: IMM (0x1)
-@line:4412  Cycle @23.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:4581  Cycle @23.00: [Executor]	EX: Bypass Update: 0x1
-@line:4591  Cycle @23.00: [Executor]	EX: ALU Result: 0x1
-@line:4659  Cycle @23.00: [Executor]	EX: Branch Immediate: 0x1
-@line:4663  Cycle @23.00: [Executor]	EX: Branch Target Base: 0x10
-@line:4832  Cycle @23.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:4447  Cycle @23.00: [Executor]	EX: ALU Operation: NOP or Reserved
+@line:4616  Cycle @23.00: [Executor]	EX: Bypass Update: 0x1
+@line:4626  Cycle @23.00: [Executor]	EX: ALU Result: 0x1
+@line:4694  Cycle @23.00: [Executor]	EX: Branch Immediate: 0x1
+@line:4698  Cycle @23.00: [Executor]	EX: Branch Target Base: 0x10
+@line:4867  Cycle @23.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @23.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @23.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @23.00: [MEM]	MEM: SIGNED.
@@ -599,12 +599,12 @@
 @line:285   Cycle @24.00: [Executor]	EX: RS2 source: No Bypass
 @line:364   Cycle @24.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @24.00: [Executor]	EX: ALU Op2 source: IMM (0x1)
-@line:4412  Cycle @24.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:4581  Cycle @24.00: [Executor]	EX: Bypass Update: 0x1
-@line:4591  Cycle @24.00: [Executor]	EX: ALU Result: 0x1
-@line:4659  Cycle @24.00: [Executor]	EX: Branch Immediate: 0x1
-@line:4663  Cycle @24.00: [Executor]	EX: Branch Target Base: 0x10
-@line:4832  Cycle @24.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:4447  Cycle @24.00: [Executor]	EX: ALU Operation: NOP or Reserved
+@line:4616  Cycle @24.00: [Executor]	EX: Bypass Update: 0x1
+@line:4626  Cycle @24.00: [Executor]	EX: ALU Result: 0x1
+@line:4694  Cycle @24.00: [Executor]	EX: Branch Immediate: 0x1
+@line:4698  Cycle @24.00: [Executor]	EX: Branch Target Base: 0x10
+@line:4867  Cycle @24.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @24.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @24.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @24.00: [MEM]	MEM: SIGNED.
@@ -628,12 +628,12 @@
 @line:285   Cycle @25.00: [Executor]	EX: RS2 source: No Bypass
 @line:364   Cycle @25.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @25.00: [Executor]	EX: ALU Op2 source: IMM (0x1)
-@line:4412  Cycle @25.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:4581  Cycle @25.00: [Executor]	EX: Bypass Update: 0x1
-@line:4591  Cycle @25.00: [Executor]	EX: ALU Result: 0x1
-@line:4659  Cycle @25.00: [Executor]	EX: Branch Immediate: 0x1
-@line:4663  Cycle @25.00: [Executor]	EX: Branch Target Base: 0x10
-@line:4832  Cycle @25.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:4447  Cycle @25.00: [Executor]	EX: ALU Operation: NOP or Reserved
+@line:4616  Cycle @25.00: [Executor]	EX: Bypass Update: 0x1
+@line:4626  Cycle @25.00: [Executor]	EX: ALU Result: 0x1
+@line:4694  Cycle @25.00: [Executor]	EX: Branch Immediate: 0x1
+@line:4698  Cycle @25.00: [Executor]	EX: Branch Target Base: 0x10
+@line:4867  Cycle @25.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @25.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @25.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @25.00: [MEM]	MEM: SIGNED.
@@ -657,13 +657,13 @@
 @line:285   Cycle @26.00: [Executor]	EX: RS2 source: No Bypass
 @line:364   Cycle @26.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @26.00: [Executor]	EX: ALU Op2 source: IMM (0x1)
-@line:3617  Cycle @26.00: [Executor]	Divider: Iterations complete, entering post-processing
-@line:4412  Cycle @26.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:4581  Cycle @26.00: [Executor]	EX: Bypass Update: 0x1
-@line:4591  Cycle @26.00: [Executor]	EX: ALU Result: 0x1
-@line:4659  Cycle @26.00: [Executor]	EX: Branch Immediate: 0x1
-@line:4663  Cycle @26.00: [Executor]	EX: Branch Target Base: 0x10
-@line:4832  Cycle @26.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:3635  Cycle @26.00: [Executor]	Divider: Iterations complete, entering post-processing
+@line:4447  Cycle @26.00: [Executor]	EX: ALU Operation: NOP or Reserved
+@line:4616  Cycle @26.00: [Executor]	EX: Bypass Update: 0x1
+@line:4626  Cycle @26.00: [Executor]	EX: ALU Result: 0x1
+@line:4694  Cycle @26.00: [Executor]	EX: Branch Immediate: 0x1
+@line:4698  Cycle @26.00: [Executor]	EX: Branch Target Base: 0x10
+@line:4867  Cycle @26.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @26.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @26.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @26.00: [MEM]	MEM: SIGNED.
@@ -687,17 +687,17 @@
 @line:285   Cycle @27.00: [Executor]	EX: RS2 source: No Bypass
 @line:364   Cycle @27.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @27.00: [Executor]	EX: ALU Op2 source: IMM (0x1)
-@line:3637  Cycle @27.00: [Executor]	Divider: DIV_END - Q=0x0, QM=0x1ffffffff, shift_rem[32:64]=0xdd7c0
-@line:3894  Cycle @27.00: [Executor]	Divider: Remainder was positive, fin_q=0x0
-@line:3937  Cycle @27.00: [Executor]	Divider: div_sign=0x0, q_needs_neg=0, fin_q[0:31]=0x0, fin_rem_shifted[0:31]=0x0
-@line:4058  Cycle @27.00: [Executor]	Divider: q_signed=0x0, rem_signed=0x0, is_rem=0
-@line:4100  Cycle @27.00: [Executor]	Divider: Completed, result=0x0
-@line:4412  Cycle @27.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:4581  Cycle @27.00: [Executor]	EX: Bypass Update: 0x1
-@line:4591  Cycle @27.00: [Executor]	EX: ALU Result: 0x1
-@line:4659  Cycle @27.00: [Executor]	EX: Branch Immediate: 0x1
-@line:4663  Cycle @27.00: [Executor]	EX: Branch Target Base: 0x10
-@line:4832  Cycle @27.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:3655  Cycle @27.00: [Executor]	Divider: DIV_END - Q=0xffffe00, QM=0xfffffff, shift_rem[32:64]=0x0
+@line:3912  Cycle @27.00: [Executor]	Divider: Remainder was positive, fin_q=0x0
+@line:3955  Cycle @27.00: [Executor]	Divider: div_sign=0x0, q_needs_neg=0, fin_q[0:31]=0x0, fin_rem_shifted[0:31]=0x0
+@line:4076  Cycle @27.00: [Executor]	Divider: q_signed=0x0, rem_signed=0x0, is_rem=0
+@line:4118  Cycle @27.00: [Executor]	Divider: Completed, result=0x0
+@line:4447  Cycle @27.00: [Executor]	EX: ALU Operation: NOP or Reserved
+@line:4616  Cycle @27.00: [Executor]	EX: Bypass Update: 0x1
+@line:4626  Cycle @27.00: [Executor]	EX: ALU Result: 0x1
+@line:4694  Cycle @27.00: [Executor]	EX: Branch Immediate: 0x1
+@line:4698  Cycle @27.00: [Executor]	EX: Branch Target Base: 0x10
+@line:4867  Cycle @27.00: [Executor]	EX: Branch Type: NO_BRANCH
 @line:55    Cycle @27.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @27.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @27.00: [MEM]	MEM: SIGNED.
@@ -721,14 +721,14 @@
 @line:285   Cycle @28.00: [Executor]	EX: RS2 source: No Bypass
 @line:364   Cycle @28.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @28.00: [Executor]	EX: ALU Op2 source: IMM (0x1)
-@line:4115  Cycle @28.00: [Executor]	EX: SRT-4 divider result ready: 0x0, error=0
-@line:4412  Cycle @28.00: [Executor]	EX: ALU Operation: NOP or Reserved
-@line:4581  Cycle @28.00: [Executor]	EX: Bypass Update: 0x0
-@line:4591  Cycle @28.00: [Executor]	EX: ALU Result: 0x1
-@line:4659  Cycle @28.00: [Executor]	EX: Branch Immediate: 0x1
-@line:4663  Cycle @28.00: [Executor]	EX: Branch Target Base: 0x10
-@line:4832  Cycle @28.00: [Executor]	EX: Branch Type: NO_BRANCH
-@line:5211  Cycle @28.00: [Executor]	EX: Injecting pending DIV result to MEM (rd=x10, result=0x0)
+@line:4150  Cycle @28.00: [Executor]	EX: SRT-4 divider result ready: 0x0, error=0
+@line:4447  Cycle @28.00: [Executor]	EX: ALU Operation: NOP or Reserved
+@line:4616  Cycle @28.00: [Executor]	EX: Bypass Update: 0x0
+@line:4626  Cycle @28.00: [Executor]	EX: ALU Result: 0x1
+@line:4694  Cycle @28.00: [Executor]	EX: Branch Immediate: 0x1
+@line:4698  Cycle @28.00: [Executor]	EX: Branch Target Base: 0x10
+@line:4867  Cycle @28.00: [Executor]	EX: Branch Type: NO_BRANCH
+@line:5246  Cycle @28.00: [Executor]	EX: Injecting pending DIV result to MEM (rd=x10, result=0x0)
 @line:55    Cycle @28.00: [MEM]	MEM: OP NONE.
 @line:85    Cycle @28.00: [MEM]	MEM: WIDTH WORD.
 @line:99    Cycle @28.00: [MEM]	MEM: SIGNED.
@@ -750,5 +750,5 @@
 @line:285   Cycle @29.00: [Executor]	EX: RS2 source: No Bypass
 @line:364   Cycle @29.00: [Executor]	EX: ALU Op1 source: RS1 (0x0)
 @line:443   Cycle @29.00: [Executor]	EX: ALU Op2 source: IMM (0x1)
-@line:4149  Cycle @29.00: [Executor]	EBREAK encountered at PC=0x10, halting simulation.
+@line:4184  Cycle @29.00: [Executor]	EBREAK encountered at PC=0x10, halting simulation.
 
