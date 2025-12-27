@@ -133,4 +133,26 @@ rv32i_table = [
     ('mulhu', OP_R_TYPE, 0x3, 0x01, ImmType.R, ALUOp.MULHU, 
      RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
+    
+    # --- M Extension (Division & Remainder) ---
+    # 所有除法指令共享 OP_R_TYPE (0b0110011), funct7=0x01
+    # 通过 funct3 区分不同的除法指令
+    
+    # 除法指令 (Division)
+    ('div', OP_R_TYPE, 0x4, 0x01, ImmType.R, ALUOp.DIV,
+     RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+     MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
+    
+    ('divu', OP_R_TYPE, 0x5, 0x01, ImmType.R, ALUOp.DIVU,
+     RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+     MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
+    
+    # 取模指令 (Remainder)
+    ('rem', OP_R_TYPE, 0x6, 0x01, ImmType.R, ALUOp.REM,
+     RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+     MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
+    
+    ('remu', OP_R_TYPE, 0x7, 0x01, ImmType.R, ALUOp.REMU,
+     RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+     MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
 ]
