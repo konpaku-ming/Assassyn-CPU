@@ -405,14 +405,11 @@ class SRT4Divider:
                 with Condition(q == Bits(2)(0b10)):
                     new_rem_high = (rem_high_part.bitcast(UInt(33)) + shift_divisor_X2.bitcast(UInt(33))).bitcast(Bits(33))
             
-            # Shift left by 2 (radix-4): concatenate new_rem_high (33 bits) with rem_low_part (62 bits)
-            # Total: 33 + 62 = 95 bits, then take low 65 bits
-            # This is equivalent to: new_shift_rem = {new_rem_high, rem_low_part[61:0]}
-            # which is already 33+62=95 bits, bitcast to Bits(65) takes the low 65 bits
-            # Actually, we want: {new_rem_high[32:0], rem_low_part[61:0]} = 95 bits
-            # Then bitcast to Bits(65) gives us the low 65 bits
-            new_shift_rem = concat(new_rem_high, rem_low_part)  # 33 + 62 = 95 bits
-            self.shift_rem[0] = new_shift_rem.bitcast(Bits(65))  # Take low 65 bits
+            # Shift left by 2 (radix-4): Following SRT4.v logic
+            # New shift_rem = {new_rem_high[32:0], rem_low_part[31:2], 2'b0}
+            # This gives us exactly 65 bits: 33 + 30 + 2 = 65
+            # This is equivalent to: (shift_rem with operated high part) << 2
+            self.shift_rem[0] = concat(new_rem_high, rem_low_part[31:2], Bits(2)(0))  # 33 + 30 + 2 = 65 bits
             
             # Update Q and QM accumulators
             # Q accumulator update based on sign of quotient digit
