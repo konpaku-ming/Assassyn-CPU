@@ -263,12 +263,6 @@ class NaiveDivider:
             # Step 3: Check if result is negative (MSB = 1)
             is_negative = temp_remainder[32:32]
             
-            # Compute new quotient value for both cases
-            # Extract bits [0:30] once, before any conditional assignments
-            quotient_lower_bits = self.quotient[0][0:30]
-            new_quotient_if_neg = concat(quotient_lower_bits, Bits(1)(0))
-            new_quotient_if_pos = concat(quotient_lower_bits, Bits(1)(1))
-            
             # Debug: log decision on first iteration
             with Condition(self.div_cnt[0] == Bits(6)(32)):
                 log("NaiveDivider[DIV_WORKING]: First iter - qmsb={}, shifted_R=0x{:x}, temp_R=0x{:x}, is_neg={}",
@@ -278,13 +272,15 @@ class NaiveDivider:
                 # Restore: add divisor back
                 self.remainder[0] = shifted_remainder
                 # Shift quotient left and insert 0: quotient = (quotient << 1) | 0
-                self.quotient[0] = new_quotient_if_neg
+                # Compute new quotient value directly within this branch
+                self.quotient[0] = concat(self.quotient[0][0:30], Bits(1)(0))
             
             with Condition(is_negative != Bits(1)(1)):
                 # Keep subtraction result
                 self.remainder[0] = temp_remainder
                 # Shift quotient left and insert 1: quotient = (quotient << 1) | 1
-                self.quotient[0] = new_quotient_if_pos
+                # Compute new quotient value directly within this branch
+                self.quotient[0] = concat(self.quotient[0][0:30], Bits(1)(1))
             
             # Decrement counter
             self.div_cnt[0] = (self.div_cnt[0].bitcast(UInt(6)) - Bits(6)(1)).bitcast(Bits(6))
