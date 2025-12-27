@@ -107,8 +107,8 @@ class DividerDriver(Module):
         ]
 
         # 初始化测试计数器
-        cycle = RegArray(Bits(32), 1)
-        cycle[0] = cycle[0] + Bits(32)(1)
+        cycle = RegArray(Bits(32), 1, initializer=[0])
+        (cycle & self)[0] <= cycle[0] + Bits(32)(1)
 
         # 遍历测试向量
         for idx, (test_name, alu_func, dividend, divisor, expected) in enumerate(vectors):
