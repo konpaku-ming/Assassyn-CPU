@@ -140,14 +140,14 @@ class SRT4Divider:
         Returns:
             Position of leading 1 (0-31), or 0 if all zeros
         """
-        # Simple implementation: find MSB position
-        # In hardware, this would use priority encoder or leading-one detector
+        # Implementation using priority encoder logic with select chain
+        # Start from position 0 and update if we find a 1 at higher position
         pos = Bits(5)(0)
         
-        # Check each bit from MSB to LSB
-        for i in range(31, -1, -1):
+        # Check each bit from LSB to MSB, updating pos when we find a 1
+        # This creates a priority encoder where higher bits take precedence
+        for i in range(0, 32):
             bit_set = (d[i:i] == Bits(1)(1))
-            # If this is the first 1 found, return this position
             pos = bit_set.select(Bits(5)(i), pos)
         
         return pos
@@ -332,8 +332,9 @@ class SRT4Divider:
             # rem = {33'b0, dividend_r} << div_shift
             # For simplicity in simulation, we'll prepare it in next state
             
-            # Initialize iteration counter (WID/2 - 1 = 32/2 - 1 = 15)
-            self.div_cnt[0] = Bits(5)(15)
+            # Initialize iteration counter (WID/2 = 32/2 = 16 iterations)
+            # Counter counts down from 16 to 1, checking for 0 after decrement
+            self.div_cnt[0] = Bits(5)(16)
             
             # Initialize Q and QM
             self.Q[0] = Bits(33)(0)
@@ -378,13 +379,16 @@ class SRT4Divider:
             rem_high_part = self.shift_rem[0][64:32]  # 33 bits
             rem_low_part = self.shift_rem[0][31:0]    # 32 bits
             
+            # Initialize new_rem_high to avoid unassigned variable
+            new_rem_high = rem_high_part
+            
             # Select the value to subtract based on q and neg
             # neg=0: q=0,1,2 -> subtract 0, divisor, 2*divisor
             # neg=1: q=0,1,2 -> add 0, divisor, 2*divisor (subtract negative)
             with Condition(neg == Bits(1)(0)):
                 # Positive quotient digit
                 with Condition(q == Bits(2)(0b00)):
-                    new_rem_high = rem_high_part + Bits(33)(0)
+                    new_rem_high = rem_high_part
                 with Condition(q == Bits(2)(0b01)):
                     new_rem_high = (rem_high_part.bitcast(UInt(33)) + shift_divisor_n.bitcast(UInt(33))).bitcast(Bits(33))
                 with Condition(q == Bits(2)(0b10)):
@@ -392,7 +396,7 @@ class SRT4Divider:
             with ElseCondition():
                 # Negative quotient digit (add instead of subtract)
                 with Condition(q == Bits(2)(0b00)):
-                    new_rem_high = rem_high_part + Bits(33)(0)
+                    new_rem_high = rem_high_part
                 with Condition(q == Bits(2)(0b01)):
                     new_rem_high = (rem_high_part.bitcast(UInt(33)) + shift_divisor.bitcast(UInt(33))).bitcast(Bits(33))
                 with Condition(q == Bits(2)(0b10)):
@@ -403,23 +407,30 @@ class SRT4Divider:
             self.shift_rem[0] = new_shift_rem[64:0]  # Take low 65 bits
             
             # Update Q and QM accumulators
+            # Q accumulator update based on sign of quotient digit
             with Condition(neg == Bits(1)(0)):
-                # Positive quotient
-                self.Q[0] = concat(self.Q[0][30:0], q)  # Shift left and append q
+                # Positive quotient: Q = (Q << 2) | q
+                self.Q[0] = concat(self.Q[0][30:0], q)
             with ElseCondition():
-                # Negative quotient - use QM path
+                # Negative quotient: Q = (QM << 2) | (~q & 0b11) | 0b100
+                # This is equivalent to (QM << 2) + (4 - q)
                 self.Q[0] = concat(self.QM[0][30:0], Bits(1)(1), q[0:0])
             
-            # Update QM
-            with Condition((neg == Bits(1)(0)) & ((q[0:0] == Bits(1)(1)) | (q[1:1] == Bits(1)(1)))):
-                self.QM[0] = concat(self.Q[0][30:0], Bits(1)(0), q[1:1])
+            # QM accumulator: QM = Q - 1
+            # When neg=0 and q!=0: QM = (Q << 2) | (q-1)
+            # Otherwise: QM = (QM << 2) | (~q & 0b11)
+            with Condition((neg == Bits(1)(0)) & (q != Bits(2)(0))):
+                # Positive and non-zero: QM gets Q's shifted value with q-1
+                q_minus_1 = (q.bitcast(UInt(2)) - Bits(2)(1)).bitcast(Bits(2))
+                self.QM[0] = concat(self.Q[0][30:0], q_minus_1)
             with ElseCondition():
+                # QM gets shifted with complement of q
                 self.QM[0] = concat(self.QM[0][30:0], ~q)
             
             # Decrement counter
             self.div_cnt[0] = (self.div_cnt[0].bitcast(UInt(5)) - Bits(5)(1)).bitcast(Bits(5))
             
-            # Check if done
+            # Check if done (counter reaches 0)
             with Condition(self.div_cnt[0] == Bits(5)(0)):
                 self.state[0] = self.DIV_END
                 log("Divider: Iterations complete, entering post-processing")
