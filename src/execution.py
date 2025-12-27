@@ -347,7 +347,7 @@ class Execution(Module):
         # 2. 结果选择
         # For MUL/MULH/MULHSU/MULHU, use the Wallace Tree multiplier result
         # All multiplication operations use mul_result_value from the 3-cycle pipeline
-        # For DIV/DIVU/REM/REMU, use the SRT-4 divider result
+        # For DIV/DIVU/REM/REMU, use the Naive divider result
         alu_result = ctrl.alu_func.select1hot(
             add_res,  # 0:  ADD
             sub_res,  # 1:  SUB
