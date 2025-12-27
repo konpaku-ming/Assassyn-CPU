@@ -242,8 +242,13 @@ def test_divider_basic():
     
     from src.divider import SRT4Divider
     
-    # 创建divider实例
-    divider = SRT4Divider()
+    # Create a minimal SysBuilder context for the divider instantiation
+    # This is required because SRT4Divider uses RegArray which needs a builder context
+    sys = SysBuilder("test_divider_basic")
+    
+    with sys:
+        # 创建divider实例 - now within builder context
+        divider = SRT4Divider()
     
     # 测试1: 检查初始状态
     print("Test 1: Initial state check")
