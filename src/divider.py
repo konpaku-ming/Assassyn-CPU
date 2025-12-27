@@ -481,9 +481,24 @@ class SRT4Divider:
                 # Positive quotient: Q = (Q << 2) | q
                 self.Q[0] = concat(self.Q[0][0:30], q)
             with Condition(neg != Bits(1)(0)):
-                # Negative quotient: Q = (QM << 2) | (~q & 0b11) | 0b100
-                # This is equivalent to (QM << 2) + (4 - q)
-                self.Q[0] = concat(self.QM[0][0:30], Bits(1)(1), q[0:0])
+                # Negative quotient: Q = (QM << 2) + (4 - q)
+                # This requires handling the carry when q=0
+                with Condition(q == Bits(2)(0)):
+                    # q=0: add 4, which creates a carry
+                    # Bottom 2 bits = 0, carry = 1 into bit 2
+                    # So we need QM[0:30] + 1 in upper bits
+                    qm_plus_carry = (self.QM[0].bitcast(UInt(33)) + Bits(33)(1)).bitcast(Bits(33))
+                    self.Q[0] = concat(qm_plus_carry[0:30], Bits(2)(0b00))
+                with Condition(q != Bits(2)(0)):
+                    # q=1 or q=2: no carry
+                    # For q=1: 4-1=3=0b11
+                    # For q=2: 4-2=2=0b10
+                    # Formula: bottom 2 bits = (4 - q) & 0b11 = ~q + 1 & 0b11
+                    # Since q is either 1 or 2:
+                    #   q=1 (0b01): ~q = 0b10, ~q+1 = 0b11 ✓
+                    #   q=2 (0b10): ~q = 0b01, ~q+1 = 0b10 ✓
+                    q_inverted_plus_1 = ((~q).bitcast(UInt(2)) + Bits(2)(1)).bitcast(Bits(2))
+                    self.Q[0] = concat(self.QM[0][0:30], q_inverted_plus_1)
 
             # QM accumulator: QM = Q - 1
             # When neg=0 and q!=0: QM = (Q << 2) | (q-1)
@@ -506,6 +521,9 @@ class SRT4Divider:
 
         # State: DIV_END - Post-processing
         with Condition(self.state[0] == self.DIV_END):
+            log("Divider: DIV_END - Q=0x{:x}, QM=0x{:x}, shift_rem[32:64]=0x{:x}",
+                self.Q[0], self.QM[0], self.shift_rem[0][32:64])
+            
             # Adjust remainder if negative
             rem_is_negative = self.shift_rem[0][64:64]  # MSB of remainder (bit 64)
 
@@ -522,9 +540,11 @@ class SRT4Divider:
                     Bits(33))
                 self.fin_rem[0] = adjusted_rem
                 self.fin_q[0] = (self.Q[0].bitcast(UInt(33)) - Bits(33)(1)).bitcast(Bits(33))
+                log("Divider: Remainder was negative, adjusted fin_q=0x{:x}", self.fin_q[0])
             with Condition(rem_is_negative != Bits(1)(1)):
                 self.fin_rem[0] = self.shift_rem[0][32:64]
                 self.fin_q[0] = self.Q[0]
+                log("Divider: Remainder was positive, fin_q=0x{:x}", self.fin_q[0])
 
             # Right-shift remainder back
             # Shift the Bits value directly, not after converting to UInt
@@ -536,6 +556,9 @@ class SRT4Divider:
             # For remainder: same sign as dividend
             q_needs_neg = (self.div_sign[0] == Bits(2)(0b01)) | (self.div_sign[0] == Bits(2)(0b10))
             rem_needs_neg = self.div_sign[0][1:1]  # Dividend sign
+            
+            log("Divider: div_sign=0x{:x}, q_needs_neg={}, fin_q[0:31]=0x{:x}, fin_rem_shifted[0:31]=0x{:x}",
+                self.div_sign[0], q_needs_neg, self.fin_q[0][0:31], fin_rem_shifted[0:31])
 
             # Check for signed overflow: (-2^31) / (-1)
             min_int = Bits(32)(0x80000000)
@@ -561,6 +584,9 @@ class SRT4Divider:
                     (~fin_rem_shifted[0:31] + Bits(32)(1)).bitcast(Bits(32)),
                     fin_rem_shifted[0:31]
                 )
+                
+                log("Divider: q_signed=0x{:x}, rem_signed=0x{:x}, is_rem={}", 
+                    q_signed, rem_signed, self.is_rem[0])
 
                 # Select quotient or remainder
                 self.result[0] = self.is_rem[0].select(rem_signed, q_signed)
