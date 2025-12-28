@@ -1,7 +1,7 @@
 from assassyn.frontend import *
 from .control_signals import *
 from .multiplier import WallaceTreeMul, sign_zero_extend
-from .naive_divider import NaiveDivider
+from .divider import SRT4Divider
 
 
 class Execution(Module):
@@ -113,8 +113,8 @@ class Execution(Module):
         # === Initialize 3-cycle Pure Wallace Tree Multiplier (No Booth Encoding) ===
         multiplier = WallaceTreeMul()
 
-        # === Initialize Naive (Restoring) Divider (~34-cycle multi-cycle unit) ===
-        divider = NaiveDivider()
+        # === Initialize SRT-4 Divider (~18-cycle multi-cycle unit) ===
+        divider = SRT4Divider()
 
         # --- 操作数 1 选择 ---
         alu_op1 = ctrl.op1_sel.select1hot(
@@ -265,13 +265,13 @@ class Execution(Module):
         # All MUL/MULH/MULHSU/MULHU operations use the 3-cycle pipeline result
         # No inline single-cycle computation is performed
 
-        # ============== M Extension - Naive (Restoring) Divider ==============
+        # ============== M Extension - SRT-4 Divider ==============
         #
-        # Implementation: ~34-cycle multi-cycle divider
+        # Implementation: ~18-cycle multi-cycle divider (radix-4)
         # Architecture:
-        #   Cycle 1: Preprocessing (DIV_PRE) - convert to unsigned, check special cases
-        #   Cycles 2-33: Iterative calculation (DIV_WORKING) - 32 iterations, 1 bit per cycle
-        #   Cycle 34: Post-processing (DIV_END) - sign correction
+        #   Cycle 1: Preprocessing (DIV_PRE) - normalize divisor, find leading 1
+        #   Cycles 2-17: Iterative calculation (DIV_WORKING) - 16 iterations, 2 bits per cycle
+        #   Cycle 18: Post-processing (DIV_END) - sign correction and remainder adjustment
         #   Special: Fast paths for division by 0 (DIV_ERROR) or division by 1 (DIV_1)
         #
         # Supported Operations:
@@ -313,7 +313,7 @@ class Execution(Module):
             div_pending_rd[0] = mem_ctrl.rd_addr
             div_pending_valid[0] = Bits(1)(1)
             div_pending_is_rem[0] = div_is_rem
-            log("EX: Starting ~34-cycle division (Naive/Restoring)")
+            log("EX: Starting ~18-cycle division (SRT-4)")
             log("EX:   Op1=0x{:x} (signed={}), Op2=0x{:x} (signed={}), is_rem={}",
                 real_rs1, div_is_signed, real_rs2, div_is_signed, div_is_rem)
             log("EX:   Saved pending DIV rd=x{}", mem_ctrl.rd_addr)
@@ -330,7 +330,7 @@ class Execution(Module):
 
         # Clear result after reading
         with Condition(div_result_valid == Bits(1)(1)):
-            log("EX: Naive divider result ready: 0x{:x}, error={}",
+            log("EX: SRT-4 divider result ready: 0x{:x}, error={}",
                 div_result_value, div_error)
             divider.clear_result()
             # Clear pending status when result is sent to MEM
@@ -347,7 +347,7 @@ class Execution(Module):
         # 2. 结果选择
         # For MUL/MULH/MULHSU/MULHU, use the Wallace Tree multiplier result
         # All multiplication operations use mul_result_value from the 3-cycle pipeline
-        # For DIV/DIVU/REM/REMU, use the Naive divider result
+        # For DIV/DIVU/REM/REMU, use the SRT-4 divider result
         alu_result = ctrl.alu_func.select1hot(
             add_res,  # 0:  ADD
             sub_res,  # 1:  SUB
@@ -364,10 +364,10 @@ class Execution(Module):
             mul_result_value,  # 12: MULH - from Wallace Tree (3-cycle)
             mul_result_value,  # 13: MULHSU - from Wallace Tree (3-cycle)
             mul_result_value,  # 14: MULHU - from Wallace Tree (3-cycle)
-            div_result_value,  # 15: DIV - from Naive Divider (~34-cycle)
-            div_result_value,  # 16: DIVU - from Naive Divider (~34-cycle)
-            div_result_value,  # 17: REM - from Naive Divider (~34-cycle)
-            div_result_value,  # 18: REMU - from Naive Divider (~34-cycle)
+            div_result_value,  # 15: DIV - from SRT-4 Divider (~18-cycle)
+            div_result_value,  # 16: DIVU - from SRT-4 Divider (~18-cycle)
+            div_result_value,  # 17: REM - from SRT-4 Divider (~18-cycle)
+            div_result_value,  # 18: REMU - from SRT-4 Divider (~18-cycle)
             alu_op2,  # 19-31: 占位（为未来扩展预留）
             alu_op2,
             alu_op2,
