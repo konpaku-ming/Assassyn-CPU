@@ -518,8 +518,10 @@ class SRT4Divider:
             # Decrement counter
             self.div_cnt[0] = (self.div_cnt[0].bitcast(UInt(5)) - Bits(5)(1)).bitcast(Bits(5))
 
-            # Check if done (counter reaches 0)
-            with Condition(self.div_cnt[0] == Bits(5)(0)):
+            # Check if done (counter reaches 1, meaning this is the last iteration)
+            # Note: In hardware, the read of div_cnt[0] gets the OLD value (before decrement)
+            # So we check for 1, not 0, to transition AFTER the 16th iteration
+            with Condition(self.div_cnt[0] == Bits(5)(1)):
                 self.state[0] = self.DIV_END
                 log("Divider: Iterations complete, entering post-processing")
 
