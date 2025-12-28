@@ -418,7 +418,7 @@ class SRT4Divider:
             divisor_shifted = (self.divisor_r[0].bitcast(UInt(32)) * power.bitcast(UInt(32))).bitcast(Bits(32))
             # Zero-extend to 33 bits: {1'b0, divisor_shifted[31:0]}
             shift_divisor = concat(Bits(1)(0), divisor_shifted)
-            d_high = shift_divisor[28:31]  # Top 4 bits (Verilog [31:28] of 33-bit value)
+            d_high = shift_divisor[29:32]  # Top 4 bits (Verilog [32:29] of 33-bit value, bits 29-32)
 
             # Select quotient digit
             (q, neg) = self.quotient_select(rem_high, d_high)
