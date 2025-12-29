@@ -18,16 +18,16 @@
 
 ## 环境准备
 1. **Python 3.10+**。
-2. **Assassyn 框架**（必须）：建议使用 Apptainer/Singularity 镜像 `assassyn.sif`（参考 `docs/Agent.md`），或在本地已安装可用的 `assassyn` 包。
+2. **Assassyn 框架**（必须）：建议使用 Apptainer/Singularity 镜像 `assassyn.sif`（获取与制作方式见 `docs/Agent.md`），或在本地已安装可用的 `assassyn` 包。
 3. **测试依赖**：`pytest`（`pip install pytest`），用于收集和运行测试。
 
 > 如果缺少 Assassyn 环境，运行测试会出现 `ModuleNotFoundError: No module named 'assassyn'`。
 
 ## 快速开始
 ```bash
-cd /path/to/Assassyn-CPU
+cd /path/to/project/Assassyn-CPU
 
-# 推荐在容器内运行，确保可访问 assassyn.sif
+# 推荐在容器内运行，确保可访问 assassyn.sif（可从内部分发路径获取或按 docs/Agent.md 构建）
 apptainer exec --bind $(pwd) /path/to/assassyn.sif python tests/test_fetch.py
 ```
 
