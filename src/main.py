@@ -13,7 +13,7 @@ from .data_hazard import DataHazardUnit
 from .execution import Execution
 from .memory import MemoryAccess
 from .writeback import WriteBack
-from .btb import BTB, BTBImpl
+from .btb import BTB, BTBImpl, TournamentPredictor, TournamentPredictorImpl
 
 # 全局工作区路径
 current_path = os.path.dirname(os.path.abspath(__file__))
@@ -119,9 +119,14 @@ def build_cpu(depth_log):
         fetcher = Fetcher()
         fetcher_impl = FetcherImpl()
 
-        # BTB for branch prediction
+        # BTB for branch target prediction
         btb = BTB(num_entries=64, index_bits=6)
         btb_impl = BTBImpl(num_entries=64, index_bits=6)
+
+        # Tournament Predictor for branch direction prediction
+        # Combines local predictor, global predictor (with GHR), and chooser
+        tournament = TournamentPredictor(num_entries=64, index_bits=6, ghr_bits=6)
+        tournament_impl = TournamentPredictorImpl(num_entries=64, index_bits=6, ghr_bits=6)
 
         decoder = Decoder()
         decoder_impl = DecoderImpl()
@@ -135,8 +140,9 @@ def build_cpu(depth_log):
 
         # 3. 逆序构建
 
-        # --- Step 0: BTB 构建（需要在使用前构建） ---
+        # --- Step 0: BTB 和 Tournament Predictor 构建（需要在使用前构建） ---
         btb_valid, btb_tags, btb_targets = btb.build()
+        local_counters, ghr, global_counters, chooser_counters = tournament.build()
 
         # --- Step A: WB 阶段 ---
         wb_rd = writeback.build(
@@ -163,6 +169,11 @@ def build_cpu(depth_log):
             btb_valid=btb_valid,
             btb_tags=btb_tags,
             btb_targets=btb_targets,
+            tournament_impl=tournament_impl,
+            local_counters=local_counters,
+            ghr=ghr,
+            global_counters=global_counters,
+            chooser_counters=chooser_counters,
         )
 
         # --- Step D: ID 阶段 (Shell) ---
@@ -209,6 +220,11 @@ def build_cpu(depth_log):
             btb_valid=btb_valid,
             btb_tags=btb_tags,
             btb_targets=btb_targets,
+            tournament_impl=tournament_impl,
+            local_counters=local_counters,
+            ghr=ghr,
+            global_counters=global_counters,
+            chooser_counters=chooser_counters,
         )
 
         # --- Step H: 辅助驱动 ---

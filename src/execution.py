@@ -40,6 +40,12 @@ class Execution(Module):
             btb_valid: Array = None,  # BTB 有效位数组
             btb_tags: Array = None,  # BTB 标签数组
             btb_targets: Array = None,  # BTB 目标地址数组
+            # --- Tournament Predictor 更新 (可选) ---
+            tournament_impl: "TournamentPredictorImpl" = None,
+            local_counters: Array = None,
+            ghr: Array = None,
+            global_counters: Array = None,
+            chooser_counters: Array = None,
     ):
         # 1. 弹出所有端口数据
         # 根据 __init__ 定义顺序解包
@@ -586,6 +592,35 @@ class Execution(Module):
                 btb_valid=btb_valid,
                 btb_tags=btb_tags,
                 btb_targets=btb_targets,
+            )
+
+        # 6. 更新 Tournament Predictor (如果提供了引用)
+        # 对于条件分支指令，根据实际结果更新:
+        # - Local predictor (PC-indexed counters)
+        # - Global predictor (GHR-indexed counters)
+        # - Chooser (when local and global disagree)
+        # - Global History Register (shift in actual outcome)
+        if tournament_impl is not None and local_counters is not None:
+            # 对于条件分支指令，根据实际结果更新 Tournament Predictor
+            # JAL/JALR 是无条件跳转，不需要预测
+            is_conditional_branch = (
+                (ctrl.branch_type == BranchType.BEQ) |
+                (ctrl.branch_type == BranchType.BNE) |
+                (ctrl.branch_type == BranchType.BLT) |
+                (ctrl.branch_type == BranchType.BGE) |
+                (ctrl.branch_type == BranchType.BLTU) |
+                (ctrl.branch_type == BranchType.BGEU)
+            )
+            # 只对条件分支更新 Tournament Predictor
+            should_update_tournament = is_conditional_branch & ~flush_if
+            tournament_impl.update(
+                pc=pc,
+                branch_taken=is_taken,
+                should_update=should_update_tournament,
+                local_counters=local_counters,
+                ghr=ghr,
+                global_counters=global_counters,
+                chooser_counters=chooser_counters,
             )
 
         # --- 下一级绑定与状态反馈 ---
