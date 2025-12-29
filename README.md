@@ -25,7 +25,7 @@
 
 ## 快速开始
 ```bash
-cd /home/runner/work/Assassyn-CPU/Assassyn-CPU
+cd /path/to/Assassyn-CPU
 
 # 推荐在容器内运行，确保可访问 assassyn.sif
 apptainer exec --bind $(pwd) /path/to/assassyn.sif python tests/test_fetch.py
