@@ -5,13 +5,13 @@
 ## 功能概览
 - **指令集**：RV32I + M 扩展（乘/除/取模）。
 - **流水线**：IF/ID/EX/MEM/WB 五级，包含旁路与冒险处理 (`DataHazardUnit`)。
-- **预测器**：BTB、双模竞争预测 (`TournamentPredictor`)。
+- **预测器**：BTB + 结合本地/全局历史与选择器的 `TournamentPredictor`。
 - **存储**：指令/数据 SRAM、寄存器堆与旁路寄存器。
 - **工作负载**：`workloads/` 目录提供常见算术与向量示例。
 
 ## 仓库结构
 - `src/`：CPU 各阶段及控制逻辑（`fetch.py`、`decoder.py`、`execution.py`、`memory.py`、`writeback.py` 等）。
-- `tests/`：基于 Assassyn 仿真的单元/集成测试（见 `tests/README_test_divider.md`）。
+- `tests/`：基于 Assassyn 仿真的单元/集成测试（除法器说明见 `tests/README_test_divider.md`，其余测试覆盖取指、译码、执行、访存、写回等阶段）。
 - `workloads/`：示例指令/数据镜像，会被 `src/main.py` 的 `load_test_case` 复制到沙盒 `.workspace/`。
 - `docs/`：设计文档与 Assassyn 语言说明（`docs/Assassyn_语言完整说明书.md`、`docs/Agent.md` 等）。
 - `logs/`、`report/`：仿真输出与报告位置（按需生成）。
