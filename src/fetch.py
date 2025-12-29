@@ -46,6 +46,9 @@ class FetcherImpl(Downstream):
         btb_valid: Array,  # BTB 有效位数组
         btb_tags: Array,  # BTB 标签数组
         btb_targets: Array,  # BTB 目标地址数组
+        # --- BHT 分支方向预测 (2-bit saturating counter) ---
+        bht_impl: "BHTImpl" = None,  # BHT 实现逻辑
+        bht_counters: Array = None,  # BHT 计数器数组
     ):
         current_stall_if = stall_if.optional(Bits(1)(0))
 
@@ -74,7 +77,7 @@ class FetcherImpl(Downstream):
         log("IF: SRAM Addr=0x{:x}", sram_addr)
 
         # --- 2. 计算 Next PC (时序逻辑输入) ---
-        # 使用 BTB 进行分支预测
+        # 使用 BTB 进行分支目标预测
         btb_hit, btb_predicted_target = btb_impl.predict(
             pc=final_current_pc,
             btb_valid=btb_valid,
@@ -82,9 +85,35 @@ class FetcherImpl(Downstream):
             btb_targets=btb_targets,
         )
 
-        # 如果 BTB 命中，使用预测目标；否则默认 PC + 4
+        # 默认: PC + 4
         btb_miss_target = (final_current_pc.bitcast(UInt(32)) + UInt(32)(4)).bitcast(Bits(32))
-        predicted_next_pc = btb_hit.select(btb_predicted_target, btb_miss_target)
+
+        # 分支预测逻辑：
+        # - BTB 命中时：使用 BHT 的 2-bit 饱和计数器判断是否跳转
+        #   - 如果 BHT 预测跳转 (counter >= 2)：使用 BTB 预测的目标地址
+        #   - 如果 BHT 预测不跳转：使用 PC + 4
+        # - BTB 未命中时：使用 PC + 4（与之前行为相同）
+        if bht_impl is not None and bht_counters is not None:
+            # 使用 BHT 进行方向预测
+            bht_predict_taken = bht_impl.predict(
+                pc=final_current_pc,
+                bht_counters=bht_counters,
+            )
+
+            # BTB 命中 + BHT 预测跳转：使用 BTB 目标
+            # BTB 命中 + BHT 预测不跳转：使用 PC + 4
+            # BTB 未命中：使用 PC + 4
+            btb_hit_target = bht_predict_taken.select(btb_predicted_target, btb_miss_target)
+            predicted_next_pc = btb_hit.select(btb_hit_target, btb_miss_target)
+
+            with Condition(btb_hit == Bits(1)(1)):
+                with Condition(bht_predict_taken == Bits(1)(1)):
+                    log("IF: BTB HIT + BHT TAKEN -> Target=0x{:x}", btb_predicted_target)
+                with Condition(bht_predict_taken == Bits(1)(0)):
+                    log("IF: BTB HIT + BHT NOT TAKEN -> PC+4=0x{:x}", btb_miss_target)
+        else:
+            # 没有 BHT，使用原始逻辑：BTB 命中则使用目标，否则 PC + 4
+            predicted_next_pc = btb_hit.select(btb_predicted_target, btb_miss_target)
     
         # 最终的 Next PC
         final_next_pc = predicted_next_pc

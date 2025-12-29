@@ -40,6 +40,9 @@ class Execution(Module):
             btb_valid: Array = None,  # BTB 有效位数组
             btb_tags: Array = None,  # BTB 标签数组
             btb_targets: Array = None,  # BTB 目标地址数组
+            # --- BHT 更新 (可选, 2-bit saturating counter) ---
+            bht_impl: "BHTImpl" = None,  # BHT 实现逻辑
+            bht_counters: Array = None,  # BHT 计数器数组
     ):
         # 1. 弹出所有端口数据
         # 根据 __init__ 定义顺序解包
@@ -586,6 +589,30 @@ class Execution(Module):
                 btb_valid=btb_valid,
                 btb_tags=btb_tags,
                 btb_targets=btb_targets,
+            )
+
+        # 6. 更新 BHT (如果提供了 BHT 引用)
+        # 对于所有分支指令，根据实际结果更新 2-bit 饱和计数器
+        # - 分支被 taken：计数器增加（饱和到 3）
+        # - 分支未 taken：计数器减少（饱和到 0）
+        if bht_impl is not None and bht_counters is not None:
+            # 对于条件分支指令，根据实际结果更新 BHT
+            # JAL/JALR 是无条件跳转，也更新 BHT（因为它们总是 taken）
+            is_conditional_branch = (
+                (ctrl.branch_type == BranchType.BEQ) |
+                (ctrl.branch_type == BranchType.BNE) |
+                (ctrl.branch_type == BranchType.BLT) |
+                (ctrl.branch_type == BranchType.BGE) |
+                (ctrl.branch_type == BranchType.BLTU) |
+                (ctrl.branch_type == BranchType.BGEU)
+            )
+            # 只对条件分支更新 BHT（JAL/JALR 总是 taken，不需要预测）
+            should_update_bht = is_conditional_branch & ~flush_if
+            bht_impl.update(
+                pc=pc,
+                branch_taken=is_taken,
+                should_update=should_update_bht,
+                bht_counters=bht_counters,
             )
 
         # --- 下一级绑定与状态反馈 ---
