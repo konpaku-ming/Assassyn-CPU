@@ -119,7 +119,6 @@ class TournamentPredictorImpl:
         self.index_bits = index_bits
         self.ghr_bits = ghr_bits
         self.index_mask = (1 << index_bits) - 1
-        self.ghr_mask = (1 << ghr_bits) - 1
 
     def _get_pc_index(self, pc):
         """Extract index from PC (word-aligned, skip lowest 2 bits)."""
@@ -229,7 +228,6 @@ class TournamentPredictorImpl:
         # If local was correct and global was wrong: decrement (toward local)
         local_correct = local_pred == branch_taken
         global_correct = global_pred == branch_taken
-        predictors_differ = local_pred != global_pred
 
         # Chooser update logic
         new_chooser_toward_global = self._saturating_increment(chooser_counter)
@@ -246,7 +244,9 @@ class TournamentPredictorImpl:
             chooser_decrement.select(new_chooser_toward_local, chooser_counter)
         )
 
-        # Update GHR: shift left and insert new outcome
+        # Update GHR: shift left (discard MSB) and insert new outcome at LSB
+        # ghr_val[0:ghr_bits-2] keeps bits [0..ghr_bits-2], discarding MSB (bit ghr_bits-1)
+        # concat puts the kept bits in high position, new outcome in low position
         new_ghr = concat(ghr_val[0:self.ghr_bits - 2], branch_taken).bitcast(Bits(self.ghr_bits))
 
         with Condition(should_update == Bits(1)(1)):
