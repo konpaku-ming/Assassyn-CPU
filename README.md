@@ -12,7 +12,7 @@
 ## 仓库结构
 - `src/`：CPU 各阶段及控制逻辑（`fetch.py`、`decoder.py`、`execution.py`、`memory.py`、`writeback.py` 等）。
 - `tests/`：基于 Assassyn 仿真的单元/集成测试（除法器说明见 `tests/README_test_divider.md`，其余测试覆盖取指、译码、执行、访存、写回等阶段）。
-- `workloads/`：示例指令/数据镜像，会被 `src/main.py` 的 `load_test_case` 复制到沙盒 `.workspace/`。
+- `workloads/`：示例指令/数据镜像，会被 `src/main.py` 的 `load_test_case` 复制到沙盒 `src/.workspace/`。
 - `docs/`：设计文档与 Assassyn 语言说明（`docs/Assassyn_语言完整说明书.md`、`docs/Agent.md` 等）。
 - `logs/`、`report/`：仿真输出与报告位置（按需生成）。
 
