@@ -10,9 +10,9 @@
 - **工作负载**：`workloads/` 目录提供常见算术与向量示例。
 
 ## 仓库结构
-- `src/`：CPU 各阶段及控制逻辑（`fetch.py`、`decoder.py`、`execution.py`、`memory.py`、`writeback.py` 等）。
+- `src/`：CPU 各阶段及控制逻辑（`fetch.py`、`decoder.py`、`data_hazard.py`、`execution.py`、`memory.py`、`writeback.py`、`divider.py`、`multiplier.py`、`btb.py` 等）。
 - `tests/`：基于 Assassyn 仿真的单元/集成测试（除法器说明见 `tests/README_test_divider.md`，其余测试覆盖取指、译码、执行、访存、写回等阶段）。
-- `workloads/`：示例指令/数据镜像，会被 `src/main.py` 的 `load_test_case` 复制到沙盒 `src/.workspace/`。
+- `workloads/`：示例指令/数据镜像，会被 `src/main.py` 的 `load_test_case` 复制到沙盒 `src/.workspace`（位于 `src` 目录下）。
 - `docs/`：设计文档与 Assassyn 语言说明（`docs/Assassyn_语言完整说明书.md`、`docs/Agent.md` 等）。
 - `logs/`、`report/`：仿真输出与报告位置（按需生成）。
 
@@ -27,7 +27,7 @@
 ```bash
 cd /path/to/project/Assassyn-CPU
 
-# 推荐在容器内运行，确保可访问 assassyn.sif（可从团队分发的镜像路径获取，或按 docs/Agent.md 中的 make build-apptainer 指令自行构建）
+# 推荐在容器内运行，确保可访问 assassyn.sif（可从团队分发的镜像路径获取，或按 docs/Agent.md 的环境说明自行构建镜像）
 apptainer exec --bind $(pwd) /path/to/assassyn.sif python tests/test_fetch.py
 ```
 
@@ -46,5 +46,5 @@ apptainer exec --bind $(pwd) /path/to/assassyn.sif python tests/test_fetch.py
 - Agent 指南与环境说明：`docs/Agent.md`
 
 ## 工作负载与仿真
-- 示例程序位于 `workloads/`，可通过 `src/main.py` 的 `load_test_case(case_name)` 将二进制复制到 `src/.workspace/` 供仿真使用。
+- 示例程序位于 `workloads/`，可通过 `src/main.py` 的 `load_test_case(case_name)` 将二进制复制到 `src/.workspace`（`src` 目录下）供仿真使用。
 - `tests/common.py` 提供了统一的 `run_test_module` 仿真入口，便于为新模块添加测试。
