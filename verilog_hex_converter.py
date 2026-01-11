@@ -4,6 +4,10 @@ from argparse import ArgumentParser
 from collections.abc import Iterable
 from pathlib import Path
 
+SECTION_HEADER_PREFIX = "Disassembly of section "
+IGNORED_SECTIONS = {".comment"}
+IGNORED_SECTION_PREFIXES = (".debug",)
+
 
 def _iter_tokens(source: Path) -> Iterable[str]:
     content = source.read_text()
@@ -73,8 +77,23 @@ def _format_lines(data: bytes, line_width: int) -> list[str]:
 def _parse_dump_words(dump_path: Path, line_width: int) -> dict[int, int]:
     hex_width = line_width * 2
     words: dict[int, int] = {}
+    current_section = None
     with dump_path.open() as dump_file:
         for line in dump_file:
+            if line.startswith(SECTION_HEADER_PREFIX):
+                section_desc = line[len(SECTION_HEADER_PREFIX):]
+                current_section = section_desc.split(":", 1)[0].strip()
+                continue
+
+            if current_section and (
+                current_section in IGNORED_SECTIONS
+                or any(
+                    current_section.startswith(prefix)
+                    for prefix in IGNORED_SECTION_PREFIXES
+                )
+            ):
+                continue
+
             if ":" not in line:
                 continue
             addr_part, remainder = line.split(":", 1)
@@ -92,7 +111,10 @@ def _parse_dump_words(dump_path: Path, line_width: int) -> dict[int, int]:
             if len(word_token) != hex_width:
                 continue
             try:
-                words[address] = int(word_token, 16)
+                # Keep the first occurrence for an address; later sections (e.g., .comment)
+                # may reuse the same offsets but should not override code/data words.
+                if address not in words:
+                    words[address] = int(word_token, 16)
             except ValueError:
                 continue
     return words
