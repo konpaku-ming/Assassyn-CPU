@@ -4,6 +4,10 @@ from argparse import ArgumentParser
 from collections.abc import Iterable
 from pathlib import Path
 
+SECTION_HEADER_PREFIX = "Disassembly of section "
+IGNORED_SECTIONS = {".comment"}
+IGNORED_SECTION_PREFIXES = (".debug",)
+
 
 def _iter_tokens(source: Path) -> Iterable[str]:
     content = source.read_text()
@@ -74,19 +78,19 @@ def _parse_dump_words(dump_path: Path, line_width: int) -> dict[int, int]:
     hex_width = line_width * 2
     words: dict[int, int] = {}
     current_section = None
-    section_header_prefix = "Disassembly of section "
-    ignored_sections = {".comment"}
-    ignored_prefixes = (".debug",)
     with dump_path.open() as dump_file:
         for line in dump_file:
-            if line.startswith(section_header_prefix):
-                section_desc = line[len(section_header_prefix) :]
+            if line.startswith(SECTION_HEADER_PREFIX):
+                section_desc = line[len(SECTION_HEADER_PREFIX):]
                 current_section = section_desc.split(":", 1)[0].strip()
                 continue
 
             if current_section and (
-                current_section in ignored_sections
-                or any(current_section.startswith(prefix) for prefix in ignored_prefixes)
+                current_section in IGNORED_SECTIONS
+                or any(
+                    current_section.startswith(prefix)
+                    for prefix in IGNORED_SECTION_PREFIXES
+                )
             ):
                 continue
 
