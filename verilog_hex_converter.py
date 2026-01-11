@@ -100,17 +100,21 @@ def _validate_against_dump(
     lines: list[str], dump_words: dict[int, int], line_width: int
 ) -> None:
     hex_width = line_width * 2
+    if not dump_words:
+        return
+
+    byte_addressed = all(address % line_width == 0 for address in dump_words)
+    word_addressed = all(address < len(lines) for address in dump_words)
+
+    if byte_addressed:
+        address_to_index = lambda address: address // line_width
+    elif word_addressed:
+        address_to_index = lambda address: address
+    else:
+        raise ValueError("Dump addresses are neither consistently byte- nor word-aligned.")
+
     for address, expected in dump_words.items():
-        if address % line_width == 0:
-            # Treat dump addresses as byte offsets when they align to the configured
-            # line width.
-            line_idx = address // line_width
-        elif address < len(lines):
-            # Fallback: treat the address as a word index if the dump is already
-            # word-addressed.
-            line_idx = address
-        else:
-            continue
+        line_idx = address_to_index(address)
         if line_idx >= len(lines):
             raise ValueError(
                 f"Dump expects address 0x{address:X}, but converted data ends earlier."
