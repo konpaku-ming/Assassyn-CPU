@@ -68,7 +68,7 @@ def _format_lines(data: bytes, line_width: int) -> list[str]:
     return lines
 
 
-def convert_verilog_hex(source: Path, dest: Path, line_width: int = 8) -> Path:
+def convert_verilog_hex(source: Path, dest: Path, line_width: int = 4) -> Path:
     data = parse_verilog_hex(source)
     lines = _format_lines(data, line_width)
 
@@ -96,7 +96,7 @@ def _main() -> None:
     parser.add_argument(
         "--line-width",
         type=int,
-        default=8,
+        default=4,
         help="Number of bytes per line in the output file.",
     )
 

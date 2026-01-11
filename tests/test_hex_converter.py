@@ -21,7 +21,9 @@ def test_convert_verilog_hex_handles_address_gaps(tmp_path: Path) -> None:
     convert_verilog_hex(source, output)
 
     assert output.read_text().splitlines() == [
-        "AABB000000000000",
-        "0000000000000000",
-        "CC00000000000000",
+        "AABB0000",
+        "00000000",
+        "00000000",
+        "00000000",
+        "CC000000",
     ]
