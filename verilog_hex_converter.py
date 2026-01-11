@@ -143,8 +143,11 @@ def _validate_against_dump(
     except ValueError as byte_error:
         try:
             validate_word_addresses()
-        except ValueError:
-            raise byte_error
+        except ValueError as word_error:
+            raise ValueError(
+                f"Dump validation failed in byte mode ({byte_error}) "
+                f"and word mode ({word_error})."
+            )
 
 
 def convert_verilog_hex(
