@@ -101,11 +101,16 @@ def _validate_against_dump(
 ) -> None:
     hex_width = line_width * 2
     for address, expected in dump_words.items():
-        if address % line_width != 0:
-            # Dump addresses that are not aligned to the configured line width cannot
-            # be validated against the output, so they are skipped.
+        if address % line_width == 0:
+            # Treat dump addresses as byte offsets when they align to the configured
+            # line width.
+            line_idx = address // line_width
+        elif address < len(lines):
+            # Fallback: treat the address as a word index if the dump is already
+            # word-addressed.
+            line_idx = address
+        else:
             continue
-        line_idx = address // line_width
         if line_idx >= len(lines):
             raise ValueError(
                 f"Dump expects address 0x{address:X}, but converted data ends earlier."
