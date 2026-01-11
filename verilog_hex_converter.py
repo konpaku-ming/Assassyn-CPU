@@ -55,13 +55,14 @@ def _format_lines(data: bytes, line_width: int) -> List[str]:
     if line_width <= 0:
         raise ValueError("line_width must be positive")
 
-    remainder = len(data) % line_width
+    padded = bytes(data)
+    remainder = len(padded) % line_width
     if remainder:
-        data += bytes(line_width - remainder)
+        padded += bytes(line_width - remainder)
 
     lines = []
-    for idx in range(0, len(data), line_width):
-        chunk = data[idx : idx + line_width]
+    for idx in range(0, len(padded), line_width):
+        chunk = padded[idx : idx + line_width]
         lines.append("".join(f"{byte:02X}" for byte in chunk))
     return lines
 
@@ -72,7 +73,7 @@ def convert_verilog_hex(source: Path, dest: Path, line_width: int = 8) -> Path:
 
     dest.parent.mkdir(parents=True, exist_ok=True)
     output = "\n".join(lines)
-    if output and not output.endswith("\n"):
+    if lines:
         output += "\n"
     dest.write_text(output)
     return dest
