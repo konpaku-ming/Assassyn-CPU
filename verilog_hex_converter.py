@@ -74,15 +74,19 @@ def _parse_dump_words(dump_path: Path, line_width: int) -> dict[int, int]:
     hex_width = line_width * 2
     words: dict[int, int] = {}
     current_section = None
+    section_header_prefix = "Disassembly of section "
+    ignored_sections = {".comment"}
+    ignored_prefixes = (".debug",)
     with dump_path.open() as dump_file:
         for line in dump_file:
-            if line.startswith("Disassembly of section "):
-                section_desc = line[len("Disassembly of section ") :]
+            if line.startswith(section_header_prefix):
+                section_desc = line[len(section_header_prefix) :]
                 current_section = section_desc.split(":", 1)[0].strip()
                 continue
 
             if current_section and (
-                current_section == ".comment" or current_section.startswith(".debug")
+                current_section in ignored_sections
+                or any(current_section.startswith(prefix) for prefix in ignored_prefixes)
             ):
                 continue
 
