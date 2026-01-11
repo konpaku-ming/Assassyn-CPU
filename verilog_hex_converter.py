@@ -56,6 +56,7 @@ def _format_lines(data: bytes, line_width: int) -> list[str]:
         raise ValueError("line_width must be positive")
 
     data_bytes = bytes(data)
+    hex_width = line_width * 2
     remainder = len(data_bytes) % line_width
     padded_data = (
         data_bytes if remainder == 0 else data_bytes + bytes(line_width - remainder)
@@ -64,12 +65,15 @@ def _format_lines(data: bytes, line_width: int) -> list[str]:
     lines = []
     for idx in range(0, len(padded_data), line_width):
         chunk = padded_data[idx : idx + line_width]
+        if len(chunk) < line_width:
+            chunk = chunk.ljust(line_width, b"\x00")
         word_value = int.from_bytes(chunk, byteorder="little")
-        lines.append(f"{word_value:0{line_width * 2}X}")
+        lines.append(f"{word_value:0{hex_width}X}")
     return lines
 
 
 def _parse_dump_words(dump_path: Path, line_width: int) -> dict[int, int]:
+    hex_width = line_width * 2
     words: dict[int, int] = {}
     for line in dump_path.read_text().splitlines():
         if ":" not in line:
@@ -85,7 +89,7 @@ def _parse_dump_words(dump_path: Path, line_width: int) -> dict[int, int]:
             continue
         word_token = tokens[0]
         # Only validate lines that provide a full word for the configured line width.
-        if len(word_token) != line_width * 2:
+        if len(word_token) != hex_width:
             continue
         try:
             words[address] = int(word_token, 16)
@@ -97,10 +101,11 @@ def _parse_dump_words(dump_path: Path, line_width: int) -> dict[int, int]:
 def _validate_against_dump(
     lines: list[str], dump_words: dict[int, int], line_width: int
 ) -> None:
+    hex_width = line_width * 2
     for address, expected in dump_words.items():
         if address % line_width != 0:
-            # Dump lines that are not aligned to the configured line width cannot be
-            # validated against the packed output, so they are skipped.
+            # Dump addresses that are not aligned to the configured line width cannot
+            # be validated against the output, so they are skipped.
             continue
         line_idx = address // line_width
         if line_idx >= len(lines):
@@ -110,8 +115,8 @@ def _validate_against_dump(
         actual = int(lines[line_idx], 16)
         if actual != expected:
             raise ValueError(
-                f"Dump mismatch at 0x{address:X}: expected {expected:0{line_width * 2}X}, "
-                f"got {actual:0{line_width * 2}X}"
+                f"Dump mismatch at 0x{address:X}: expected {expected:0{hex_width}X}, "
+                f"got {actual:0{hex_width}X}"
             )
 
 
