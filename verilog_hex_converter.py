@@ -84,6 +84,7 @@ def _parse_dump_words(dump_path: Path, line_width: int) -> dict[int, int]:
         if not tokens:
             continue
         word_token = tokens[0]
+        # Only validate lines that provide a full word for the configured line width.
         if len(word_token) != line_width * 2:
             continue
         try:
@@ -98,8 +99,8 @@ def _validate_against_dump(
 ) -> None:
     for address, expected in dump_words.items():
         if address % line_width != 0:
-            # Dump lines that are not word-aligned cannot be validated against the
-            # packed word output, so they are skipped.
+            # Dump lines that are not aligned to the configured line width cannot be
+            # validated against the packed output, so they are skipped.
             continue
         line_idx = address // line_width
         if line_idx >= len(lines):

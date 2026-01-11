@@ -49,9 +49,9 @@ def test_convert_verilog_hex_uses_dump_for_validation(tmp_path: Path) -> None:
             [
                 "00000000 <.text>:",
                 "   0:   00020137           lui sp,0x20",
-                "   4:   040010ef           jal ra,1044 <main>",
+                "   4:   040010EF           jal ra,1044 <main>",
                 "00000008 <.text+0x8>:",
-                "   8:   0ff00513           li a0,255",
+                "   8:   0FF00513           li a0,255",
             ]
         )
         + "\n"
