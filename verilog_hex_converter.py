@@ -103,28 +103,44 @@ def _validate_against_dump(
     if not dump_words:
         return
 
-    byte_addressed = all(address % line_width == 0 for address in dump_words)
-    word_addressed = all(address < len(lines) for address in dump_words)
+    def validate_byte_addresses() -> None:
+        for address, expected in dump_words.items():
+            if address % line_width != 0:
+                raise ValueError(
+                    f"Dump address 0x{address:X} is not aligned to {line_width}-byte lines."
+                )
+            line_idx = address // line_width
+            if line_idx >= len(lines):
+                raise ValueError(
+                    f"Dump expects address 0x{address:X}, but converted data ends earlier."
+                )
+            actual = int(lines[line_idx], 16)
+            if actual != expected:
+                raise ValueError(
+                    f"Dump mismatch at 0x{address:X}: expected {expected:0{hex_width}X}, "
+                    f"got {actual:0{hex_width}X}"
+                )
 
-    if byte_addressed:
-        address_to_index = lambda address: address // line_width
-    elif word_addressed:
-        address_to_index = lambda address: address
-    else:
-        raise ValueError("Dump addresses are neither consistently byte- nor word-aligned.")
+    def validate_word_addresses() -> None:
+        for address, expected in dump_words.items():
+            if address >= len(lines):
+                raise ValueError(
+                    f"Dump expects word index {address}, but converted data ends earlier."
+                )
+            actual = int(lines[address], 16)
+            if actual != expected:
+                raise ValueError(
+                    f"Dump mismatch at word {address}: expected {expected:0{hex_width}X}, "
+                    f"got {actual:0{hex_width}X}"
+                )
 
-    for address, expected in dump_words.items():
-        line_idx = address_to_index(address)
-        if line_idx >= len(lines):
-            raise ValueError(
-                f"Dump expects address 0x{address:X}, but converted data ends earlier."
-            )
-        actual = int(lines[line_idx], 16)
-        if actual != expected:
-            raise ValueError(
-                f"Dump mismatch at 0x{address:X}: expected {expected:0{hex_width}X}, "
-                f"got {actual:0{hex_width}X}"
-            )
+    try:
+        validate_byte_addresses()
+    except ValueError as byte_error:
+        try:
+            validate_word_addresses()
+        except ValueError:
+            raise byte_error
 
 
 def convert_verilog_hex(
