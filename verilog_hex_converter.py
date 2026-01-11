@@ -60,13 +60,11 @@ def _format_lines(data: bytes, line_width: int) -> list[str]:
     remainder = len(data_bytes) % line_width
     padded_data = (
         data_bytes if remainder == 0 else data_bytes + bytes(line_width - remainder)
-    )
+    )  # ensures the length is a multiple of line_width
 
     lines = []
     for idx in range(0, len(padded_data), line_width):
         chunk = padded_data[idx : idx + line_width]
-        if len(chunk) < line_width:
-            chunk = chunk.ljust(line_width, b"\x00")
         word_value = int.from_bytes(chunk, byteorder="little")
         lines.append(f"{word_value:0{hex_width}X}")
     return lines
