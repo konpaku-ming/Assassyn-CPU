@@ -73,27 +73,28 @@ def _format_lines(data: bytes, line_width: int) -> list[str]:
 def _parse_dump_words(dump_path: Path, line_width: int) -> dict[int, int]:
     hex_width = line_width * 2
     words: dict[int, int] = {}
-    for line in dump_path.read_text().splitlines():
-        if ":" not in line:
-            continue
-        addr_part, remainder = line.split(":", 1)
-        try:
-            address = int(addr_part.strip(), 16)
-        except ValueError:
-            continue
+    with dump_path.open() as dump_file:
+        for line in dump_file:
+            if ":" not in line:
+                continue
+            addr_part, remainder = line.split(":", 1)
+            try:
+                address = int(addr_part.strip(), 16)
+            except ValueError:
+                continue
 
-        tokens = remainder.strip().split()
-        if not tokens:
-            continue
-        word_token = tokens[0]
-        # Only validate lines that provide a full word for the configured line width;
-        # other lines are ignored to avoid misinterpreting partial data.
-        if len(word_token) != hex_width:
-            continue
-        try:
-            words[address] = int(word_token, 16)
-        except ValueError:
-            continue
+            tokens = remainder.strip().split()
+            if not tokens:
+                continue
+            word_token = tokens[0]
+            # Only validate lines that provide a full word for the configured line width;
+            # other lines are ignored to avoid misinterpreting partial data.
+            if len(word_token) != hex_width:
+                continue
+            try:
+                words[address] = int(word_token, 16)
+            except ValueError:
+                continue
     return words
 
 
@@ -145,8 +146,8 @@ def _validate_against_dump(
             validate_word_addresses()
         except ValueError as word_error:
             raise ValueError(
-                f"Dump validation failed in byte mode ({byte_error}) "
-                f"and word mode ({word_error})."
+                f"Dump validation failed in byte mode ({str(byte_error)}) "
+                f"and word mode ({str(word_error)})."
             )
 
 
@@ -156,10 +157,13 @@ def convert_verilog_hex(
     data = parse_verilog_hex(source)
     lines = _format_lines(data, line_width)
 
-    if dump_path and dump_path.exists():
-        dump_words = _parse_dump_words(dump_path, line_width)
-        if dump_words:
-            _validate_against_dump(lines, dump_words, line_width)
+    dump_words = (
+        _parse_dump_words(dump_path, line_width)
+        if dump_path and dump_path.exists()
+        else {}
+    )
+    if dump_words:
+        _validate_against_dump(lines, dump_words, line_width)
 
     dest.parent.mkdir(parents=True, exist_ok=True)
     output = "\n".join(lines) + "\n" if lines else ""
