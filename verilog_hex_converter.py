@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from argparse import ArgumentParser
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable, List
 
 
 def _iter_tokens(source: Path) -> Iterable[str]:
@@ -51,18 +51,19 @@ def parse_verilog_hex(source: Path) -> bytearray:
     return buffer
 
 
-def _format_lines(data: bytes, line_width: int) -> List[str]:
+def _format_lines(data: bytes, line_width: int) -> list[str]:
     if line_width <= 0:
         raise ValueError("line_width must be positive")
 
-    padded = bytes(data)
-    remainder = len(padded) % line_width
-    if remainder:
-        padded += bytes(line_width - remainder)
+    data_bytes = bytes(data)
+    remainder = len(data_bytes) % line_width
+    padded_data = (
+        data_bytes if remainder == 0 else data_bytes + bytes(line_width - remainder)
+    )
 
     lines = []
-    for idx in range(0, len(padded), line_width):
-        chunk = padded[idx : idx + line_width]
+    for idx in range(0, len(padded_data), line_width):
+        chunk = padded_data[idx : idx + line_width]
         lines.append("".join(f"{byte:02X}" for byte in chunk))
     return lines
 
@@ -72,9 +73,7 @@ def convert_verilog_hex(source: Path, dest: Path, line_width: int = 8) -> Path:
     lines = _format_lines(data, line_width)
 
     dest.parent.mkdir(parents=True, exist_ok=True)
-    output = "\n".join(lines)
-    if lines:
-        output += "\n"
+    output = "\n".join(lines) + "\n" if lines else ""
     dest.write_text(output)
     return dest
 
