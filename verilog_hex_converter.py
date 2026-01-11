@@ -73,8 +73,20 @@ def _format_lines(data: bytes, line_width: int) -> list[str]:
 def _parse_dump_words(dump_path: Path, line_width: int) -> dict[int, int]:
     hex_width = line_width * 2
     words: dict[int, int] = {}
+    current_section = None
+    ignored_section_prefixes = (".comment", ".debug")
     with dump_path.open() as dump_file:
         for line in dump_file:
+            if line.startswith("Disassembly of section "):
+                section_name = line.split("Disassembly of section ", 1)[1].split(":", 1)[
+                    0
+                ].strip()
+                current_section = section_name
+                continue
+
+            if current_section and current_section.startswith(ignored_section_prefixes):
+                continue
+
             if ":" not in line:
                 continue
             addr_part, remainder = line.split(":", 1)
@@ -92,7 +104,10 @@ def _parse_dump_words(dump_path: Path, line_width: int) -> dict[int, int]:
             if len(word_token) != hex_width:
                 continue
             try:
-                words[address] = int(word_token, 16)
+                # Keep the first occurrence for an address; later sections (e.g., .comment)
+                # may reuse the same offsets but should not override code/data words.
+                if address not in words:
+                    words[address] = int(word_token, 16)
             except ValueError:
                 continue
     return words
