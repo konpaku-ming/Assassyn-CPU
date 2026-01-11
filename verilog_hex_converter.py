@@ -3,7 +3,6 @@ from __future__ import annotations
 from argparse import ArgumentParser
 from collections.abc import Iterable
 from pathlib import Path
-from string import hexdigits
 
 
 def _iter_tokens(source: Path) -> Iterable[str]:
@@ -85,11 +84,12 @@ def _parse_dump_words(dump_path: Path, line_width: int) -> dict[int, int]:
         if not tokens:
             continue
         word_token = tokens[0]
-        if (
-            len(word_token) == line_width * 2
-            and all(ch in hexdigits for ch in word_token)
-        ):
+        if len(word_token) != line_width * 2:
+            continue
+        try:
             words[address] = int(word_token, 16)
+        except ValueError:
+            continue
     return words
 
 
@@ -98,6 +98,8 @@ def _validate_against_dump(
 ) -> None:
     for address, expected in dump_words.items():
         if address % line_width != 0:
+            # Dump lines that are not word-aligned cannot be validated against the
+            # packed word output, so they are skipped.
             continue
         line_idx = address // line_width
         if line_idx >= len(lines):
