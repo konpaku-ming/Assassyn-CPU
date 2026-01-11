@@ -86,7 +86,8 @@ def _parse_dump_words(dump_path: Path, line_width: int) -> dict[int, int]:
         if not tokens:
             continue
         word_token = tokens[0]
-        # Only validate lines that provide a full word for the configured line width.
+        # Only validate lines that provide a full word for the configured line width;
+        # other lines are ignored to avoid misinterpreting partial data.
         if len(word_token) != hex_width:
             continue
         try:
@@ -134,6 +135,9 @@ def _validate_against_dump(
                     f"got {actual:0{hex_width}X}"
                 )
 
+    # Try byte-addressed validation first (the common case for objdump output);
+    # if alignment or content mismatches occur, fall back to treating dump addresses
+    # as already word-indexed.
     try:
         validate_byte_addresses()
     except ValueError as byte_error:
