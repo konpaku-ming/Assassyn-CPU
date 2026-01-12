@@ -14,6 +14,7 @@ class Decoder(Module):
             ports={
                 "pc": Port(Bits(32)),
                 "next_pc": Port(Bits(32)),
+                "stall": Port(Bits(1)),
             }
         )
         self.name = "Decoder"
@@ -22,12 +23,19 @@ class Decoder(Module):
     def build(self, icache_dout: Array, reg_file: Array):
 
         # 1. 获取基础输入
-        pc_val, next_pc_val = self.pop_all_ports(False)
+        pc_val, next_pc_val, stall_if = self.pop_all_ports(False)
         # 从 SRAM 输出获取指令
-        raw_inst = icache_dout[0].bitcast(Bits(32))
+        icache_inst = icache_dout[0].bitcast(Bits(32))
+        # 记录上一个周期的指令，用于在 Stall 时稳住输入
+        last_ins_reg = RegArray(Bits(32), 1, initializer=[0])
+        raw_inst = stall_if.select(last_ins_reg[0], icache_inst)
+        last_ins_reg[0] <= raw_inst
         # 将初始化时出现的 0b0 指令替换为 NOP
         inst = (raw_inst == Bits(32)(0)).select(Bits(32)(0x00000013), raw_inst)
         log("ID: Fetched Instruction=0x{:x} at PC=0x{:x}", inst, pc_val)
+
+        # sb x0, -1(x0) 指令停机
+        halting_if = inst == Bits(32)(0xFE000FA3)
 
         # 2. 物理切片
         opcode = inst[0:6]
@@ -147,6 +155,7 @@ class Decoder(Module):
             mem_width=acc_mem_wid,
             mem_unsigned=acc_mem_uns,
             rd_addr=final_rd,
+            halt_if=halting_if,
         )
 
         pre = pre_decode_t.bundle(
@@ -215,6 +224,7 @@ class DecoderImpl(Downstream):
         final_mem_opcode = nop_if.select(MemOp.NONE, mem_ctrl.mem_opcode)
         final_alu_func = nop_if.select(ALUOp.NOP, pre.alu_func)
         final_branch_type = nop_if.select(BranchType.NO_BRANCH, pre.branch_type)
+        final_halt_if = nop_if.select(Bits(1)(0), mem_ctrl.halt_if)
 
         with Condition(nop_if == Bits(1)(1)):
             log(
@@ -228,6 +238,7 @@ class DecoderImpl(Downstream):
             mem_width=mem_ctrl.mem_width,
             mem_unsigned=mem_ctrl.mem_unsigned,
             rd_addr=final_rd,
+            halt_if=final_halt_if,
         )
         final_ex_ctrl = ex_ctrl_signals.bundle(
             alu_func=final_alu_func,

@@ -29,9 +29,11 @@ class DataHazardUnit(Downstream):
             # 各级 Module build() 的返回值
             ex_rd: Value,  # EX 级目标寄存器索引
             ex_is_load: Value,  # EX 级是否为 Load 指令
+            ex_is_store: Value = None,  # EX 级是否为 Store 指令（单端口存储器仲裁）
             ex_mul_busy: Value,  # EX stage multiplier busy status (multi-cycle MUL instruction occupancy)
             ex_div_busy: Value,  # EX stage divider busy status (multi-cycle DIV instruction occupancy)
             mem_rd: Value,  # MEM 级目标寄存器索引
+            mem_is_store: Value = None,  # MEM 级是否为 Store 指令（单端口存储器仲裁）
             wb_rd: Value,  # WB 级目标寄存器索引
     ):
         # 使用 optional() 处理 Value 接口，如果无效则使用默认值 Bits(x)(0)
@@ -41,9 +43,11 @@ class DataHazardUnit(Downstream):
         rs2_used_val = rs2_used.optional(Bits(1)(0))
         ex_rd_val = ex_rd.optional(Bits(5)(0))
         ex_is_load_val = ex_is_load.optional(Bits(1)(0))
+        ex_is_store_val = Bits(1)(0) if ex_is_store is None else ex_is_store.optional(Bits(1)(0))
         ex_mul_busy_val = ex_mul_busy.optional(Bits(1)(0))
         ex_div_busy_val = ex_div_busy.optional(Bits(1)(0))
         mem_rd_val = mem_rd.optional(Bits(5)(0))
+        mem_is_store_val = Bits(1)(0) if mem_is_store is None else mem_is_store.optional(Bits(1)(0))
         wb_rd_val = wb_rd.optional(Bits(5)(0))
 
         log(
@@ -79,12 +83,15 @@ class DataHazardUnit(Downstream):
         # 3. Detect DIV multi-cycle occupancy - stall pipeline until divider completes
         div_busy_hazard = ex_div_busy_val
 
+        # 4. 单端口存储器仲裁：当 EX/MEM 阶段进行 Load/Store 时，暂停取指
+        mem_port_busy = ex_is_load_val | ex_is_store_val | mem_is_store_val
+
         # Combine all stall conditions
-        stall_if = load_use_hazard_rs1 | load_use_hazard_rs2 | mul_busy_hazard | div_busy_hazard
+        stall_if = load_use_hazard_rs1 | load_use_hazard_rs2 | mul_busy_hazard | div_busy_hazard | mem_port_busy
 
         # 4. Detect Forwarding (Generate Mux selection codes)
         # EX result is not ready if it's a Load (data from memory), MUL (multi-cycle operation), or DIV (multi-cycle operation)
-        ex_result_not_ready = ex_is_load_val | ex_mul_busy_val | ex_div_busy_val
+        ex_result_not_ready = ex_is_load_val | ex_mul_busy_val | ex_div_busy_val | ex_is_store_val
 
         rs1_wb_pass = (rs1_idx_val == wb_rd_val).select(Rs1Sel.WB_BYPASS, Rs1Sel.RS1)
         rs1_mem_bypass = (rs1_idx_val == mem_rd_val).select(Rs1Sel.MEM_BYPASS, rs1_wb_pass)

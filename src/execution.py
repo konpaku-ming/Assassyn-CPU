@@ -34,7 +34,6 @@ class Execution(Module):
             wb_bypass: Array,  # 来自 WB 旁路寄存器的数据 (当前写回数据)
             # --- 分支反馈 ---
             branch_target_reg: Array,  # 用于通知 IF 跳转目标的全局寄存器
-            dcache: SRAM,  # SRAM 模块引用 (用于Store操作)
             # --- BTB 更新 (可选) ---
             btb_impl: "BTBImpl" = None,  # BTB 实现逻辑
             btb_valid: Array = None,  # BTB 有效位数组
@@ -68,6 +67,7 @@ class Execution(Module):
 
         final_rd = flush_if.select(Bits(5)(0), mem_ctrl.rd_addr)
         final_mem_opcode = flush_if.select(Bits(3)(0), mem_ctrl.mem_opcode)
+        final_halt_if = flush_if.select(Bits(1)(0), mem_ctrl.halt_if)
 
         log(
             "Memory Control after Flush Check: mem_opcode=0x{:x} rd=0x{:x}",
@@ -80,6 +80,7 @@ class Execution(Module):
             mem_width=mem_ctrl.mem_width,
             mem_unsigned=mem_ctrl.mem_unsigned,
             rd_addr=final_rd,
+            halt_if=final_halt_if,
         )
 
         # 获取旁路数据
@@ -463,28 +464,6 @@ class Execution(Module):
 
         log("EX: ALU Result: 0x{:x}", alu_result)
 
-        # --- 访存操作 (Store Handling) ---
-        # 仅在 is_write (Store) 为真时驱动 SRAM 的 WE
-        # 地址是 ALU 计算结果，数据是经过 Forwarding 的 rs2
-        is_store = final_mem_ctrl.mem_opcode == MemOp.STORE
-        is_load = final_mem_ctrl.mem_opcode == MemOp.LOAD
-
-        with Condition(is_store):
-            log("EX: Memory Operation: STORE")
-            log("EX: Store Address: 0x{:x}", alu_result)
-            log("EX: Store Data: 0x{:x}", real_rs2)
-        with Condition(is_load):
-            log("EX: Memory Operation: LOAD")
-            log("EX: Load Address: 0x{:x}", alu_result)
-
-        # 直接调用 dcache.build 处理 SRAM 操作
-        dcache.build(
-            we=is_store,  # 写使能信号（对于Store指令）
-            wdata=real_rs2,  # 写入数据（经过Forwarding的rs2）
-            addr=alu_result[0:15],  # 地址（ALU计算结果转换为字地址）
-            re=is_load,  # 读使能信号（对于Load指令）
-        )
-
         # --- 分支处理 (Branch Handling) ---
         # 1. 使用专用加法器计算跳转地址，对于 JALR，基址是 rs1；对于 JAL/Branch，基址是 PC
         is_jalr = ctrl.branch_type == BranchType.JALR
@@ -682,6 +661,11 @@ class Execution(Module):
             MemOp.NONE,
             final_mem_opcode
         )
+        mem_halt_mux = (has_pending_mul_result | has_div_result |
+                        current_is_mul_not_ready | current_is_div_not_ready).select(
+            Bits(1)(0),
+            final_mem_ctrl.halt_if
+        )
 
         # 重新构造发送给MEM的控制信号
         mem_ctrl_to_send = mem_ctrl_signals.bundle(
@@ -689,7 +673,19 @@ class Execution(Module):
             mem_width=final_mem_ctrl.mem_width,
             mem_unsigned=final_mem_ctrl.mem_unsigned,
             rd_addr=mem_rd_mux,
+            halt_if=mem_halt_mux,
         )
+
+        mem_is_store = mem_opcode_mux == MemOp.STORE
+        mem_is_load = mem_opcode_mux == MemOp.LOAD
+
+        with Condition(mem_is_store):
+            log("EX: Memory Operation: STORE")
+            log("EX: Store Address: 0x{:x}", mem_alu_result_mux)
+            log("EX: Store Data: 0x{:x}", real_rs2)
+        with Condition(mem_is_load):
+            log("EX: Memory Operation: LOAD")
+            log("EX: Load Address: 0x{:x}", mem_alu_result_mux)
 
         # 总是向MEM发送
         mem_call = mem_module.async_called(ctrl=mem_ctrl_to_send, alu_result=mem_alu_result_mux)
@@ -730,4 +726,13 @@ class Execution(Module):
         # instruction to incorrectly enter EX.
         mul_busy = multiplier.is_busy() | mul_can_start
         div_busy = divider.is_busy() | div_can_start
-        return mem_rd_mux, is_load, mul_busy, div_busy
+        return (
+            mem_rd_mux,
+            mem_alu_result_mux,
+            mem_is_load,
+            mem_is_store,
+            final_mem_ctrl.mem_width,
+            real_rs2,
+            mul_busy,
+            div_busy,
+        )
