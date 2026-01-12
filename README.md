@@ -45,6 +45,10 @@ apptainer exec --bind $(pwd) /path/to/assassyn.sif python tests/test_fetch.py
 - 模块设计：`docs/Module/` 子目录
 - Agent 指南与环境说明：`docs/Agent.md`
 
+## 停机判定
+- `sb x0, -1(x0)` 在译码阶段被标记为 `halt_if`，一路传递到 MEM，MEM 看到该标志后调用 `finish()` 直接结束仿真。
+- `ecall/ebreak` 译码为 `ALUOp.SYS`，在 EX 阶段命中该运算时同样调用 `finish()`，并受分支冲刷流水保护以避免误停。
+
 ## 工作负载与仿真
 - 示例程序位于 `workloads/`，可通过 `src/main.py` 的 `load_test_case(case_name)` 将二进制复制到 `src/.workspace`（`src` 目录下）供仿真使用。
 - `tests/common.py` 提供了统一的 `run_test_module` 仿真入口，便于为新模块添加测试。
