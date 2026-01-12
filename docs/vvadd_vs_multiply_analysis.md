@@ -1,97 +1,122 @@
-# vvadd vs multiply 对比分析报告
+# vvadd vs multiply 对比分析报告 (更新版)
 
-## 问题
+## 问题描述
 
-用户提问：为什么 `multiply` 能使CPU正常结束，而 `vvadd` 不能？
+使用 `src/main.py` 运行时：
+- `multiply` 能正常结束
+- `vvadd` 不能正常结束
 
-## 核心发现
+## 程序结构分析
 
-**vvadd 和 multiply 运行在两个完全不同的CPU实现上！**
-
-1. **`src/main.py` 运行 vvadd** - 新版CPU，包含：
-   - Tournament 分支预测器（结合局部预测器、全局预测器和选择器）
-   - MUL/DIV 扩展支持和相关的冒险检测
-   - `rs1_used`/`rs2_used` 指令表字段
-   - 完整的 `DataHazardUnit`，包括load-use冒险检测
-   - 使用 `funct7` 字段解码（用于M扩展指令）
-
-2. **`upd/main.py` 运行 multiply** - 旧版CPU，包含：
-   - 简单的 BTB 分支预测
-   - 无 MUL/DIV 扩展支持
-   - 无 `rs_used` 跟踪
-   - 简化的 `HazardUnit`
-   - 使用 `bit30` 字段解码
-
-## 两个程序的结构相同
-
-两个程序都使用相同的启动/停机模式：
+### 启动序列（两者相同）
 
 ```
-0x0: auipc x2, 0x1000     ; 设置栈指针
-0x4: addi x2, x2, 0
-0x8: jal x1, offset       ; 保存返回地址 ra=0xC，跳转到主函数
-0xC: sb x0, -1(x0)        ; 停机指令
-...
-<主函数>
-...
-ret                       ; 返回到 ra=0xC -> 执行停机指令
+0x0: auipc x2, 0x1000     ; x2 = PC + 0x1000 = 0x1000
+0x4: addi x2, x2, 0       ; x2 = 0x1000 (栈指针)
+0x8: jal x1, offset       ; x1 = 0xC (返回地址), 跳转到主函数
+0xC: sb x0, -1(x0)        ; HALT 指令 (fe000fa3)
 ```
 
-## 关键差异对比
+### vvadd 程序流程
 
-| 特性 | src/ (vvadd) | upd/ (multiply) |
-|------|-------------|-----------------|
-| 分支预测 | Tournament Predictor | 简单 BTB |
-| MUL/DIV 支持 | 是 | 否 |
-| 冒险检测 | DataHazardUnit (复杂) | HazardUnit (简单) |
-| Rs1_use/Rs2_use 字段 | 是 | 否 |
-| 指令表格式 | 包含 funct7, Rs1_use, Rs2_use | 只有 bit30 |
+```
+0x10-0x98: 主函数
+  0x10: addi x2, x2, -32    ; 分配栈帧
+  0x14: sw x8, 28(x2)       ; 保存帧指针
+  0x18: addi x8, x2, 32     ; 设置帧指针
+  0x1C: sw x0, -20(x8)      ; i = 0
+  0x20: jal x0, 84          ; 跳转到循环条件检查 (0x74)
 
-## 数据冒险检测的差异
+循环体 (0x24-0x70):
+  - 加载 A[i] 和 B[i]
+  - 计算 C[i] = A[i] + B[i]
+  - i++
 
-### src/data_hazard.py (vvadd使用)
-```python
-stall_if = load_use_hazard_rs1 | load_use_hazard_rs2 | mul_busy_hazard | div_busy_hazard | ex_is_store_val | mem_is_store_val | ex_is_load_val
+循环条件 (0x74-0x7C):
+  0x74: lw x14, -20(x8)     ; 加载 i
+  0x78: addi x15, x0, 299   ; x15 = 299
+  0x7C: bge x15, x14, -88   ; if (299 >= i) goto 0x24
+
+退出 (0x80-0x98):
+  0x80-0x8C: 加载返回值
+  0x90: lw x8, 28(x2)       ; 恢复帧指针
+  0x94: addi x2, x2, 32     ; 释放栈帧
+  0x98: ret                  ; 返回到 x1 = 0xC
 ```
 
-### upd/hazard_unit.py (multiply使用)
-```python
-stall_if = ex_is_load_val | ex_is_store_val | mem_is_store_val
+### multiply 程序流程
+
+```
+软件乘法函数 (0x10-0x78)
+主函数 (0x7C-0x110)
+  - 循环100次调用软件乘法
+  - 使用 BGE 进行循环控制
+  - 保存和恢复 x1 (非叶函数)
 ```
 
-## 结论
+## 关键差异
 
-**这个比较是无效的**，因为两个程序运行在完全不同的CPU实现上。
+| 特性 | vvadd | multiply |
+|------|-------|----------|
+| 循环次数 | 300 | 100 |
+| 函数类型 | 叶函数（不保存x1） | 非叶函数（保存x1） |
+| LUI指令 | 使用 | 不使用 |
+| 循环体复杂度 | 简单（加法） | 复杂（函数调用） |
+| 内存访问 | 多次load/store | 多次load/store |
 
-要正确比较，应该：
-1. 在同一个CPU实现上运行两个程序
-2. 或者识别并修复 `src/` 实现中的具体bug
+## 指令分析
 
-## 建议的下一步
+### vvadd 独有的指令类型
 
-1. **测试方案A**：修改 `src/main.py` 使其加载 `multiply`，验证新CPU能否正常运行
-   ```python
-   load_test_case("multiply")  # 替换 "vvadd"
-   ```
+- **LUI (0x37)**: 用于计算数组C的基地址
+  - `lui x15, 0x1000` at 0x50 和 0x80
+  - 指令编码: `000017b7`
 
-2. **测试方案B**：修改 `upd/main.py` 使其加载 `vvadd`，验证旧CPU能否运行vvadd
+### 数组基地址计算
 
-3. **如果新CPU无法运行任何程序**：说明新CPU实现有bug，需要调试
+```
+Array A: 0xAC (172 bytes = word 43)
+Array B: 0x55C (1372 bytes = word 343)
+Array C: 0xA0C (2572 bytes = word 643)
 
-4. **如果新CPU只是无法运行vvadd**：可能是vvadd触发了特定的边界情况
+Array C 基地址计算:
+  lui x15, 0x1000      ; x15 = 0x1000
+  addi x13, x15, -1524 ; x13 = 0x1000 - 1524 = 0xA0C
+```
 
-## 程序细节分析
+### 循环边界
 
-### vvadd 程序
-- 循环次数：300次
-- 每次迭代：6次load，2次store
-- 总指令数：约4500条
-- 不使用MUL/DIV指令
+- vvadd: `bge x15, x14, -88` where x15=299
+  - 循环从 i=0 到 i=299 (300次迭代)
+  - 当 i=300 时，299 < 300，分支不执行，退出循环
 
-### multiply 程序  
-- 主循环次数：100次
-- 包含软件乘法子程序调用
-- 每次迭代调用 multiply 函数
-- 不使用硬件MUL/DIV指令
+- multiply: `bge x15, x14, -96` where x15=99
+  - 循环从 i=0 到 i=99 (100次迭代)
 
-两个程序都不使用M扩展指令，所以新CPU的MUL/DIV支持不应该影响执行。
+## 已排除的问题
+
+1. ✅ 启动序列相同
+2. ✅ HALT指令编码正确 (fe000fa3)
+3. ✅ 返回地址正确 (x1 = 0xC)
+4. ✅ 循环边界条件正确
+5. ✅ LUI/AUIPC 指令编码正确
+6. ✅ 数组基地址计算正确
+7. ✅ 文件格式正确 (ASCII hex)
+8. ✅ BTB索引无冲突
+
+## 可能的问题方向
+
+1. **LUI指令执行**：vvadd使用LUI但multiply不使用，可能是LUI的实现有问题
+
+2. **300次迭代**：更多的迭代次数可能触发某些边界情况
+
+3. **Tournament Predictor 状态**：300次相同模式的分支可能导致预测器进入异常状态
+
+4. **寄存器转发/冒险检测**：特定的指令序列可能触发数据冒险检测问题
+
+## 建议调试步骤
+
+1. 添加仿真日志，追踪LUI指令的执行结果
+2. 检查循环最后几次迭代的PC和寄存器值
+3. 验证函数返回时x1的值是否仍为0xC
+4. 检查HALT指令是否被正确识别并触发finish()
