@@ -147,6 +147,7 @@ class Driver(Module):
             mem_width=current_mem_width,
             mem_unsigned=current_mem_unsigned,
             rd_addr=current_rd_addr,
+            halt_if=Bits(1)(0),
         )
 
         # 4. 模拟 SRAM 输出数据
@@ -292,7 +293,7 @@ if __name__ == "__main__":
         )
 
         # 获取 DUT 的返回值
-        mem_ctrl = dut.build(wb_module, sram_dout, mem_bypass_reg)
+        mem_ctrl, _ = dut.build(wb_module, sram_dout, mem_bypass_reg)
 
         # 获取 WB 模块的返回值
         # 创建 wb_bypass_reg 用于 WriteBack 模块

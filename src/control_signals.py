@@ -142,6 +142,7 @@ mem_ctrl_signals = Record(
     mem_width=Bits(3),  # 访问宽度，独热码 (0:Byte, 1:Half, 2:Word)
     mem_unsigned=Bits(1),  # 是否无符号扩展 (LBU/LHU)
     rd_addr=Bits(5),  # 【嵌套】携带 WB 级信号
+    halt_if=Bits(1),  # 是否为停机指令
 )
 
 # 执行域 (ExCtrl)

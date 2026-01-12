@@ -36,7 +36,6 @@ class FetcherImpl(Downstream):
         pc_reg: Array,  # 引用 Fetcher 的 PC
         pc_addr: Bits(32),  # 引用 Fetcher 的 PC 地址
         last_pc_reg: Array,  # 引用 Fetcher 的 Last PC
-        icache: SRAM,  # 引用 ICache
         decoder: Module,  # 下一级模块 (用于发送指令)
         # --- 反馈控制信号 (来自 DataHazardUnit/ControlHazardReg) ---
         stall_if: Value,  # 暂停取指 (保持当前 PC)
@@ -70,16 +69,7 @@ class FetcherImpl(Downstream):
         final_current_pc = flush_if.select(target_pc, current_pc)
         log("IF: Final Current PC=0x{:x}", final_current_pc)
 
-        # --- 1. 驱动 SRAM (组合逻辑输出) ---
-        # 决定是否给 SRAM 喂地址以及喂什么地址
-        # 如果 Flush，为了让下一拍 ID 能拿到新指令，必须立刻喂 Target
-        # 如果 Stall，必须输入上一周期地址以稳住输出
-        # 如果 Normal，喂 Current 读取当前指令
-        sram_addr = ((final_current_pc) >> UInt(32)(2))[0:15]
-        icache.build(we=Bits(1)(0), re=Bits(1)(1), addr=sram_addr, wdata=Bits(32)(0))
-        log("IF: SRAM Addr=0x{:x}", sram_addr)
-
-        # --- 2. 计算 Next PC (时序逻辑输入) ---
+        # --- 1. 计算 Next PC (时序逻辑输入) ---
         # 使用 BTB 进行分支目标预测
         btb_hit, btb_predicted_target = btb_impl.predict(
             pc=final_current_pc,
@@ -135,7 +125,13 @@ class FetcherImpl(Downstream):
             final_current_pc,
         )
 
-        # --- 3. 驱动下游 Decoder (流控) ---
-        # 发送到下一级，只传递 PC 值
-        call = decoder.async_called(pc=final_current_pc, next_pc=final_next_pc)
+        # --- 2. 驱动下游 Decoder (流控) ---
+        # 发送到下一级，传递 PC 值与 Stall 信号（使用上一周期指令信号）
+        call = decoder.async_called(
+            pc=final_current_pc,
+            next_pc=final_next_pc,
+            stall=current_stall_if,
+        )
         call.bind.set_fifo_depth(pc=1)
+
+        return final_current_pc
