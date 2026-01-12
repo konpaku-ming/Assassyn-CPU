@@ -1,4 +1,6 @@
 from assassyn.frontend import *
+
+from .btb import TournamentPredictorImpl, BTBImpl
 from .control_signals import *
 from .multiplier import WallaceTreeMul, sign_zero_extend
 from .divider import SRT4Divider
@@ -33,7 +35,7 @@ class Execution(Module):
             mem_bypass: Array = None,  # 来自 MEM-WB 旁路寄存器的数据 (上上条指令结果)
             wb_bypass: Array = None,  # 来自 WB 旁路寄存器的数据 (当前写回数据)
             # --- 分支反馈 ---
-            branch_target_reg: Array,  # 用于通知 IF 跳转目标的全局寄存器
+            branch_target_reg: Array = None,  # 用于通知 IF 跳转目标的全局寄存器
             dcache: SRAM = None,  # 保留参数以兼容旧接口
             # --- BTB 更新 (可选) ---
             btb_impl: "BTBImpl" = None,  # BTB 实现逻辑
@@ -625,12 +627,12 @@ class Execution(Module):
             # 对于条件分支指令，根据实际结果更新 Tournament Predictor
             # JAL/JALR 是无条件跳转，不需要预测
             is_conditional_branch = (
-                (ctrl.branch_type == BranchType.BEQ) |
-                (ctrl.branch_type == BranchType.BNE) |
-                (ctrl.branch_type == BranchType.BLT) |
-                (ctrl.branch_type == BranchType.BGE) |
-                (ctrl.branch_type == BranchType.BLTU) |
-                (ctrl.branch_type == BranchType.BGEU)
+                    (ctrl.branch_type == BranchType.BEQ) |
+                    (ctrl.branch_type == BranchType.BNE) |
+                    (ctrl.branch_type == BranchType.BLT) |
+                    (ctrl.branch_type == BranchType.BGE) |
+                    (ctrl.branch_type == BranchType.BLTU) |
+                    (ctrl.branch_type == BranchType.BGEU)
             )
             # 只对条件分支更新 Tournament Predictor
             should_update_tournament = is_conditional_branch & ~flush_if
