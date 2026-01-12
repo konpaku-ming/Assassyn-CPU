@@ -290,6 +290,7 @@ class Driver(Module):
             mem_width=MemWidth.WORD,
             mem_unsigned=MemSign.UNSIGNED,
             rd_addr=dynamic_rd_addr,  # 默认写入x1寄存器
+            halt_if=Bits(1)(0),
         )
 
         # 然后创建ex_ctrl信号

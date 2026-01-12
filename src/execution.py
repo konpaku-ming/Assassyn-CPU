@@ -29,12 +29,12 @@ class Execution(Module):
             self,
             mem_module: Module,  # 下一级流水线 (MEM)
             # --- 旁路数据源 (Forwarding Sources) ---
-            ex_bypass: Array,  # 来自 EX-MEM 旁路寄存器的数据（上条指令结果）
-            mem_bypass: Array,  # 来自 MEM-WB 旁路寄存器的数据 (上上条指令结果)
-            wb_bypass: Array,  # 来自 WB 旁路寄存器的数据 (当前写回数据)
+            ex_bypass: Array = None,  # 来自 EX-MEM 旁路寄存器的数据（上条指令结果）
+            mem_bypass: Array = None,  # 来自 MEM-WB 旁路寄存器的数据 (上上条指令结果)
+            wb_bypass: Array = None,  # 来自 WB 旁路寄存器的数据 (当前写回数据)
             # --- 分支反馈 ---
             branch_target_reg: Array,  # 用于通知 IF 跳转目标的全局寄存器
-            dcache: SRAM,  # SRAM 模块引用 (用于Store操作)
+            dcache: SRAM = None,  # 保留参数以兼容旧接口
             # --- BTB 更新 (可选) ---
             btb_impl: "BTBImpl" = None,  # BTB 实现逻辑
             btb_valid: Array = None,  # BTB 有效位数组
@@ -46,6 +46,7 @@ class Execution(Module):
             ghr: Array = None,
             global_counters: Array = None,
             chooser_counters: Array = None,
+            **kwargs,
     ):
         # 1. 弹出所有端口数据
         # 根据 __init__ 定义顺序解包
@@ -63,11 +64,38 @@ class Execution(Module):
         # 确定是否要 Flush 指令
         flush_if = branch_target_reg[0] != Bits(32)(0)
 
+        # 兼容旧接口的别名参数
+        if ex_bypass is None:
+            ex_bypass = kwargs.get("ex_mem_bypass")
+        if mem_bypass is None:
+            mem_bypass = kwargs.get("mem_wb_bypass")
+        if wb_bypass is None:
+            wb_bypass = kwargs.get("wb_bypass")
+        if ex_bypass is None:
+            ex_bypass = RegArray(Bits(32), 1, initializer=[0])
+        if mem_bypass is None:
+            mem_bypass = RegArray(Bits(32), 1, initializer=[0])
+        if wb_bypass is None:
+            wb_bypass = RegArray(Bits(32), 1, initializer=[0])
+
+        if mem_module is None or branch_target_reg is None:
+            return (
+                Bits(5)(0),
+                Bits(32)(0),
+                Bits(1)(0),
+                Bits(1)(0),
+                Bits(3)(0),
+                Bits(32)(0),
+                Bits(1)(0),
+                Bits(1)(0),
+            )
+
         with Condition(flush_if == Bits(1)(1)):
             log("EX: Flush")
 
         final_rd = flush_if.select(Bits(5)(0), mem_ctrl.rd_addr)
         final_mem_opcode = flush_if.select(Bits(3)(0), mem_ctrl.mem_opcode)
+        final_halt_if = flush_if.select(Bits(1)(0), mem_ctrl.halt_if)
 
         log(
             "Memory Control after Flush Check: mem_opcode=0x{:x} rd=0x{:x}",
@@ -80,6 +108,7 @@ class Execution(Module):
             mem_width=mem_ctrl.mem_width,
             mem_unsigned=mem_ctrl.mem_unsigned,
             rd_addr=final_rd,
+            halt_if=final_halt_if,
         )
 
         # 获取旁路数据
@@ -477,14 +506,6 @@ class Execution(Module):
             log("EX: Memory Operation: LOAD")
             log("EX: Load Address: 0x{:x}", alu_result)
 
-        # 直接调用 dcache.build 处理 SRAM 操作
-        dcache.build(
-            we=is_store,  # 写使能信号（对于Store指令）
-            wdata=real_rs2,  # 写入数据（经过Forwarding的rs2）
-            addr=alu_result[0:15],  # 地址（ALU计算结果转换为字地址）
-            re=is_load,  # 读使能信号（对于Load指令）
-        )
-
         # --- 分支处理 (Branch Handling) ---
         # 1. 使用专用加法器计算跳转地址，对于 JALR，基址是 rs1；对于 JAL/Branch，基址是 PC
         is_jalr = ctrl.branch_type == BranchType.JALR
@@ -689,6 +710,7 @@ class Execution(Module):
             mem_width=final_mem_ctrl.mem_width,
             mem_unsigned=final_mem_ctrl.mem_unsigned,
             rd_addr=mem_rd_mux,
+            halt_if=final_mem_ctrl.halt_if,
         )
 
         # 总是向MEM发送
@@ -730,4 +752,4 @@ class Execution(Module):
         # instruction to incorrectly enter EX.
         mul_busy = multiplier.is_busy() | mul_can_start
         div_busy = divider.is_busy() | div_can_start
-        return mem_rd_mux, is_load, mul_busy, div_busy
+        return mem_rd_mux, mem_alu_result_mux, is_load, is_store, final_mem_ctrl.mem_width, real_rs2, mul_busy, div_busy

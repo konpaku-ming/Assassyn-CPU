@@ -58,13 +58,13 @@ class Driver(Module):
 # --- Sink ---
 class MockDecoder(Module):
     def __init__(self):
-        super().__init__(ports={"pc": Port(Bits(32))})
+        super().__init__(ports={"pc": Port(Bits(32)), "next_pc": Port(Bits(32)), "stall": Port(Bits(1))})
 
     @module.combinational
     def build(self):
         # 模拟 ID 级接收 (Always Pop)
         # 注意：即使是重复的 PC，这里也会打印出来
-        pc = self.pop_all_ports(False)
+        pc, next_pc, stall = self.pop_all_ports(False)
         log("DEC: Recv PC=0x{:x}", pc)
         return pc
 
@@ -153,19 +153,18 @@ if __name__ == "__main__":
         fetcher = Fetcher()
         decoder = MockDecoder()
         driver = Driver()
-        icache = SRAM(32, 4096, "")
 
         # 全局控制信号
         br_target = RegArray(Bits(32), 1)
-        pc_reg, last_pc_reg = fetcher.build()
+        pc_reg, pc_addr, last_pc_reg = fetcher.build()
         pc = decoder.build()
         stall_wire = driver.build(br_target, fetcher)
 
         impl = FetcherImpl()
         impl.build(
             pc_reg=pc_reg,
+            pc_addr=pc_addr,
             last_pc_reg=last_pc_reg,
-            icache=icache,
             decoder=decoder,
             stall_if=stall_wire,
             branch_target=br_target,

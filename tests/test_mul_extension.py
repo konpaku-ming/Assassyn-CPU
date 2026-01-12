@@ -76,6 +76,7 @@ class Driver(Module):
                     mem_width=MemWidth.WORD,
                     mem_unsigned=Bits(1)(0),
                     rd_addr=Bits(5)(1),  # 写入 x1
+                    halt_if=Bits(1)(0),
                 )
                 
                 ctrl = ex_ctrl_signals.bundle(

@@ -11,7 +11,7 @@ from .fetch import Fetcher, FetcherImpl
 from .decoder import Decoder, DecoderImpl
 from .data_hazard import DataHazardUnit
 from .execution import Execution
-from .memory import MemoryAccess
+from .memory import MemoryAccess, SingleMemory
 from .writeback import WriteBack
 from .btb import BTB, BTBImpl, TournamentPredictor, TournamentPredictorImpl
 
@@ -53,32 +53,19 @@ def load_test_case(case_name, source_subdir="workloads"):
     # 3. 文件搬运 (Copy & Rename)
     # =========================================================
 
-    # 定义源文件名 (假设源文件叫 0to100.exe 和 0to100.data)
+    # 定义源文件名
     src_exe = os.path.join(source_dir, f"{case_name}.exe")
-    src_data = os.path.join(source_dir, f"{case_name}.data")
 
-    # 定义目标文件名 (硬件写死的固定名字)
-    # 根据你之前的 build_cpu 代码，硬件找的是 workload.exe 和 workload.data
+    # 定义目标文件名
     dst_ins = os.path.join(workspace_dir, f"workload.exe")
-    dst_mem = os.path.join(workspace_dir, f"workload.data")
 
-    # --- 复制指令文件 (.exe) -> icache ---
+    # --- 复制 RAM 文件 (.exe) -> cache ---
     if os.path.exists(src_exe):
         shutil.copy(src_exe, dst_ins)
-        print(f"  -> Copied Instruction: {case_name}.exe ==> workload_ins.exe")
+        print(f"  -> Copied Instruction: {case_name}.exe ==> workload.exe")
     else:
         # 如果找不到源文件，抛出错误（因为指令文件是必须的）
         raise FileNotFoundError(f"Test case not found: {src_exe}")
-
-    # --- 复制数据文件 (.data) -> dcache ---
-    if os.path.exists(src_data):
-        shutil.copy(src_data, dst_mem)
-        print(f"  -> Copied Memory Data: {case_name}.data ==> workload_mem.exe")
-    else:
-        # 如果没有数据文件（有些简单测试不需要），创建一个空文件防止报错
-        with open(dst_mem, "w") as f:
-            pass
-        print(f"  -> No .data found, created empty: workload_mem.exe")
 
 
 class Driver(Module):
@@ -94,17 +81,13 @@ def build_cpu(depth_log):
     sys_name = "rv32i_cpu"
     sys = SysBuilder(sys_name)
 
-    data_path = os.path.join(workspace, f"workload.data")
     ins_path = os.path.join(workspace, f"workload.exe")
-    print(f"[*] Data Path: {data_path}")
     print(f"[*] Ins Path: {ins_path}")
 
     with sys:
         # 1. 物理资源初始化
-        dcache = SRAM(width=32, depth=1 << depth_log, init_file=data_path)
-        dcache.name = "dcache"
-        icache = SRAM(width=32, depth=1 << depth_log, init_file=ins_path)
-        icache.name = "icache"
+        cache = SRAM(width=32, depth=1 << depth_log, init_file=ins_path)
+        cache.name = "cache"
 
         # 寄存器堆
         reg_file = RegArray(Bits(32), 32)
@@ -134,6 +117,7 @@ def build_cpu(depth_log):
 
         executor = Execution()
         memory_unit = MemoryAccess()
+        memory_single = SingleMemory()
         writeback = WriteBack()
 
         driver = Driver()
@@ -151,20 +135,19 @@ def build_cpu(depth_log):
         )
 
         # --- Step B: MEM 阶段 ---
-        mem_rd = memory_unit.build(
+        mem_rd, mem_is_store = memory_unit.build(
             wb_module=writeback,
-            sram_dout=dcache.dout,
+            sram_dout=cache.dout,
             mem_bypass_reg=mem_bypass_reg,
         )
 
         # --- Step C: EX 阶段 ---
-        ex_rd, ex_is_load, ex_mul_busy, ex_div_busy = executor.build(
+        ex_rd, ex_addr, ex_is_load, ex_is_store, ex_width, ex_rs2, ex_mul_busy, ex_div_busy = executor.build(
             mem_module=memory_unit,
             ex_bypass=ex_bypass_reg,
             mem_bypass=mem_bypass_reg,
             wb_bypass=wb_bypass_reg,
             branch_target_reg=branch_target_reg,
-            dcache=dcache,
             btb_impl=btb_impl,
             btb_valid=btb_valid,
             btb_tags=btb_tags,
@@ -178,7 +161,7 @@ def build_cpu(depth_log):
 
         # --- Step D: ID 阶段 (Shell) ---
         pre_pkt, rs1, rs2, use1, use2 = decoder.build(
-            icache_dout=icache.dout,
+            icache_dout=cache.dout,
             reg_file=reg_file,
         )
 
@@ -190,9 +173,11 @@ def build_cpu(depth_log):
             rs2_used=use2,
             ex_rd=ex_rd,
             ex_is_load=ex_is_load,
+            ex_is_store=ex_is_store,
             ex_mul_busy=ex_mul_busy,
             ex_div_busy=ex_div_busy,
             mem_rd=mem_rd,
+            mem_is_store=mem_is_store,
             wb_rd=wb_rd,
         )
 
@@ -208,11 +193,10 @@ def build_cpu(depth_log):
 
         # --- Step G: IF 阶段 ---
         pc_reg, pc_addr, last_pc_reg = fetcher.build()
-        fetcher_impl.build(
+        current_pc = fetcher_impl.build(
             pc_reg=pc_reg,
             pc_addr=pc_addr,
             last_pc_reg=last_pc_reg,
-            icache=icache,
             decoder=decoder,
             stall_if=stall_if,
             branch_target=branch_target_reg,
@@ -225,6 +209,17 @@ def build_cpu(depth_log):
             ghr=ghr,
             global_counters=global_counters,
             chooser_counters=chooser_counters,
+        )
+
+        # --- Step H: SRAM 驱动 ---
+        memory_single.build(
+            if_addr=current_pc,
+            mem_addr=ex_addr,
+            re=ex_is_load,
+            we=ex_is_store,
+            wdata=ex_rs2,
+            width=ex_width,
+            sram=cache,
         )
 
         # --- Step H: 辅助驱动 ---
