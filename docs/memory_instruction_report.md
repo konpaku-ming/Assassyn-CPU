@@ -1,7 +1,7 @@
 # 内存字节/半字指令支持情况
 
 ## 指令表覆盖情况
-- `instruction_table.py` 明确定义了 `lb`/`lh`/`lbu`/`lhu` 以及 `sb`/`sh`/`sw` 的译码入口（行 54-72），其中加载类指令携带 `MemWidth.BYTE/HALF/WORD` 与符号扩展标志。
+- `instruction_table.py` 明确定义了 `lb`/`lh`/`lbu`/`lhu`（行 54-62）和 `sb`/`sh`/`sw`（行 67-72）的译码入口，其中加载类指令携带 `MemWidth.BYTE/HALF/WORD` 与符号扩展标志。
 
 ## Load（B/H）实现情况
 - 在 EX 阶段，加载/存储地址由 `rs1 + imm` 计算并传递到 MEM 阶段（`execution.py` 第 466-486 行）。
@@ -17,5 +17,5 @@
 - 结论：`sb/sh` 尚未真正实现；存储路径目前只有整字写（行为与 `sw` 相同）。
 
 ## `lw` 与 `sw` 的当前行为
-- `lw`：译码为 `MemWidth.WORD` 且有符号（`instruction_table.py` 行 58-59）。EX 阶段地址为 `rs1 + imm`，传递到 MEM；MEM 直接返回 32 位原始 SRAM 数据（`memory.py` 第 86-91 行），默认要求字对齐（测试桩 `MockSRAM` 对非对齐地址发出警告）。
+- `lw`：译码为 `MemWidth.WORD`（`instruction_table.py` 行 58-59）。EX 阶段地址为 `rs1 + imm`，传递到 MEM；MEM 直接返回 32 位原始 SRAM 数据（`memory.py` 第 86-91 行），该路径不涉及符号扩展字段，默认要求字对齐（测试桩 `MockSRAM` 对非对齐地址发出警告）。
 - `sw`：译码为 `MemWidth.WORD`（行 71-72），EX 阶段在 `mem_opcode == STORE` 时将 32 位 `rs2` 写入目标地址，未做字节掩码处理（`execution.py` 第 466-486 行）。因此当前存储路径实际只支持整字写。
