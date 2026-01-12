@@ -2,6 +2,8 @@ from assassyn.frontend import *
 from .control_signals import *
 from .instruction_table import rv32i_table
 
+HALT_ENCODING = Bits(32)(0xFE000FA3)  # sb x0, -1(x0) 编码
+
 
 # 辅助函数：生成填充位
 def get_pad(width, hex_mask, sign):
@@ -35,7 +37,7 @@ class Decoder(Module):
         log("ID: Fetched Instruction=0x{:x} at PC=0x{:x}", inst, pc_val)
 
         # sb x0, -1(x0) 指令停机
-        halting_if = inst == Bits(32)(0xFE000FA3)
+        halting_if = inst == HALT_ENCODING
 
         # 2. 物理切片
         opcode = inst[0:6]

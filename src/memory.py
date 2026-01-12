@@ -99,6 +99,7 @@ class MemoryAccess(Module):
         # 如果是 Load 指令，用加工后的内存数据
         # 否则 (ALU运算/JAL/LUI)，用 EX 传下来的 alu_result
         is_load = mem_opcode == MemOp.LOAD  # 检查是否为 Load 指令
+        is_store = mem_opcode == MemOp.STORE  # 检查是否为 Store 指令
         final_data = is_load.select(processed_mem_result, alu_result)
 
         # 4. 输出驱动 (Output Driver)
@@ -150,14 +151,15 @@ class SingleMemory(Downstream):
         # 1. 定义状态寄存器
         # 0: IDLE/READ Phase; 1: WRITE Phase
         store_state = RegArray(Bits(1), 1, initializer=[0])
-        # 定义锁存器，用于跨周期传递 Store 信息)
+        # 定义锁存器，用于跨周期传递 Store 信息
         store_addr = RegArray(Bits(32), 1)
         store_data = RegArray(Bits(32), 1)
         store_width = RegArray(Bits(3), 1)
 
         # 2. 状态迁移逻辑
-        # store_state 更新
-        store_reg_refresh = we_val & ~store_state[0]
+        # store_state 更新（使用上一周期的状态判定刷新）
+        current_store_state = store_state[0]
+        store_reg_refresh = we_val & ~current_store_state
         store_state[0] <= store_reg_refresh.select(Bits(1)(1), Bits(1)(0))
         # 地址寄存器更新
         store_addr[0] <= store_reg_refresh.select(mem_addr_val, Bits(32)(0))
@@ -176,10 +178,10 @@ class SingleMemory(Downstream):
         SRAM_addr = ex_request.select(final_mem_addr, if_addr_val)
 
         # 写数据计算
-        final_wdata = store_state[0].select(store_data[0], Bits(32)(0))
+        final_wdata = store_state[0].select(store_data[0], wdata_val)
         final_width = store_state[0].select(store_width[0], width_val)
-        # 计算位偏移 (addr[0:1] * 8)
-        shamt = (final_mem_addr[0:1].concat(Bits(3)(0))).bitcast(UInt(5))
+        # 计算位偏移 (addr[1:0] * 8)
+        shamt = (final_mem_addr[0:2].concat(Bits(3)(0))).bitcast(UInt(5))
         # 生成基础掩码（按 Byte/Half/Word 顺序）
         raw_mask = final_width.select1hot(
             Bits(32)(0x000000FF),  # Byte

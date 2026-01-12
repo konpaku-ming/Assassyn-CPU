@@ -91,7 +91,7 @@ class DataHazardUnit(Downstream):
 
         # 4. Detect Forwarding (Generate Mux selection codes)
         # EX result is not ready if it's a Load (data from memory), MUL (multi-cycle operation), or DIV (multi-cycle operation)
-        ex_result_not_ready = ex_is_load_val | ex_mul_busy_val | ex_div_busy_val | ex_is_store_val
+        ex_result_not_ready = ex_is_load_val | ex_mul_busy_val | ex_div_busy_val
 
         rs1_wb_pass = (rs1_idx_val == wb_rd_val).select(Rs1Sel.WB_BYPASS, Rs1Sel.RS1)
         rs1_mem_bypass = (rs1_idx_val == mem_rd_val).select(Rs1Sel.MEM_BYPASS, rs1_wb_pass)
