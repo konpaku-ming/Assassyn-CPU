@@ -2,7 +2,7 @@
 .globl _start
 
 _start:
-    # 设置栈指针。链接脚本定义了 __stack_top 在 DMEM 末尾
+    # 设置栈指针。链接脚本定义了 __stack_top
     la sp, __stack_top
     
     # 跳转到 C 的 main
@@ -10,4 +10,4 @@ _start:
 
     # 死循环
 loop:
-    j loop
+    sb x0 , -1(x0)
