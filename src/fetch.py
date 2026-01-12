@@ -1,4 +1,6 @@
 from assassyn.frontend import *
+
+from .btb import TournamentPredictorImpl, BTBImpl
 from .control_signals import *
 
 

@@ -13,7 +13,7 @@ Disassembly of section .text:
    c:	fe000fa3          	sb	zero,-1(zero) # ffffffff <__stack_top+0xffffefff>
 
 00000010 <main>:
-  10:	fe010113          	addi	sp,sp,-32 # fe0 <c+0x5d4>
+  10:	fe010113          	addi	sp,sp,-32 # fe0 <result_C+0x5d4>
   14:	00812e23          	sw	s0,28(sp)
   18:	02010413          	addi	s0,sp,32
   1c:	fe042623          	sw	zero,-20(s0)
@@ -30,7 +30,7 @@ Disassembly of section .text:
   48:	0007a783          	lw	a5,0(a5)
   4c:	00f70733          	add	a4,a4,a5
   50:	000017b7          	lui	a5,0x1
-  54:	a0c78693          	addi	a3,a5,-1524 # a0c <c>
+  54:	a0c78693          	addi	a3,a5,-1524 # a0c <result_C>
   58:	fec42783          	lw	a5,-20(s0)
   5c:	00279793          	slli	a5,a5,0x2
   60:	00f687b3          	add	a5,a3,a5
@@ -42,8 +42,8 @@ Disassembly of section .text:
   78:	12b00793          	li	a5,299
   7c:	fae7d4e3          	bge	a5,a4,24 <main+0x14>
   80:	000017b7          	lui	a5,0x1
-  84:	a0c78793          	addi	a5,a5,-1524 # a0c <c>
-  88:	0007a783          	lw	a5,0(a5)
+  84:	a0c78793          	addi	a5,a5,-1524 # a0c <result_C>
+  88:	4ac7a783          	lw	a5,1196(a5)
   8c:	00078513          	mv	a0,a5
   90:	01c12403          	lw	s0,28(sp)
   94:	02010113          	addi	sp,sp,32
@@ -55,7 +55,7 @@ Disassembly of section .text:
 
 Disassembly of section .data:
 
-000000ac <a>:
+000000ac <input_A>:
   ac:	0029                	.insn	2, 0x0029
   ae:	0000                	.insn	2, 0x
   b0:	0341                	.insn	2, 0x0341
@@ -155,7 +155,7 @@ Disassembly of section .data:
  18a:	0000                	.insn	2, 0x
  18c:	00b5                	.insn	2, 0x00b5
  18e:	0000                	.insn	2, 0x
- 190:	0000006f          	j	190 <a+0xe4>
+ 190:	0000006f          	j	190 <input_A+0xe4>
  194:	0000035b          	.insn	4, 0x035b
  198:	0041                	.insn	2, 0x0041
  19a:	0000                	.insn	2, 0x
@@ -208,7 +208,7 @@ Disassembly of section .data:
  206:	0000                	.insn	2, 0x
  208:	0116                	.insn	2, 0x0116
  20a:	0000                	.insn	2, 0x
- 20c:	0000016f          	jal	sp,20c <a+0x160>
+ 20c:	0000016f          	jal	sp,20c <input_A+0x160>
  210:	0166                	.insn	2, 0x0166
  212:	0000                	.insn	2, 0x
  214:	0248                	.insn	2, 0x0248
@@ -491,7 +491,7 @@ Disassembly of section .data:
  4ae:	0000                	.insn	2, 0x
  4b0:	00000323          	sb	zero,6(zero) # 6 <_start+0x6>
  4b4:	00000333          	add	t1,zero,zero
- 4b8:	000002ef          	jal	t0,4b8 <a+0x40c>
+ 4b8:	000002ef          	jal	t0,4b8 <input_A+0x40c>
  4bc:	0118                	.insn	2, 0x0118
  4be:	0000                	.insn	2, 0x
  4c0:	0055                	.insn	2, 0x0055
@@ -568,7 +568,7 @@ Disassembly of section .data:
  558:	00a0                	.insn	2, 0x00a0
 	...
 
-0000055c <b>:
+0000055c <input_B>:
  55c:	01c6                	.insn	2, 0x01c6
  55e:	0000                	.insn	2, 0x
  560:	0000014f          	.insn	4, 0x014f
@@ -984,7 +984,7 @@ Disassembly of section .data:
  926:	0000                	.insn	2, 0x
  928:	0079                	.insn	2, 0x0079
  92a:	0000                	.insn	2, 0x
- 92c:	0000036f          	jal	t1,92c <b+0x3d0>
+ 92c:	0000036f          	jal	t1,92c <input_B+0x3d0>
  930:	0051                	.insn	2, 0x0051
  932:	0000                	.insn	2, 0x
  934:	0366                	.insn	2, 0x0366
@@ -1073,7 +1073,7 @@ Disassembly of section .data:
  9f2:	0000                	.insn	2, 0x
  9f4:	000002e7          	jalr	t0,zero # 0 <_start>
  9f8:	000001b7          	lui	gp,0x0
- 9fc:	00000163          	beqz	zero,9fe <b+0x4a2>
+ 9fc:	00000163          	beqz	zero,9fe <input_B+0x4a2>
  a00:	00000193          	li	gp,0
  a04:	008d                	.insn	2, 0x008d
  a06:	0000                	.insn	2, 0x
