@@ -151,7 +151,7 @@ class SingleMemory(Downstream):
         # 1. 定义状态寄存器
         # 0: IDLE/READ Phase; 1: WRITE Phase
         store_state = RegArray(Bits(1), 1, initializer=[0])
-        # 定义锁存器，用于跨周期传递 Store 信息)
+        # 定义锁存器，用于跨周期传递 Store 信息
         store_addr = RegArray(Bits(32), 1)
         store_data = RegArray(Bits(32), 1)
         store_width = RegArray(Bits(3), 1)
