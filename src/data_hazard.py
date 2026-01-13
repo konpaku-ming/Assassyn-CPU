@@ -15,7 +15,7 @@ class DataHazardUnit(Downstream):
 
     def __init__(self):
         super().__init__()
-        self.name = "DataHazardUnit"
+        self.name = "HazardUnit"
 
     @downstream.combinational
     def build(
@@ -23,8 +23,8 @@ class DataHazardUnit(Downstream):
             # --- 1. 来自 ID 级 (当前指令需求) ---
             rs1_idx: Value,  # 源寄存器 1 索引 (Value)
             rs2_idx: Value,  # 源寄存器 2 索引 (Value)
-            rs1_used: Value,  # 是否需要读取 rs1 (Value) - 避免 LUI 等指令的虚假冒险
-            rs2_used: Value,  # 是否需要读取 rs2 (Value)
+            rs1_used: Value = None,  # 是否需要读取 rs1 (Value) - 避免 LUI 等指令的虚假冒险
+            rs2_used: Value = None,  # 是否需要读取 rs2 (Value)
             # --- 2. 来自流水线各级 (实时状态回传) ---
             # 各级 Module build() 的返回值
             ex_rd: Value,  # EX 级目标寄存器索引
@@ -40,8 +40,8 @@ class DataHazardUnit(Downstream):
         # 使用 optional() 处理 Value 接口，如果无效则使用默认值 Bits(x)(0)
         rs1_idx_val = rs1_idx.optional(Bits(5)(0))
         rs2_idx_val = rs2_idx.optional(Bits(5)(0))
-        rs1_used_val = rs1_used.optional(Bits(1)(0))
-        rs2_used_val = rs2_used.optional(Bits(1)(0))
+        rs1_used_val = rs1_used.optional(Bits(1)(1)) if rs1_used is not None else Bits(1)(1)
+        rs2_used_val = rs2_used.optional(Bits(1)(1)) if rs2_used is not None else Bits(1)(1)
         ex_rd_val = ex_rd.optional(Bits(5)(0))
         ex_is_load_val = ex_is_load.optional(Bits(1)(0))
         ex_is_store_val = ex_is_store.optional(Bits(1)(0)) if ex_is_store is not None else Bits(1)(0)
@@ -96,7 +96,7 @@ class DataHazardUnit(Downstream):
         log_condition = stall_if | (rs1_sel != Rs1Sel.RS1) | (rs2_sel != Rs2Sel.RS2)
         with Condition(log_condition == Bits(1)(1)):
             log(
-                "DataHazardUnit: rs1_sel={} rs2_sel={} stall_if={} mul_busy_hazard={} div_busy_hazard={} ex_is_store={} mem_is_store={} ex_is_load={}",
+                "HazardUnit: rs1_sel={} rs2_sel={} stall_if={} mul_busy_hazard={} div_busy_hazard={} ex_is_store={} mem_is_store={} ex_is_load={}",
                 rs1_sel,
                 rs2_sel,
                 stall_if,
