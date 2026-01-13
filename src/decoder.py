@@ -1,6 +1,7 @@
 from assassyn.frontend import *
 from .control_signals import *
 from .instruction_table import rv32i_table
+from .debug_utils import debug_log
 
 
 # 辅助函数：生成填充位
@@ -33,7 +34,7 @@ class Decoder(Module):
         last_ins_reg[0] <= raw_inst
         # 将初始化时出现的 0b0 指令替换为 NOP
         inst = (raw_inst == Bits(32)(0)).select(Bits(32)(0x00000013), raw_inst)
-        log("ID: Fetched Instruction=0x{:x} at PC=0x{:x}", inst, pc_val)
+        debug_log("ID: Fetched Instruction=0x{:x} at PC=0x{:x}", inst, pc_val)
 
         # 补充：ecall/ebreak/sb x0, -1(x0) 指令停机
         halt_if = (
@@ -42,7 +43,7 @@ class Decoder(Module):
             | (inst == Bits(32)(0xFE000FA3))
         )
         with Condition(halt_if == Bits(1)(1)):
-            log("ID: Halt If = {}", halt_if)
+            debug_log("ID: Halt If = {}", halt_if)
 
         # 2. 物理切片
         opcode = inst[0:6]
@@ -174,7 +175,7 @@ class Decoder(Module):
         )
 
         # 添加日志信息
-        log(
+        debug_log(
             "Control signals: alu_func=0x{:x} op1_sel=0x{:x} op2_sel=0x{:x} branch_type=0x{:x} mem_op=0x{:x} mem_wid=0x{:x} mem_uns=0x{:x} rd=0x{:x}",
             acc_alu_func,
             acc_op1_sel,
@@ -185,7 +186,7 @@ class Decoder(Module):
             acc_mem_uns,
             final_rd,
         )
-        log(
+        debug_log(
             "Forwarding data: imm=0x{:x} pc=0x{:x} rs1_data=0x{:x} rs2_data=0x{:x}",
             acc_imm,
             pc_val,
@@ -228,7 +229,7 @@ class DecoderImpl(Downstream):
         final_branch_type = nop_if.select(BranchType.NO_BRANCH, pre.branch_type)
 
         with Condition(nop_if == Bits(1)(1)):
-            log(
+            debug_log(
                 "ID: Inserting NOP (Stall={} Flush={})",
                 stall_if == Bits(1)(1),
                 flush_if == Bits(1)(1),
@@ -257,7 +258,7 @@ class DecoderImpl(Downstream):
             mem_ctrl=final_mem_ctrl,
         )
 
-        log(
+        debug_log(
             "Output: alu_func=0x{:x} rs1_sel=0x{:x} rs2_sel=0x{:x} branch_type=0x{:x} mem_op=0x{:x} rd=0x{:x}",
             final_alu_func,
             rs1_sel,

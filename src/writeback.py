@@ -1,6 +1,6 @@
 from assassyn.frontend import *
 from .control_signals import wb_ctrl_signals
-from .debug_utils import log_register_snapshot
+from .debug_utils import log_register_snapshot, debug_log
 
 class WriteBack(Module):
 
@@ -23,12 +23,12 @@ class WriteBack(Module):
         rd = wb_ctrl.rd_addr
         halt_if = wb_ctrl.halt_if
         
-        log("Input: rd=x{} wdata=0x{:x}", rd, wdata)
+        debug_log("Input: rd=x{} wdata=0x{:x}", rd, wdata)
 
         # 2. 写入逻辑 (Write Logic)
         # 当目标寄存器不是 x0 时写入指定寄存器
         with Condition(rd != Bits(5)(0)):
-            log("WB: Write x{} <= 0x{:x}", rd, wdata)
+            debug_log("WB: Write x{} <= 0x{:x}", rd, wdata)
             
             # 驱动寄存器堆的 D 端和 WE 端
             reg_file[rd] = wdata
@@ -36,7 +36,7 @@ class WriteBack(Module):
         
         # 3. 仿真终止检测 (Halt Detection)
         with Condition(halt_if == Bits(1)(1)):
-            log("WB: HALT triggered!")
+            debug_log("WB: HALT triggered!")
             log_register_snapshot(reg_file)
             finish()
 

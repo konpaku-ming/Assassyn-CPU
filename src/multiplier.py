@@ -68,6 +68,7 @@ This implements a true 3-cycle pipelined multiplier that takes 3 cycles to produ
 """
 
 from assassyn.frontend import *
+from .debug_utils import debug_log
 
 
 def sign_zero_extend(op: Bits, signed: Bits) -> Bits:
@@ -196,8 +197,8 @@ class WallaceTreeMul:
             op1_signed = self.m1_op1_signed[0]
             op2_signed = self.m1_op2_signed[0]
             
-            log("EX_M1: Generating 32 partial products (Cycle 1/3)")
-            log("EX_M1:   Op1=0x{:x} (signed={}), Op2=0x{:x} (signed={})",
+            debug_log("EX_M1: Generating 32 partial products (Cycle 1/3)")
+            debug_log("EX_M1:   Op1=0x{:x} (signed={}), Op2=0x{:x} (signed={})",
                 op1, 
                 op1_signed,
                 op2,
@@ -217,7 +218,7 @@ class WallaceTreeMul:
             partial_low = product_bits[0:31].bitcast(Bits(32))
             partial_high = product_bits[32:63].bitcast(Bits(32))
             
-            log("EX_M1: Partial products generated, advancing to EX_M2")
+            debug_log("EX_M1: Partial products generated, advancing to EX_M2")
             
             # Advance to stage 2
             self.m2_valid[0] = Bits(1)(1)
@@ -282,8 +283,8 @@ class WallaceTreeMul:
         """
         # Only process if stage 2 is valid
         with Condition(self.m2_valid[0] == Bits(1)(1)):
-            log("EX_M2: Wallace Tree compression (Cycle 2/3)")
-            log("EX_M2:   Reducing 32 partial products to 6-8 rows")
+            debug_log("EX_M2: Wallace Tree compression (Cycle 2/3)")
+            debug_log("EX_M2:   Reducing 32 partial products to 6-8 rows")
             
             # In real hardware, multiple levels of Wallace Tree compression happen here
             # For simulation, partial products are already summed
@@ -295,7 +296,7 @@ class WallaceTreeMul:
                 self.m2_partial_low[0]    # Low 32 bits for MUL
             )
             
-            log("EX_M2: Compression complete, advancing to EX_M3")
+            debug_log("EX_M2: Compression complete, advancing to EX_M3")
             
             # Advance to stage 3
             self.m3_valid[0] = Bits(1)(1)
@@ -352,9 +353,9 @@ class WallaceTreeMul:
         """
         # Only process if stage 3 is valid
         with Condition(self.m3_valid[0] == Bits(1)(1)):
-            log("EX_M3: Final Wallace Tree compression + CPA (Cycle 3/3)")
-            log("EX_M3:   Reducing to 2 rows, then final carry-propagate addition")
-            log("EX_M3:   Result ready: 0x{:x}", self.m3_result[0])
+            debug_log("EX_M3: Final Wallace Tree compression + CPA (Cycle 3/3)")
+            debug_log("EX_M3:   Reducing to 2 rows, then final carry-propagate addition")
+            debug_log("EX_M3:   Result ready: 0x{:x}", self.m3_result[0])
             
             # Result is already in m3_result[0]
             # In real hardware, the final compression and CPA complete here:

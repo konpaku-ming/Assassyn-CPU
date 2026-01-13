@@ -38,6 +38,7 @@ For unsigned division of 32-bit numbers:
 """
 
 from assassyn.frontend import *
+from .debug_utils import debug_log
 
 
 class SRT4Divider:
@@ -114,7 +115,7 @@ class SRT4Divider:
         self.ready[0] = Bits(1)(0)
         self.error[0] = Bits(1)(0)
 
-        log("Divider: Start division, dividend=0x{:x}, divisor=0x{:x}, signed={}",
+        debug_log("Divider: Start division, dividend=0x{:x}, divisor=0x{:x}, signed={}",
             dividend,
             divisor,
             is_signed)
@@ -136,13 +137,13 @@ class SRT4Divider:
                     # Handle division by zero per RISC-V spec
                     self.state[0] = self.DIV_ERROR
                     self.valid_in[0] = Bits(1)(0)
-                    log("Divider: Division by zero detected")
+                    debug_log("Divider: Division by zero detected")
 
                 with Condition(~div_by_zero & div_by_one):
                     # Fast path for divisor = 1
                     self.state[0] = self.DIV_1
                     self.valid_in[0] = Bits(1)(0)
-                    log("Divider: Fast path (divisor=1)")
+                    debug_log("Divider: Fast path (divisor=1)")
 
                 with Condition(~div_by_zero & ~div_by_one):
                     # Normal division path - go to preprocessing
@@ -168,7 +169,7 @@ class SRT4Divider:
                     self.div_sign[0] = concat(self.dividend_in[0][31:31], self.divisor_in[0][31:31])
                     self.sign_r[0] = self.is_signed[0]
 
-                    log("Divider: Starting normal division (DIV_PRE)")
+                    debug_log("Divider: Starting normal division (DIV_PRE)")
 
         # State: DIV_ERROR - Handle division by zero
         with Condition(self.state[0] == self.DIV_ERROR):
@@ -185,7 +186,7 @@ class SRT4Divider:
             self.error[0] = Bits(1)(1)
             self.busy[0] = Bits(1)(0)
             self.state[0] = self.IDLE
-            log("Divider: Completed with division by zero error")
+            debug_log("Divider: Completed with division by zero error")
 
         # State: DIV_1 - Fast path for divisor = 1
         with Condition(self.state[0] == self.DIV_1):
@@ -197,7 +198,7 @@ class SRT4Divider:
             self.ready[0] = Bits(1)(1)
             self.busy[0] = Bits(1)(0)
             self.state[0] = self.IDLE
-            log("Divider: Completed via fast path (divisor=1)")
+            debug_log("Divider: Completed via fast path (divisor=1)")
 
         # State: DIV_PRE - Preprocessing
         with Condition(self.state[0] == self.DIV_PRE):
@@ -213,7 +214,7 @@ class SRT4Divider:
             # Transition to DIV_WORKING
             self.state[0] = self.DIV_WORKING
 
-            log("Divider: Preprocessing complete, starting 16 iterations")
+            debug_log("Divider: Preprocessing complete, starting 16 iterations")
 
         # State: DIV_WORKING - Iterative radix-4 restoring division
         with Condition(self.state[0] == self.DIV_WORKING):
@@ -222,7 +223,7 @@ class SRT4Divider:
             # is performed and then we transition to DIV_END
             with Condition(self.div_cnt[0] == Bits(5)(1)):
                 self.state[0] = self.DIV_END
-                log("Divider: Iterations complete, entering post-processing")
+                debug_log("Divider: Iterations complete, entering post-processing")
 
             # Radix-4 restoring division algorithm:
             # 1. Shift remainder left by 2 and bring in 2 MSBs from quotient
@@ -294,7 +295,7 @@ class SRT4Divider:
 
         # State: DIV_END - Post-processing
         with Condition(self.state[0] == self.DIV_END):
-            log("Divider: DIV_END - quotient=0x{:x}, remainder=0x{:x}",
+            debug_log("Divider: DIV_END - quotient=0x{:x}, remainder=0x{:x}",
                 self.quotient[0], self.remainder[0][0:31])
 
             # Apply sign correction
@@ -303,7 +304,7 @@ class SRT4Divider:
             q_needs_neg = (self.div_sign[0] == Bits(2)(0b01)) | (self.div_sign[0] == Bits(2)(0b10))
             rem_needs_neg = self.div_sign[0][1:1]  # Dividend sign
 
-            log("Divider: div_sign=0x{:x}, q_needs_neg={}", self.div_sign[0], q_needs_neg)
+            debug_log("Divider: div_sign=0x{:x}, q_needs_neg={}", self.div_sign[0], q_needs_neg)
 
             # Check for signed overflow: (-2^31) / (-1)
             min_int = Bits(32)(0x80000000)
@@ -318,7 +319,7 @@ class SRT4Divider:
                     Bits(32)(0),  # Remainder = 0
                     Bits(32)(0x80000000)  # Quotient = -2^31 (no change)
                 )
-                log("Divider: Signed overflow detected (-2^31 / -1)")
+                debug_log("Divider: Signed overflow detected (-2^31 / -1)")
 
             with Condition(~signed_overflow):
                 # Normal result with sign correction
@@ -331,7 +332,7 @@ class SRT4Divider:
                     self.remainder[0][0:31]
                 )
 
-                log("Divider: q_signed=0x{:x}, rem_signed=0x{:x}, is_rem={}",
+                debug_log("Divider: q_signed=0x{:x}, rem_signed=0x{:x}, is_rem={}",
                     q_signed, rem_signed, self.is_rem[0])
 
                 # Select quotient or remainder
@@ -340,7 +341,7 @@ class SRT4Divider:
             self.ready[0] = Bits(1)(1)
             self.busy[0] = Bits(1)(0)
             self.state[0] = self.IDLE
-            log("Divider: Completed, result=0x{:x}", self.result[0])
+            debug_log("Divider: Completed, result=0x{:x}", self.result[0])
 
     def get_result_if_ready(self):
         """

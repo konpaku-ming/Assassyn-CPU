@@ -1,5 +1,6 @@
 from assassyn.frontend import *
 from .control_signals import *
+from .debug_utils import debug_log
 
 
 class Execution(Module):
@@ -44,7 +45,7 @@ class Execution(Module):
         mem_ctrl = mem_ctrl_signals.view(ctrl.mem_ctrl)
         wb_ctrl = wb_ctrl_signals.view(mem_ctrl.wb_ctrl)
 
-        log(
+        debug_log(
             "Input: pc=0x{:x} rs1_data=0x{:x} rs2_data=0x{:x} Imm=0x{:x}",
             pc,
             rs1,
@@ -55,7 +56,7 @@ class Execution(Module):
         # 确定是否要 Flush 指令
         flush_if = branch_target_reg[0] != Bits(32)(0)
         with Condition(flush_if == Bits(1)(1)):
-            log("EX: Flush")
+            debug_log("EX: Flush")
 
         # 获取旁路数据
         fwd_from_mem = ex_bypass[0]
@@ -74,22 +75,22 @@ class Execution(Module):
 
         # 输出旁路选择日志
         with Condition(ctrl.rs1_sel == Rs1Sel.RS1):
-            log("EX: RS1 source: No Bypass")
+            debug_log("EX: RS1 source: No Bypass")
         with Condition(ctrl.rs1_sel == Rs1Sel.EX_BYPASS):
-            log("EX: RS1 source: EX-MEM Bypass (0x{:x})", fwd_from_mem)
+            debug_log("EX: RS1 source: EX-MEM Bypass (0x{:x})", fwd_from_mem)
         with Condition(ctrl.rs1_sel == Rs1Sel.MEM_BYPASS):
-            log("EX: RS1 source: MEM-WB Bypass (0x{:x})", fwd_from_wb)
+            debug_log("EX: RS1 source: MEM-WB Bypass (0x{:x})", fwd_from_wb)
         with Condition(ctrl.rs1_sel == Rs1Sel.WB_BYPASS):
-            log("EX: RS1 source: WB Bypass (0x{:x})", fwd_from_wb_stage)
+            debug_log("EX: RS1 source: WB Bypass (0x{:x})", fwd_from_wb_stage)
 
         with Condition(ctrl.rs2_sel == Rs2Sel.RS2):
-            log("EX: RS2 source: No Bypass")
+            debug_log("EX: RS2 source: No Bypass")
         with Condition(ctrl.rs2_sel == Rs2Sel.EX_BYPASS):
-            log("EX: RS2 source: EX-MEM Bypass (0x{:x})", fwd_from_mem)
+            debug_log("EX: RS2 source: EX-MEM Bypass (0x{:x})", fwd_from_mem)
         with Condition(ctrl.rs2_sel == Rs2Sel.MEM_BYPASS):
-            log("EX: RS2 source: MEM-WB Bypass (0x{:x})", fwd_from_wb)
+            debug_log("EX: RS2 source: MEM-WB Bypass (0x{:x})", fwd_from_wb)
         with Condition(ctrl.rs2_sel == Rs2Sel.WB_BYPASS):
-            log("EX: RS2 source: WB Bypass (0x{:x})", fwd_from_wb_stage)
+            debug_log("EX: RS2 source: WB Bypass (0x{:x})", fwd_from_wb_stage)
 
         # --- 操作数 1 选择 ---
         alu_op1 = ctrl.op1_sel.select1hot(
@@ -97,11 +98,11 @@ class Execution(Module):
         )
 
         with Condition(ctrl.op1_sel == Op1Sel.RS1):
-            log("EX: ALU Op1 source: RS1 (0x{:x})", real_rs1)
+            debug_log("EX: ALU Op1 source: RS1 (0x{:x})", real_rs1)
         with Condition(ctrl.op1_sel == Op1Sel.PC):
-            log("EX: ALU Op1 source: PC (0x{:x})", pc)
+            debug_log("EX: ALU Op1 source: PC (0x{:x})", pc)
         with Condition(ctrl.op1_sel == Op1Sel.ZERO):
-            log("EX: ALU Op1 source: ZERO (0x0)")
+            debug_log("EX: ALU Op1 source: ZERO (0x0)")
 
         # --- 操作数 2 选择 ---
         alu_op2 = ctrl.op2_sel.select1hot(
@@ -109,11 +110,11 @@ class Execution(Module):
         )
 
         with Condition(ctrl.op2_sel == Op2Sel.RS2):
-            log("EX: ALU Op2 source: RS2 (0x{:x})", real_rs2)
+            debug_log("EX: ALU Op2 source: RS2 (0x{:x})", real_rs2)
         with Condition(ctrl.op2_sel == Op2Sel.IMM):
-            log("EX: ALU Op2 source: IMM (0x{:x})", imm)
+            debug_log("EX: ALU Op2 source: IMM (0x{:x})", imm)
         with Condition(ctrl.op2_sel == Op2Sel.CONST_4):
-            log("EX: ALU Op2 source: CONST_4 (0x4)")
+            debug_log("EX: ALU Op2 source: CONST_4 (0x4)")
 
         # --- ALU 计算 ---
         # 1. 基础运算
@@ -165,34 +166,34 @@ class Execution(Module):
         )
 
         with Condition(ctrl.alu_func == ALUOp.ADD):
-            log("EX: ALU Operation: ADD")
+            debug_log("EX: ALU Operation: ADD")
         with Condition(ctrl.alu_func == ALUOp.SUB):
-            log("EX: ALU Operation: SUB")
+            debug_log("EX: ALU Operation: SUB")
         with Condition(ctrl.alu_func == ALUOp.SLL):
-            log("EX: ALU Operation: SLL")
+            debug_log("EX: ALU Operation: SLL")
         with Condition(ctrl.alu_func == ALUOp.SLT):
-            log("EX: ALU Operation: SLT")
+            debug_log("EX: ALU Operation: SLT")
         with Condition(ctrl.alu_func == ALUOp.SLTU):
-            log("EX: ALU Operation: SLTU")
+            debug_log("EX: ALU Operation: SLTU")
         with Condition(ctrl.alu_func == ALUOp.XOR):
-            log("EX: ALU Operation: XOR")
+            debug_log("EX: ALU Operation: XOR")
         with Condition(ctrl.alu_func == ALUOp.SRL):
-            log("EX: ALU Operation: SRL")
+            debug_log("EX: ALU Operation: SRL")
         with Condition(ctrl.alu_func == ALUOp.SRA):
-            log("EX: ALU Operation: SRA")
+            debug_log("EX: ALU Operation: SRA")
         with Condition(ctrl.alu_func == ALUOp.OR):
-            log("EX: ALU Operation: OR")
+            debug_log("EX: ALU Operation: OR")
         with Condition(ctrl.alu_func == ALUOp.AND):
-            log("EX: ALU Operation: AND")
+            debug_log("EX: ALU Operation: AND")
         with Condition(ctrl.alu_func == ALUOp.SYS):
-            log("EX: ALU Operation: SYS")
+            debug_log("EX: ALU Operation: SYS")
         with Condition(ctrl.alu_func == ALUOp.NOP):
-            log("EX: ALU Operation: NOP or Reserved")
+            debug_log("EX: ALU Operation: NOP or Reserved")
 
         # 3. 更新本级 Bypass 寄存器
         ex_bypass[0] = alu_result
-        log("EX: ALU Result: 0x{:x}", alu_result)
-        log("EX: Bypass Update: 0x{:x}", alu_result)
+        debug_log("EX: ALU Result: 0x{:x}", alu_result)
+        debug_log("EX: Bypass Update: 0x{:x}", alu_result)
 
         # --- 分支处理 (Branch Handling) ---
         # 1. 使用专用加法器计算跳转地址，对于 JALR，基址是 rs1；对于 JAL/Branch，基址是 PC
@@ -201,9 +202,9 @@ class Execution(Module):
 
         # 专用加法器永远做 Base + Imm
         imm_signed = imm.bitcast(Int(32))
-        log("EX: Branch Immediate: 0x{:x}", imm)
+        debug_log("EX: Branch Immediate: 0x{:x}", imm)
         target_base_signed = target_base.bitcast(Int(32))
-        log("EX: Branch Target Base: 0x{:x}", target_base)
+        debug_log("EX: Branch Target Base: 0x{:x}", target_base)
         raw_calc_target = (target_base_signed + imm_signed).bitcast(Bits(32))
         calc_target = is_jalr.select(
             concat(raw_calc_target[1:31], Bits(1)(0)),  # JALR: 目标地址最低位清0
@@ -221,23 +222,23 @@ class Execution(Module):
         is_branch = ctrl.branch_type != BranchType.NO_BRANCH
 
         with Condition(ctrl.branch_type == BranchType.BEQ):
-            log("EX: Branch Type: BEQ")
+            debug_log("EX: Branch Type: BEQ")
         with Condition(ctrl.branch_type == BranchType.BNE):
-            log("EX: Branch Type: BNE")
+            debug_log("EX: Branch Type: BNE")
         with Condition(ctrl.branch_type == BranchType.BLT):
-            log("EX: Branch Type: BLT")
+            debug_log("EX: Branch Type: BLT")
         with Condition(ctrl.branch_type == BranchType.BGE):
-            log("EX: Branch Type: BGE")
+            debug_log("EX: Branch Type: BGE")
         with Condition(ctrl.branch_type == BranchType.BLTU):
-            log("EX: Branch Type: BLTU")
+            debug_log("EX: Branch Type: BLTU")
         with Condition(ctrl.branch_type == BranchType.BGEU):
-            log("EX: Branch Type: BGEU")
+            debug_log("EX: Branch Type: BGEU")
         with Condition(ctrl.branch_type == BranchType.JAL):
-            log("EX: Branch Type: JAL")
+            debug_log("EX: Branch Type: JAL")
         with Condition(ctrl.branch_type == BranchType.JALR):
-            log("EX: Branch Type: JALR")
+            debug_log("EX: Branch Type: JALR")
         with Condition(ctrl.branch_type == BranchType.NO_BRANCH):
-            log("EX: Branch Type: NO_BRANCH")
+            debug_log("EX: Branch Type: NO_BRANCH")
 
         # 3. 根据不同的分支类型判断分支条件
         is_eq = alu_result == Bits(32)(0)
@@ -283,8 +284,8 @@ class Execution(Module):
         )
 
         with Condition(is_branch):
-            log("EX: Branch Target: 0x{:x}", calc_target)
-            log("EX: Branch Taken: {}", is_taken == Bits(1)(1))
+            debug_log("EX: Branch Target: 0x{:x}", calc_target)
+            debug_log("EX: Branch Taken: {}", is_taken == Bits(1)(1))
 
         # 5. 更新 BTB (如果提供了 BTB 引用)
         # 当分支指令 taken 时，更新 BTB 存储 PC -> Target 的映射
@@ -305,7 +306,7 @@ class Execution(Module):
         final_halt_if = flush_if.select(Bits(1)(0), wb_ctrl.halt_if)
         final_mem_opcode = flush_if.select(MemOp.NONE, mem_ctrl.mem_opcode)
 
-        log(
+        debug_log(
             "Control after Flush Check: mem_opcode=0x{:x} rd=0x{:x}",
             final_mem_opcode,
             final_rd,
@@ -334,12 +335,12 @@ class Execution(Module):
         mem_width = final_mem_ctrl.mem_width
 
         with Condition(is_store):
-            log("EX: Memory Operation: STORE")
-            log("EX: Store Address: 0x{:x}", alu_result)
-            log("EX: Store Data: 0x{:x}", real_rs2)
+            debug_log("EX: Memory Operation: STORE")
+            debug_log("EX: Store Address: 0x{:x}", alu_result)
+            debug_log("EX: Store Data: 0x{:x}", real_rs2)
         with Condition(is_load):
-            log("EX: Memory Operation: LOAD")
-            log("EX: Load Address: 0x{:x}", alu_result)
+            debug_log("EX: Memory Operation: LOAD")
+            debug_log("EX: Load Address: 0x{:x}", alu_result)
 
         # 返回引脚 (供 HazardUnit 与 SingleMemory 使用)
         return final_rd, alu_result, is_load, is_store, mem_width, real_rs2

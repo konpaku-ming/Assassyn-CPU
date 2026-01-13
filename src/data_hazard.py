@@ -1,5 +1,6 @@
 from assassyn.frontend import *
 from .control_signals import *
+from .debug_utils import debug_log
 
 
 def _resolve_optional(value, default):
@@ -102,7 +103,7 @@ class DataHazardUnit(Downstream):
 
         log_condition = stall_if | (rs1_sel != Rs1Sel.RS1) | (rs2_sel != Rs2Sel.RS2)
         with Condition(log_condition == Bits(1)(1)):
-            log(
+            debug_log(
                 "HazardUnit: rs1_sel={} rs2_sel={} stall_if={} mul_busy_hazard={} div_busy_hazard={} ex_is_store={} mem_is_store={} ex_is_load={}",
                 rs1_sel,
                 rs2_sel,
