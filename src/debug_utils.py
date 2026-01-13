@@ -1,5 +1,7 @@
 from assassyn.frontend import log
 
+MAX_REGISTERS = 32
+
 
 def log_register_snapshot(reg_file):
     """
@@ -9,8 +11,10 @@ def log_register_snapshot(reg_file):
     if reg_file is None:
         return
     log("Final register file state:")
-    reg_count = 32
-    if hasattr(reg_file, "__len__"):
-        reg_count = min(len(reg_file), 32)
+    reg_count = MAX_REGISTERS
+    try:
+        reg_count = min(len(reg_file), MAX_REGISTERS)
+    except Exception:
+        reg_count = MAX_REGISTERS
     for idx in range(reg_count):
         log("  x{} = 0x{:x}", idx, reg_file[idx])
