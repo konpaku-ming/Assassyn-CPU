@@ -1,5 +1,6 @@
 from assassyn.frontend import *
 from .control_signals import wb_ctrl_signals
+from .debug_utils import log_register_snapshot
 
 
 class WriteBack(Module):
@@ -37,6 +38,7 @@ class WriteBack(Module):
         # 3. 仿真终止检测 (Halt Detection)
         with Condition(halt_if == Bits(1)(1)):
             log("WB: HALT triggered!")
+            log_register_snapshot(reg_file)
             finish()
 
         # 4. 引脚暴露 (供 HazardUnit 使用)
