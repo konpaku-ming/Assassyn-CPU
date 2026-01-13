@@ -1,5 +1,6 @@
 from assassyn.frontend import *
 from .control_signals import *
+from .debug_utils import debug_log
 
 
 class MemoryAccess(Module):
@@ -32,23 +33,23 @@ class MemoryAccess(Module):
         wb_ctrl = wb_ctrl_signals.view(ctrl.wb_ctrl)
 
         with Condition(mem_opcode == MemOp.NONE):
-            log("MEM: OP NONE.")
+            debug_log("MEM: OP NONE.")
         with Condition(mem_opcode == MemOp.LOAD):
-            log("MEM: OP LOAD.")
+            debug_log("MEM: OP LOAD.")
         with Condition(mem_opcode == MemOp.STORE):
-            log("MEM: OP STORE.")
+            debug_log("MEM: OP STORE.")
 
         with Condition(mem_width == MemWidth.BYTE):
-            log("MEM: WIDTH BYTE.")
+            debug_log("MEM: WIDTH BYTE.")
         with Condition(mem_width == MemWidth.HALF):
-            log("MEM: WIDTH HALF.")
+            debug_log("MEM: WIDTH HALF.")
         with Condition(mem_width == MemWidth.WORD):
-            log("MEM: WIDTH WORD.")
+            debug_log("MEM: WIDTH WORD.")
 
         with Condition(mem_unsigned == Bits(1)(1)):
-            log("MEM: UNSIGNED.")
+            debug_log("MEM: UNSIGNED.")
         with Condition(mem_unsigned == Bits(1)(0)):
-            log("MEM: SIGNED.")
+            debug_log("MEM: SIGNED.")
 
         # 2. SRAM 数据加工 (Data Aligner)
         # 读取 SRAM 原始数据 (32-bit)
@@ -101,7 +102,7 @@ class MemoryAccess(Module):
         # 注意：如果当前是气泡 (rd=0)，写入 0 也是安全的
         mem_bypass_reg[0] = final_data
 
-        log("MEM: Bypass <= 0x{:x}", final_data)
+        debug_log("MEM: Bypass <= 0x{:x}", final_data)
 
         # 驱动下一级 WB (Main Channel)
         wb_call = wb_module.async_called(ctrl=wb_ctrl, wdata=final_data)
@@ -193,4 +194,4 @@ class SingleMemory(Downstream):
 
         MMIO_if = SRAM_addr.bitcast(UInt(32)) >= Bits(32)(0xFFFF0000)
         with Condition(MMIO_if & (SRAM_we == Bits(1)(1))):
-            log("MMIO 0x{:x} at address 0x{:x}", SRAM_wdata, SRAM_addr)
+            debug_log("MMIO 0x{:x} at address 0x{:x}", SRAM_wdata, SRAM_addr)

@@ -1,5 +1,6 @@
 from assassyn.frontend import *
 from .control_signals import *
+from .debug_utils import debug_log
 
 
 class Fetcher(Module):
@@ -49,7 +50,7 @@ class FetcherImpl(Downstream):
         current_stall_if = stall_if.optional(Bits(1)(0))
 
         with Condition(current_stall_if == Bits(1)(1)):
-            log("IF: Stall")
+            debug_log("IF: Stall")
 
         # 读取当前 PC
         current_pc = current_stall_if.select(last_pc_reg[0], pc_addr)
@@ -58,10 +59,10 @@ class FetcherImpl(Downstream):
         target_pc = branch_target[0]
 
         with Condition(flush_if == Bits(1)(1)):
-            log("IF: Flush to 0x{:x}", target_pc)
+            debug_log("IF: Flush to 0x{:x}", target_pc)
 
         final_current_pc = flush_if.select(target_pc, current_pc)
-        log("IF: Final Current PC=0x{:x}", final_current_pc)
+        debug_log("IF: Final Current PC=0x{:x}", final_current_pc)
 
         # --- 1. 计算 Next PC (时序逻辑输入) ---
         # 使用 BTB 进行分支预测
@@ -84,7 +85,7 @@ class FetcherImpl(Downstream):
         # 更新 PC 寄存器
         pc_reg[0] <= final_next_pc
         last_pc_reg[0] <= final_current_pc
-        log(
+        debug_log(
             "IF: Next PC=0x{:x}  Next Last PC={:x}",
             final_next_pc,
             final_current_pc,

@@ -45,6 +45,7 @@ For unsigned division of N-bit numbers:
 """
 
 from assassyn.frontend import *
+from .debug_utils import debug_log
 
 
 class NaiveDivider:
@@ -127,7 +128,7 @@ class NaiveDivider:
         self.ready[0] = Bits(1)(0)
         self.error[0] = Bits(1)(0)
 
-        log("NaiveDivider: Start division, dividend=0x{:x}, divisor=0x{:x}, signed={}",
+        debug_log("NaiveDivider: Start division, dividend=0x{:x}, divisor=0x{:x}, signed={}",
             dividend,
             divisor,
             is_signed)
@@ -157,13 +158,13 @@ class NaiveDivider:
                     # Handle division by zero per RISC-V spec
                     self.state[0] = self.DIV_ERROR
                     self.valid_in[0] = Bits(1)(0)
-                    log("NaiveDivider: Division by zero detected")
+                    debug_log("NaiveDivider: Division by zero detected")
 
                 with Condition(~div_by_zero & div_by_one):
                     # Fast path for divisor = 1
                     self.state[0] = self.DIV_1
                     self.valid_in[0] = Bits(1)(0)
-                    log("NaiveDivider: Fast path (divisor=1)")
+                    debug_log("NaiveDivider: Fast path (divisor=1)")
 
                 with Condition(~div_by_zero & ~div_by_one):
                     # Normal division path - go to preprocessing
@@ -189,7 +190,7 @@ class NaiveDivider:
                     self.div_sign[0] = concat(self.dividend_in[0][31:31], self.divisor_in[0][31:31])
                     self.sign_r[0] = self.is_signed[0]
 
-                    log("NaiveDivider: Starting normal division (DIV_PRE)")
+                    debug_log("NaiveDivider: Starting normal division (DIV_PRE)")
 
         # State: DIV_ERROR - Handle division by zero
         with Condition(self.state[0] == self.DIV_ERROR):
@@ -206,7 +207,7 @@ class NaiveDivider:
             self.error[0] = Bits(1)(1)
             self.busy[0] = Bits(1)(0)
             self.state[0] = self.IDLE
-            log("NaiveDivider: Completed with division by zero error")
+            debug_log("NaiveDivider: Completed with division by zero error")
 
         # State: DIV_1 - Fast path for divisor = 1
         with Condition(self.state[0] == self.DIV_1):
@@ -218,7 +219,7 @@ class NaiveDivider:
             self.ready[0] = Bits(1)(1)
             self.busy[0] = Bits(1)(0)
             self.state[0] = self.IDLE
-            log("NaiveDivider: Completed via fast path (divisor=1)")
+            debug_log("NaiveDivider: Completed via fast path (divisor=1)")
 
         # State: DIV_PRE - Preprocessing
         with Condition(self.state[0] == self.DIV_PRE):
@@ -233,14 +234,14 @@ class NaiveDivider:
             # Transition to DIV_WORKING
             self.state[0] = self.DIV_WORKING
             
-            log("NaiveDivider: Preprocessing complete, starting 32 iterations")
+            debug_log("NaiveDivider: Preprocessing complete, starting 32 iterations")
 
         # State: DIV_WORKING - Iterative restoring division
         with Condition(self.state[0] == self.DIV_WORKING):
             # Check if done (counter reaches 1, meaning this is the last iteration)
             with Condition(self.div_cnt[0] == Bits(6)(1)):
                 self.state[0] = self.DIV_END
-                log("NaiveDivider: Iterations complete, entering post-processing")
+                debug_log("NaiveDivider: Iterations complete, entering post-processing")
 
             # Restoring division algorithm:
             # 1. Shift remainder left by 1 and bring in next bit from quotient
@@ -282,7 +283,7 @@ class NaiveDivider:
 
         # State: DIV_END - Post-processing
         with Condition(self.state[0] == self.DIV_END):
-            log("NaiveDivider: DIV_END - quotient=0x{:x}, remainder=0x{:x}",
+            debug_log("NaiveDivider: DIV_END - quotient=0x{:x}, remainder=0x{:x}",
                 self.quotient[0], self.remainder[0][0:31])
 
             # Apply sign correction
@@ -291,7 +292,7 @@ class NaiveDivider:
             q_needs_neg = (self.div_sign[0] == Bits(2)(0b01)) | (self.div_sign[0] == Bits(2)(0b10))
             rem_needs_neg = self.div_sign[0][1:1]  # Dividend sign
 
-            log("NaiveDivider: div_sign=0x{:x}, q_needs_neg={}", self.div_sign[0], q_needs_neg)
+            debug_log("NaiveDivider: div_sign=0x{:x}, q_needs_neg={}", self.div_sign[0], q_needs_neg)
 
             # Check for signed overflow: (-2^31) / (-1)
             min_int = Bits(32)(0x80000000)
@@ -306,7 +307,7 @@ class NaiveDivider:
                     Bits(32)(0),  # Remainder = 0
                     Bits(32)(0x80000000)  # Quotient = -2^31 (no change)
                 )
-                log("NaiveDivider: Signed overflow detected (-2^31 / -1)")
+                debug_log("NaiveDivider: Signed overflow detected (-2^31 / -1)")
 
             with Condition(~signed_overflow):
                 # Normal result with sign correction
@@ -319,7 +320,7 @@ class NaiveDivider:
                     self.remainder[0][0:31]
                 )
 
-                log("NaiveDivider: q_signed=0x{:x}, rem_signed=0x{:x}, is_rem={}",
+                debug_log("NaiveDivider: q_signed=0x{:x}, rem_signed=0x{:x}, is_rem={}",
                     q_signed, rem_signed, self.is_rem[0])
 
                 # Select quotient or remainder
@@ -328,7 +329,7 @@ class NaiveDivider:
             self.ready[0] = Bits(1)(1)
             self.busy[0] = Bits(1)(0)
             self.state[0] = self.IDLE
-            log("NaiveDivider: Completed, result=0x{:x}", self.result[0])
+            debug_log("NaiveDivider: Completed, result=0x{:x}", self.result[0])
 
     def get_result_if_ready(self):
         """

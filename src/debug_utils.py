@@ -2,6 +2,31 @@ from assassyn.frontend import log
 
 MAX_REGISTERS = 32
 
+# 调试模式开关，默认打开
+# True: 打印所有日志（与当前行为相同）
+# False: 只打印停机时的寄存器状态
+DEBUG_MODE = True
+
+
+def set_debug_mode(enabled: bool):
+    """设置调试模式开关"""
+    global DEBUG_MODE
+    DEBUG_MODE = enabled
+
+
+def get_debug_mode() -> bool:
+    """获取当前调试模式状态"""
+    return DEBUG_MODE
+
+
+def debug_log(*args, **kwargs):
+    """
+    调试日志函数。仅当 DEBUG_MODE 为 True 时才打印日志。
+    参数与 assassyn.frontend.log 相同。
+    """
+    if DEBUG_MODE:
+        log(*args, **kwargs)
+
 
 def log_register_snapshot(reg_file):
     """
