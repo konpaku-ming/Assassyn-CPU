@@ -3,7 +3,7 @@ import os
 import sys
 import types
 
-# 确保可以 import src
+# Ensure src can be imported
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 
@@ -23,17 +23,16 @@ def test_log_register_snapshot_formats_index_without_int_operand(monkeypatch):
     calls = []
     _install_fake_assassyn(monkeypatch, calls)
 
-    # 重新加载模块以使用假的 assassyn.frontend
-    sys.modules.pop("src.debug_utils", None)
+    # Import module after installing the fake assassyn.frontend
     debug_utils = importlib.import_module("src.debug_utils")
 
-    reg_file = [0x12345678]
-    debug_utils.log_register_snapshot(reg_file)
+    sample_register_file = [0x12345678]
+    debug_utils.log_register_snapshot(sample_register_file)
 
-    # 首行是快照标题
+    # First call is the snapshot header
     assert calls[0][0] == "Final register file state:"
 
-    # 第二行包含寄存器值，占位符仅针对值本身
+    # Second call contains the register value, placeholder only for the value itself
     fmt, args = calls[1]
     assert fmt == "  x0 = 0x{:x}"
-    assert args == (reg_file[0],)
+    assert args == (sample_register_file[0],)
