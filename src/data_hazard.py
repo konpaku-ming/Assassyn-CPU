@@ -2,6 +2,10 @@ from assassyn.frontend import *
 from .control_signals import *
 
 
+def _resolve_optional(value, default):
+    return value.optional(default) if value is not None else default
+
+
 class DataHazardUnit(Downstream):
     """
     DataHazardUnit 是一个纯组合逻辑 (Downstream) 模块。
@@ -37,12 +41,10 @@ class DataHazardUnit(Downstream):
             wb_rd: Value = None,  # WB 级目标寄存器索引
             **kwargs,
     ):
-        def _resolve_optional(value, default):
-            return value.optional(default) if value is not None else default
-
         # 使用 optional() 处理 Value 接口，如果无效则使用默认值 Bits(x)(0)
         rs1_idx_val = _resolve_optional(rs1_idx, Bits(5)(0))
         rs2_idx_val = _resolve_optional(rs2_idx, Bits(5)(0))
+        # 默认假设寄存器被使用（兼容旧 HazardUnit 行为），除非上游显式提供 usage 位
         rs1_used_val = _resolve_optional(rs1_used, Bits(1)(1))
         rs2_used_val = _resolve_optional(rs2_used, Bits(1)(1))
         ex_rd_val = _resolve_optional(ex_rd, Bits(5)(0))
