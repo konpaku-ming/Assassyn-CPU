@@ -139,6 +139,7 @@ def build_cpu(depth_log):
             wb_module=writeback,
             sram_dout=cache.dout,
             mem_bypass_reg=mem_bypass_reg,
+            reg_file=reg_file,
         )
 
         # --- Step C: EX 阶段 ---
@@ -148,6 +149,7 @@ def build_cpu(depth_log):
             mem_bypass=mem_bypass_reg,
             wb_bypass=wb_bypass_reg,
             branch_target_reg=branch_target_reg,
+            reg_file=reg_file,
             btb_impl=btb_impl,
             btb_valid=btb_valid,
             btb_tags=btb_tags,

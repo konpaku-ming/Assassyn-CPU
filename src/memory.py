@@ -23,6 +23,7 @@ class MemoryAccess(Module):
             wb_module: Module,  # 下一级流水线 (writeback.py)
             sram_dout: Array,  # SRAM 的输出端口 (Ref)
             mem_bypass_reg: Array,  # 全局 Bypass 寄存器 (数据)
+            reg_file: Array = None,  # 用于终止时打印寄存器快照
     ):
         # 1. 弹出并解包
         ctrl, alu_result = self.pop_all_ports(False)
@@ -53,6 +54,10 @@ class MemoryAccess(Module):
 
         with Condition(halt_if == Bits(1)(1)):
             log("MEM: HALT INSTRUCTION.")
+            if reg_file is not None:
+                log("Final register file state:")
+                for idx in range(32):
+                    log("  x{} = 0x{:x}", idx, reg_file[idx])
             finish()
 
         # 2. SRAM 数据加工 (Data Aligner)

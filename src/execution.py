@@ -36,6 +36,7 @@ class Execution(Module):
             wb_bypass: Array = None,  # 来自 WB 旁路寄存器的数据 (当前写回数据)
             # --- 分支反馈 ---
             branch_target_reg: Array = None,  # 用于通知 IF 跳转目标的全局寄存器
+            reg_file: Array = None,  # 用于终止时打印寄存器快照
             dcache: SRAM = None,  # 保留参数以兼容旧接口
             # --- BTB 更新 (可选) ---
             btb_impl: "BTBImpl" = None,  # BTB 实现逻辑
@@ -379,6 +380,10 @@ class Execution(Module):
         # ebreak 停机
         with Condition((ctrl.alu_func == ALUOp.SYS) & ~flush_if):
             log("EBREAK encountered at PC=0x{:x}, halting simulation.", pc)
+            if reg_file is not None:
+                log("Final register file state:")
+                for idx in range(32):
+                    log("  x{} = 0x{:x}", idx, reg_file[idx])
             finish()
 
         # 2. 结果选择
