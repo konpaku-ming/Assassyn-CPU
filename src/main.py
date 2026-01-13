@@ -218,7 +218,7 @@ def build_cpu(depth_log):
 
 if __name__ == "__main__":
     # 构建 CPU 模块
-    load_test_case("basicopt1")
+    load_test_case("expr")
     sys_builder = build_cpu(depth_log=16)
 
     circ_path = os.path.join(workspace, f"circ.txt")

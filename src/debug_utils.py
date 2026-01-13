@@ -5,7 +5,7 @@ MAX_REGISTERS = 32
 # 调试模式开关，默认打开
 # True: 打印所有日志（与当前行为相同）
 # False: 只打印停机时的寄存器状态
-DEBUG_MODE = True
+DEBUG_MODE = False
 
 
 def set_debug_mode(enabled: bool):
@@ -42,7 +42,7 @@ def log_register_snapshot(reg_file):
         reg_count = MAX_REGISTERS
     for idx in range(reg_count):
         try:
-            log(f"  x{idx} = {reg_file[idx]}")
+            log(f"  x{idx} = 0x{{:x}}", reg_file[idx])
         except (IndexError, TypeError, AttributeError):
             log(f"  x{idx} = <unavailable>")
             continue
