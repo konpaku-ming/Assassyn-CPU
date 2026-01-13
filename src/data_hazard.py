@@ -37,19 +37,22 @@ class DataHazardUnit(Downstream):
             wb_rd: Value = None,  # WB 级目标寄存器索引
             **kwargs,
     ):
+        def _resolve_optional(value, default):
+            return value.optional(default) if value is not None else default
+
         # 使用 optional() 处理 Value 接口，如果无效则使用默认值 Bits(x)(0)
-        rs1_idx_val = rs1_idx.optional(Bits(5)(0))
-        rs2_idx_val = rs2_idx.optional(Bits(5)(0))
-        rs1_used_val = rs1_used.optional(Bits(1)(1)) if rs1_used is not None else Bits(1)(1)
-        rs2_used_val = rs2_used.optional(Bits(1)(1)) if rs2_used is not None else Bits(1)(1)
-        ex_rd_val = ex_rd.optional(Bits(5)(0))
-        ex_is_load_val = ex_is_load.optional(Bits(1)(0))
-        ex_is_store_val = ex_is_store.optional(Bits(1)(0)) if ex_is_store is not None else Bits(1)(0)
-        ex_mul_busy_val = ex_mul_busy.optional(Bits(1)(0)) if ex_mul_busy is not None else Bits(1)(0)
-        ex_div_busy_val = ex_div_busy.optional(Bits(1)(0)) if ex_div_busy is not None else Bits(1)(0)
-        mem_rd_val = mem_rd.optional(Bits(5)(0)) if mem_rd is not None else Bits(5)(0)
-        mem_is_store_val = mem_is_store.optional(Bits(1)(0)) if mem_is_store is not None else Bits(1)(0)
-        wb_rd_val = wb_rd.optional(Bits(5)(0)) if wb_rd is not None else Bits(5)(0)
+        rs1_idx_val = _resolve_optional(rs1_idx, Bits(5)(0))
+        rs2_idx_val = _resolve_optional(rs2_idx, Bits(5)(0))
+        rs1_used_val = _resolve_optional(rs1_used, Bits(1)(1))
+        rs2_used_val = _resolve_optional(rs2_used, Bits(1)(1))
+        ex_rd_val = _resolve_optional(ex_rd, Bits(5)(0))
+        ex_is_load_val = _resolve_optional(ex_is_load, Bits(1)(0))
+        ex_is_store_val = _resolve_optional(ex_is_store, Bits(1)(0))
+        ex_mul_busy_val = _resolve_optional(ex_mul_busy, Bits(1)(0))
+        ex_div_busy_val = _resolve_optional(ex_div_busy, Bits(1)(0))
+        mem_rd_val = _resolve_optional(mem_rd, Bits(5)(0))
+        mem_is_store_val = _resolve_optional(mem_is_store, Bits(1)(0))
+        wb_rd_val = _resolve_optional(wb_rd, Bits(5)(0))
 
         # 默认值：不旁路，直接使用寄存器值
         rs1_sel = Rs1Sel.RS1
