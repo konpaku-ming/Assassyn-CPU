@@ -3,7 +3,7 @@ from .control_signals import *
 
 
 def _resolve_optional(value, default):
-    """Resolve an optional Value (or None) by returning value.optional(default) when present, otherwise the Bits default."""
+    """Resolve an optional Value (or None) by returning value.optional(default) when value is not None, otherwise return the Bits default directly."""
     return value.optional(default) if value is not None else default
 
 
