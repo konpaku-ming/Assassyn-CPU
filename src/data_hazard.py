@@ -28,12 +28,13 @@ class DataHazardUnit(Downstream):
             # --- 1. 来自 ID 级 (当前指令需求) ---
             rs1_idx: Value,  # 源寄存器 1 索引 (Value)
             rs2_idx: Value,  # 源寄存器 2 索引 (Value)
-            rs1_used: Value = None,  # Whether rs1 is used (Value, default=1 for backward compatibility); avoids false hazards for LUI, etc.
+            rs1_used: Value = None,
+            # Whether rs1 is used (Value, default=1 for backward compatibility); avoids false hazards for LUI, etc.
             rs2_used: Value = None,  # Whether rs2 is used (Value, default=1 for backward compatibility)
             # --- 2. 来自流水线各级 (实时状态回传) ---
             # 各级 Module build() 的返回值
-            ex_rd: Value,  # EX 级目标寄存器索引
-            ex_is_load: Value,  # EX 级是否为 Load 指令
+            ex_rd: Value = None,  # EX 级目标寄存器索引
+            ex_is_load: Value = None,  # EX 级是否为 Load 指令
             ex_is_store: Value = None,  # EX 级是否为 Store 指令
             ex_mul_busy: Value = None,  # EX stage multiplier busy status (multi-cycle MUL instruction occupancy)
             ex_div_busy: Value = None,  # EX stage divider busy status (multi-cycle DIV instruction occupancy)
