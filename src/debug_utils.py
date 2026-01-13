@@ -14,7 +14,11 @@ def log_register_snapshot(reg_file):
     reg_count = MAX_REGISTERS
     try:
         reg_count = min(len(reg_file), MAX_REGISTERS)
-    except Exception:
+    except (TypeError, AttributeError):
         reg_count = MAX_REGISTERS
     for idx in range(reg_count):
-        log("  x{} = 0x{:x}", idx, reg_file[idx])
+        try:
+            log("  x{} = 0x{:x}", idx, reg_file[idx])
+        except (IndexError, TypeError, AttributeError):
+            log("  x{} = <unavailable>", idx)
+            break
