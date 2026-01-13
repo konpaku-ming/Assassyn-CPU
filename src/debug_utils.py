@@ -42,7 +42,7 @@ def log_register_snapshot(reg_file):
         reg_count = MAX_REGISTERS
     for idx in range(reg_count):
         try:
-            log(f"  x{idx} = {reg_file[idx]}")
+            log("  x{} = {}", idx, reg_file[idx])
         except (IndexError, TypeError, AttributeError):
             log(f"  x{idx} = <unavailable>")
             continue
