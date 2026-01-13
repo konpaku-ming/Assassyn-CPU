@@ -132,6 +132,9 @@ class Decoder(Module):
             acc_br_type |= match_if.select(t_br, Bits(16)(0))
             acc_imm_type |= match_if.select(t_imm_type, Bits(6)(0))
 
+        # Ensure acc_imm_type is 1-hot: default to ImmType.R if no instruction matched
+        acc_imm_type = (acc_imm_type == Bits(6)(0)).select(ImmType.R, acc_imm_type)
+
         acc_imm = acc_imm_type.select1hot(
             Bits(32)(0),
             imm_i,
