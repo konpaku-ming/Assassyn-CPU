@@ -132,7 +132,14 @@ class Decoder(Module):
             acc_br_type |= match_if.select(t_br, Bits(16)(0))
             acc_imm_type |= match_if.select(t_imm_type, Bits(6)(0))
 
-        # Ensure acc_imm_type is 1-hot: default to ImmType.R if no instruction matched
+        # Ensure all 1-hot signals have valid defaults when no instruction matched
+        # This prevents Select1Hot panics from invalid (all-zero) selectors
+        acc_alu_func = (acc_alu_func == Bits(16)(0)).select(ALUOp.NOP, acc_alu_func)
+        acc_op1_sel = (acc_op1_sel == Bits(3)(0)).select(Op1Sel.RS1, acc_op1_sel)
+        acc_op2_sel = (acc_op2_sel == Bits(3)(0)).select(Op2Sel.RS2, acc_op2_sel)
+        acc_mem_op = (acc_mem_op == Bits(3)(0)).select(MemOp.NONE, acc_mem_op)
+        acc_mem_wid = (acc_mem_wid == Bits(3)(0)).select(MemWidth.WORD, acc_mem_wid)
+        acc_br_type = (acc_br_type == Bits(16)(0)).select(BranchType.NO_BRANCH, acc_br_type)
         acc_imm_type = (acc_imm_type == Bits(6)(0)).select(ImmType.R, acc_imm_type)
 
         acc_imm = acc_imm_type.select1hot(
