@@ -1,5 +1,6 @@
 from assassyn.frontend import *
 from .control_signals import *
+from .debug_utils import log_register_snapshot
 
 
 class MemoryAccess(Module):
@@ -54,10 +55,7 @@ class MemoryAccess(Module):
 
         with Condition(halt_if == Bits(1)(1)):
             log("MEM: HALT INSTRUCTION.")
-            if reg_file is not None:
-                log("Final register file state:")
-                for idx in range(32):
-                    log("  x{} = 0x{:x}", idx, reg_file[idx])
+            log_register_snapshot(reg_file)
             finish()
 
         # 2. SRAM 数据加工 (Data Aligner)

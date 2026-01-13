@@ -4,6 +4,7 @@ from .btb import TournamentPredictorImpl, BTBImpl
 from .control_signals import *
 from .multiplier import WallaceTreeMul, sign_zero_extend
 from .divider import SRT4Divider
+from .debug_utils import log_register_snapshot
 
 
 class Execution(Module):
@@ -380,10 +381,7 @@ class Execution(Module):
         # ebreak 停机
         with Condition((ctrl.alu_func == ALUOp.SYS) & ~flush_if):
             log("EBREAK encountered at PC=0x{:x}, halting simulation.", pc)
-            if reg_file is not None:
-                log("Final register file state:")
-                for idx in range(32):
-                    log("  x{} = 0x{:x}", idx, reg_file[idx])
+            log_register_snapshot(reg_file)
             finish()
 
         # 2. 结果选择
