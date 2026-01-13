@@ -35,8 +35,14 @@ class Decoder(Module):
         inst = (raw_inst == Bits(32)(0)).select(Bits(32)(0x00000013), raw_inst)
         log("ID: Fetched Instruction=0x{:x} at PC=0x{:x}", inst, pc_val)
 
-        # 补充：sb x0, -1(x0) 指令停机
-        halting_if = inst == Bits(32)(0xFE000FA3)
+        # 补充：ecall/ebreak/sb x0, -1(x0) 指令停机
+        halt_if = (
+            (inst == Bits(32)(0x00000073))
+            | (inst == Bits(32)(0x00100073))
+            | (inst == Bits(32)(0xFE000FA3))
+        )
+        with Condition(halt_if == Bits(1)(1)):
+            log("ID: Halt If = {}", halt_if)
 
         # 2. 物理切片
         opcode = inst[0:6]
@@ -44,8 +50,7 @@ class Decoder(Module):
         funct3 = inst[12:14]
         rs1 = inst[15:19]
         rs2 = inst[20:24]
-        funct7 = inst[25:31]  # 新增: 提取完整的 funct7 字段 (7 bits)
-        bit30 = inst[30:30]   # 保留用于向后兼容检查
+        bit30 = inst[30:30]
 
         # 3. 立即数并行生成
         sign = inst[31:31]
@@ -75,7 +80,7 @@ class Decoder(Module):
         # 4. 查表译码 (Signal Accumulation Loop)
 
         # 初始化累加器
-        acc_alu_func = Bits(32)(0)  # 从 Bits(16) 扩展到 Bits(32)
+        acc_alu_func = Bits(16)(0)
         acc_op1_sel = Bits(3)(0)
         acc_op2_sel = Bits(3)(0)
         acc_imm_type = Bits(6)(0)
@@ -86,9 +91,6 @@ class Decoder(Module):
         acc_mem_uns = Bits(1)(0)
         acc_wb_en = Bits(1)(0)
 
-        acc_rs1_used = Bits(1)(0)
-        acc_rs2_used = Bits(1)(0)
-
         match_if = Bits(1)(0)
 
         for entry in rv32i_table:
@@ -96,11 +98,9 @@ class Decoder(Module):
                 _,
                 t_op,
                 t_f3,
-                t_f7,  # 改为 funct7
+                t_b30,
                 t_imm_type,
                 t_alu,
-                t_rs1_use,
-                t_rs2_use,
                 t_op1,
                 t_op2,
                 t_mem_op,
@@ -116,15 +116,12 @@ class Decoder(Module):
             if t_f3 is not None:
                 match_if &= funct3 == Bits(3)(t_f3)
 
-            # 新增: funct7 匹配逻辑
-            if t_f7 is not None:
-                match_if &= funct7 == Bits(7)(t_f7)
+            if t_b30 is not None:
+                match_if &= bit30 == Bits(1)(t_b30)
 
             # --- B. 信号累加 (Mux Logic) ---
             # 使用 select 实现 OR 逻辑
-            acc_alu_func |= match_if.select(t_alu, Bits(32)(0))  # 从 Bits(16) 改为 Bits(32)
-            acc_rs1_used |= match_if.select(Bits(1)(t_rs1_use), Bits(1)(0))
-            acc_rs2_used |= match_if.select(Bits(1)(t_rs2_use), Bits(1)(0))
+            acc_alu_func |= match_if.select(t_alu, Bits(16)(0))
             acc_op1_sel |= match_if.select(t_op1, Bits(3)(0))
             acc_op2_sel |= match_if.select(t_op2, Bits(3)(0))
             acc_mem_op |= match_if.select(t_mem_op, Bits(3)(0))
@@ -151,12 +148,16 @@ class Decoder(Module):
         final_rd = acc_wb_en.select(rd, Bits(5)(0))
 
         # 构造预解码包
+        wb_ctrl_t = wb_ctrl_signals.bundle(
+            rd_addr=final_rd,
+            halt_if=halt_if,
+        )
+
         mem_ctrl_t = mem_ctrl_signals.bundle(
             mem_opcode=acc_mem_op,
             mem_width=acc_mem_wid,
             mem_unsigned=acc_mem_uns,
-            rd_addr=final_rd,
-            halt_if=halting_if,
+            wb_ctrl=wb_ctrl_t,
         )
 
         pre = pre_decode_t.bundle(
@@ -174,7 +175,7 @@ class Decoder(Module):
 
         # 添加日志信息
         log(
-            "Control signals: alu_func=0x{:x} op1_sel=0x{:x} op2_sel=0x{:x} branch_type=0x{:x} mem_op=0x{:x} mem_wid=0x{:x} mem_uns=0x{:x} rd=0x{:x} rs1_used=0x{:x} rs2_used=0x{:x}",
+            "Control signals: alu_func=0x{:x} op1_sel=0x{:x} op2_sel=0x{:x} branch_type=0x{:x} mem_op=0x{:x} mem_wid=0x{:x} mem_uns=0x{:x} rd=0x{:x}",
             acc_alu_func,
             acc_op1_sel,
             acc_op2_sel,
@@ -183,8 +184,6 @@ class Decoder(Module):
             acc_mem_wid,
             acc_mem_uns,
             final_rd,
-            acc_rs1_used,
-            acc_rs2_used,
         )
         log(
             "Forwarding data: imm=0x{:x} pc=0x{:x} rs1_data=0x{:x} rs2_data=0x{:x}",
@@ -195,7 +194,7 @@ class Decoder(Module):
         )
 
         # 返回: 预解码包, 冒险检测需要的原始信号
-        return pre, rs1, rs2, acc_rs1_used, acc_rs2_used
+        return pre, rs1, rs2
 
 
 class DecoderImpl(Downstream):
@@ -217,23 +216,36 @@ class DecoderImpl(Downstream):
         branch_target_reg: Array,
     ):
         mem_ctrl = mem_ctrl_signals.view(pre.mem_ctrl)
+        wb_ctrl = wb_ctrl_signals.view(mem_ctrl.wb_ctrl)
 
         flush_if = branch_target_reg[0] != Bits(32)(0)
         nop_if = flush_if | stall_if
 
-        final_rd = nop_if.select(Bits(5)(0), mem_ctrl.rd_addr)
+        final_rd = nop_if.select(Bits(5)(0), wb_ctrl.rd_addr)
+        final_halt_if = nop_if.select(Bits(1)(0), wb_ctrl.halt_if)
         final_mem_opcode = nop_if.select(MemOp.NONE, mem_ctrl.mem_opcode)
         final_alu_func = nop_if.select(ALUOp.NOP, pre.alu_func)
         final_branch_type = nop_if.select(BranchType.NO_BRANCH, pre.branch_type)
-        final_halt_if = nop_if.select(Bits(1)(0), mem_ctrl.halt_if)
+
+        with Condition(nop_if == Bits(1)(1)):
+            log(
+                "ID: Inserting NOP (Stall={} Flush={})",
+                stall_if == Bits(1)(1),
+                flush_if == Bits(1)(1),
+            )
+
+        final_wb_ctrl = wb_ctrl_signals.bundle(
+            rd_addr=final_rd,
+            halt_if=final_halt_if,
+        )
 
         final_mem_ctrl = mem_ctrl_signals.bundle(
             mem_opcode=final_mem_opcode,
             mem_width=mem_ctrl.mem_width,
             mem_unsigned=mem_ctrl.mem_unsigned,
-            rd_addr=final_rd,
-            halt_if=final_halt_if,
+            wb_ctrl=final_wb_ctrl,
         )
+
         final_ex_ctrl = ex_ctrl_signals.bundle(
             alu_func=final_alu_func,
             op1_sel=pre.op1_sel,
@@ -247,12 +259,12 @@ class DecoderImpl(Downstream):
 
         log(
             "Output: alu_func=0x{:x} rs1_sel=0x{:x} rs2_sel=0x{:x} branch_type=0x{:x} mem_op=0x{:x} rd=0x{:x}",
-            pre.alu_func,
+            final_alu_func,
             rs1_sel,
             rs2_sel,
-            pre.branch_type,
-            mem_ctrl.mem_opcode,
-            mem_ctrl.rd_addr,
+            final_branch_type,
+            final_mem_opcode,
+            final_rd,
         )
 
         # 无论是否 Stall，都向 EX 发送数据 (刚性流水线)

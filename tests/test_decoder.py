@@ -69,7 +69,8 @@ class Driver(Module):
 
         with Condition(valid_test):
             icache_dout[0] = curr_inst
-            dut.async_called(pc=curr_pc)
+            next_pc = (curr_pc.bitcast(UInt(32)) + UInt(32)(4)).bitcast(Bits(32))
+            dut.async_called(pc=curr_pc, next_pc=next_pc, stall=Bits(1)(0))
             # 打印输入，方便定位
             log("Driver Input: Test[{}] Inst=0x{:x}", vec_idx, curr_inst)
 

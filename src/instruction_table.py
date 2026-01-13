@@ -2,157 +2,115 @@ from .control_signals import *
 
 # RV32I 指令真值表
 # 表格列定义:
-# Key, Opcode, Funct3, Funct7, ImmType | ALU_Func, Rs1_use, Rs2_use, Op1, Op2, Mem_Op, Width, Sign, WB, branch_type
+# Key, Opcode, Funct3, Bit30, ImmType | ALU_Func, Op1, Op2, Mem_Op, Width, Sign, WB, branch_type
 
 rv32i_table = [
 
     # --- R-Type ---
-    ('add', OP_R_TYPE, 0x0, 0x00, ImmType.R, ALUOp.ADD, RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('add', OP_R_TYPE, 0x0, 0, ImmType.R, ALUOp.ADD, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
-    ('sub', OP_R_TYPE, 0x0, 0x20, ImmType.R, ALUOp.SUB, RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('sub', OP_R_TYPE, 0x0, 1, ImmType.R, ALUOp.SUB, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
-    ('sll', OP_R_TYPE, 0x1, 0x00, ImmType.R, ALUOp.SLL, RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('sll', OP_R_TYPE, 0x1, 0, ImmType.R, ALUOp.SLL, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
-    ('slt', OP_R_TYPE, 0x2, 0x00, ImmType.R, ALUOp.SLT, RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('slt', OP_R_TYPE, 0x2, 0, ImmType.R, ALUOp.SLT, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
-    ('sltu', OP_R_TYPE, 0x3, 0x00, ImmType.R, ALUOp.SLTU, RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('sltu', OP_R_TYPE, 0x3, 0, ImmType.R, ALUOp.SLTU, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
-    ('xor', OP_R_TYPE, 0x4, 0x00, ImmType.R, ALUOp.XOR, RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('xor', OP_R_TYPE, 0x4, 0, ImmType.R, ALUOp.XOR, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
-    ('srl', OP_R_TYPE, 0x5, 0x00, ImmType.R, ALUOp.SRL, RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('srl', OP_R_TYPE, 0x5, 0, ImmType.R, ALUOp.SRL, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
-    ('sra', OP_R_TYPE, 0x5, 0x20, ImmType.R, ALUOp.SRA, RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('sra', OP_R_TYPE, 0x5, 1, ImmType.R, ALUOp.SRA, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
-    ('or', OP_R_TYPE, 0x6, 0x00, ImmType.R, ALUOp.OR, RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('or', OP_R_TYPE, 0x6, 0, ImmType.R, ALUOp.OR, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
-    ('and', OP_R_TYPE, 0x7, 0x00, ImmType.R, ALUOp.AND, RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('and', OP_R_TYPE, 0x7, 0, ImmType.R, ALUOp.AND, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
 
     # --- I-Type (ALU) ---
-    ('addi', OP_I_TYPE, 0x0, None, ImmType.I, ALUOp.ADD, RsUse.YES, RsUse.NO, Op1Sel.RS1, Op2Sel.IMM, MemOp.NONE,
+    ('addi', OP_I_TYPE, 0x0, None, ImmType.I, ALUOp.ADD, Op1Sel.RS1, Op2Sel.IMM, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
-    ('slti', OP_I_TYPE, 0x2, None, ImmType.I, ALUOp.SLT, RsUse.YES, RsUse.NO, Op1Sel.RS1, Op2Sel.IMM, MemOp.NONE,
+    ('slti', OP_I_TYPE, 0x2, None, ImmType.I, ALUOp.SLT, Op1Sel.RS1, Op2Sel.IMM, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
-    ('sltiu', OP_I_TYPE, 0x3, None, ImmType.I, ALUOp.SLTU, RsUse.YES, RsUse.NO, Op1Sel.RS1, Op2Sel.IMM, MemOp.NONE,
+    ('sltiu', OP_I_TYPE, 0x3, None, ImmType.I, ALUOp.SLTU, Op1Sel.RS1, Op2Sel.IMM, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
-    ('xori', OP_I_TYPE, 0x4, None, ImmType.I, ALUOp.XOR, RsUse.YES, RsUse.NO, Op1Sel.RS1, Op2Sel.IMM, MemOp.NONE,
+    ('xori', OP_I_TYPE, 0x4, None, ImmType.I, ALUOp.XOR, Op1Sel.RS1, Op2Sel.IMM, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
-    ('ori', OP_I_TYPE, 0x6, None, ImmType.I, ALUOp.OR, RsUse.YES, RsUse.NO, Op1Sel.RS1, Op2Sel.IMM, MemOp.NONE,
+    ('ori', OP_I_TYPE, 0x6, None, ImmType.I, ALUOp.OR, Op1Sel.RS1, Op2Sel.IMM, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
-    ('andi', OP_I_TYPE, 0x7, None, ImmType.I, ALUOp.AND, RsUse.YES, RsUse.NO, Op1Sel.RS1, Op2Sel.IMM, MemOp.NONE,
+    ('andi', OP_I_TYPE, 0x7, None, ImmType.I, ALUOp.AND, Op1Sel.RS1, Op2Sel.IMM, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
-    # Shift Imm (Funct7 distinguishes Logic/Arith shift)
-    ('slli', OP_I_TYPE, 0x1, None, ImmType.I, ALUOp.SLL, RsUse.YES, RsUse.NO, Op1Sel.RS1, Op2Sel.IMM, MemOp.NONE,
+    # Shift Imm (Bit30 distinguishes Logic/Arith shift)
+    ('slli', OP_I_TYPE, 0x1, None, ImmType.I, ALUOp.SLL, Op1Sel.RS1, Op2Sel.IMM, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
-    ('srli', OP_I_TYPE, 0x5, 0x00, ImmType.I, ALUOp.SRL, RsUse.YES, RsUse.NO, Op1Sel.RS1, Op2Sel.IMM, MemOp.NONE,
+    ('srli', OP_I_TYPE, 0x5, 0, ImmType.I, ALUOp.SRL, Op1Sel.RS1, Op2Sel.IMM, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
-    ('srai', OP_I_TYPE, 0x5, 0x20, ImmType.I, ALUOp.SRA, RsUse.YES, RsUse.NO, Op1Sel.RS1, Op2Sel.IMM, MemOp.NONE,
+    ('srai', OP_I_TYPE, 0x5, 1, ImmType.I, ALUOp.SRA, Op1Sel.RS1, Op2Sel.IMM, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
 
     # --- I-type (Load) ---
     # ALU 计算地址 (RS1 + Imm)，Mem 读取
-    ('lb', OP_LOAD, 0x0, None, ImmType.I, ALUOp.ADD, RsUse.YES, RsUse.NO, Op1Sel.RS1, Op2Sel.IMM, MemOp.LOAD,
+    ('lb', OP_LOAD, 0x0, None, ImmType.I, ALUOp.ADD, Op1Sel.RS1, Op2Sel.IMM, MemOp.LOAD,
      MemWidth.BYTE, MemSign.SIGNED, WB.YES, BranchType.NO_BRANCH),
-    ('lh', OP_LOAD, 0x1, None, ImmType.I, ALUOp.ADD, RsUse.YES, RsUse.NO, Op1Sel.RS1, Op2Sel.IMM, MemOp.LOAD,
+    ('lh', OP_LOAD, 0x1, None, ImmType.I, ALUOp.ADD, Op1Sel.RS1, Op2Sel.IMM, MemOp.LOAD,
      MemWidth.HALF, MemSign.SIGNED, WB.YES, BranchType.NO_BRANCH),
-    ('lw', OP_LOAD, 0x2, None, ImmType.I, ALUOp.ADD, RsUse.YES, RsUse.NO, Op1Sel.RS1, Op2Sel.IMM, MemOp.LOAD,
+    ('lw', OP_LOAD, 0x2, None, ImmType.I, ALUOp.ADD, Op1Sel.RS1, Op2Sel.IMM, MemOp.LOAD,
      MemWidth.WORD, MemSign.SIGNED, WB.YES, BranchType.NO_BRANCH),
-    ('lbu', OP_LOAD, 0x4, None, ImmType.I, ALUOp.ADD, RsUse.YES, RsUse.NO, Op1Sel.RS1, Op2Sel.IMM, MemOp.LOAD,
+    ('lbu', OP_LOAD, 0x4, None, ImmType.I, ALUOp.ADD, Op1Sel.RS1, Op2Sel.IMM, MemOp.LOAD,
      MemWidth.BYTE, MemSign.UNSIGNED, WB.YES, BranchType.NO_BRANCH),
-    ('lhu', OP_LOAD, 0x5, None, ImmType.I, ALUOp.ADD, RsUse.YES, RsUse.NO, Op1Sel.RS1, Op2Sel.IMM, MemOp.LOAD,
+    ('lhu', OP_LOAD, 0x5, None, ImmType.I, ALUOp.ADD, Op1Sel.RS1, Op2Sel.IMM, MemOp.LOAD,
      MemWidth.HALF, MemSign.UNSIGNED, WB.YES, BranchType.NO_BRANCH),
 
     # --- S-type (Store) ---
     # ALU 计算地址 (RS1 + Imm)，Mem 写入
-    ('sb', OP_STORE, 0x0, None, ImmType.S, ALUOp.ADD, RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.IMM, MemOp.STORE,
+    ('sb', OP_STORE, 0x0, None, ImmType.S, ALUOp.ADD, Op1Sel.RS1, Op2Sel.IMM, MemOp.STORE,
      MemWidth.BYTE, Bits(1)(0), WB.NO, BranchType.NO_BRANCH),
-    ('sh', OP_STORE, 0x1, None, ImmType.S, ALUOp.ADD, RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.IMM, MemOp.STORE,
+    ('sh', OP_STORE, 0x1, None, ImmType.S, ALUOp.ADD, Op1Sel.RS1, Op2Sel.IMM, MemOp.STORE,
      MemWidth.HALF, Bits(1)(0), WB.NO, BranchType.NO_BRANCH),
-    ('sw', OP_STORE, 0x2, None, ImmType.S, ALUOp.ADD, RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.IMM, MemOp.STORE,
+    ('sw', OP_STORE, 0x2, None, ImmType.S, ALUOp.ADD, Op1Sel.RS1, Op2Sel.IMM, MemOp.STORE,
      MemWidth.WORD, Bits(1)(0), WB.NO, BranchType.NO_BRANCH),
 
     # --- Branch ---
     # ALU 做比较 (Sub/Cmp)，PC Adder 算目标 (PC+Imm)，不写回
-    ('beq', OP_BRANCH, 0x0, None, ImmType.B, ALUOp.SUB, RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('beq', OP_BRANCH, 0x0, None, ImmType.B, ALUOp.SUB, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.NO, BranchType.BEQ),
-    ('bne', OP_BRANCH, 0x1, None, ImmType.B, ALUOp.SUB, RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('bne', OP_BRANCH, 0x1, None, ImmType.B, ALUOp.SUB, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.NO, BranchType.BNE),
-    ('blt', OP_BRANCH, 0x4, None, ImmType.B, ALUOp.SLT, RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('blt', OP_BRANCH, 0x4, None, ImmType.B, ALUOp.SLT, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.NO, BranchType.BLT),
-    ('bge', OP_BRANCH, 0x5, None, ImmType.B, ALUOp.SLT, RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('bge', OP_BRANCH, 0x5, None, ImmType.B, ALUOp.SLT, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.NO, BranchType.BGE),
-    ('bltu', OP_BRANCH, 0x6, None, ImmType.B, ALUOp.SLTU, RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('bltu', OP_BRANCH, 0x6, None, ImmType.B, ALUOp.SLTU, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.NO, BranchType.BLTU),
-    ('bgeu', OP_BRANCH, 0x7, None, ImmType.B, ALUOp.SLTU, RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('bgeu', OP_BRANCH, 0x7, None, ImmType.B, ALUOp.SLTU, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.NO, BranchType.BGEU),
 
     # --- JAL ---
     # ALU: PC + 4 (Link Data -> WB)
     # Tgt: PC + Imm (Jump Target -> IF)
-    ('jal', OP_JAL, None, None, ImmType.J, ALUOp.ADD, RsUse.NO, RsUse.NO, Op1Sel.PC, Op2Sel.CONST_4, MemOp.NONE,
+    ('jal', OP_JAL, None, None, ImmType.J, ALUOp.ADD, Op1Sel.PC, Op2Sel.CONST_4, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.JAL),
 
     # --- JALR ---
     # ALU: PC + 4 (Link Data -> WB)
     # Tgt: RS1 + Imm (Jump Target -> IF)
-    ('jalr', OP_JALR, 0x0, None, ImmType.I, ALUOp.ADD, RsUse.YES, RsUse.NO, Op1Sel.PC, Op2Sel.CONST_4, MemOp.NONE,
+    ('jalr', OP_JALR, 0x0, None, ImmType.I, ALUOp.ADD, Op1Sel.PC, Op2Sel.CONST_4, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.JALR),
 
     # --- U-Type ---
     # LUI:   ALU 算 0 + Imm
-    ('lui', OP_LUI, None, None, ImmType.U, ALUOp.ADD, RsUse.NO, RsUse.NO, Op1Sel.ZERO, Op2Sel.IMM, MemOp.NONE,
+    ('lui', OP_LUI, None, None, ImmType.U, ALUOp.ADD, Op1Sel.ZERO, Op2Sel.IMM, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
     # AUIPC: ALU 算 PC + Imm
-    ('auipc', OP_AUIPC, None, None, ImmType.U, ALUOp.ADD, RsUse.NO, RsUse.NO, Op1Sel.PC, Op2Sel.IMM, MemOp.NONE,
+    ('auipc', OP_AUIPC, None, None, ImmType.U, ALUOp.ADD, Op1Sel.PC, Op2Sel.IMM, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
 
     # --- Environment (ECALL/EBREAK) ---
     # 由 Execution 中的 finish() 逻辑拦截，直接停止模拟。
-    ('ecall', OP_SYSTEM, 0x0, 0x00, ImmType.I, ALUOp.SYS, RsUse.NO, RsUse.NO, Op1Sel.RS1, Op2Sel.IMM, MemOp.NONE,
+    ('ecall', OP_SYSTEM, 0x0, 0, ImmType.I, ALUOp.SYS, Op1Sel.RS1, Op2Sel.IMM, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.NO, BranchType.NO_BRANCH),
-    ('ebreak', OP_SYSTEM, 0x0, 0x00, ImmType.I, ALUOp.SYS, RsUse.NO, RsUse.NO, Op1Sel.RS1, Op2Sel.IMM, MemOp.NONE,
+    # ebreak 编码仅立即数字段不同，这里沿用相同的解码路径，便于 halt 处理
+    ('ebreak', OP_SYSTEM, 0x0, 0, ImmType.I, ALUOp.SYS, Op1Sel.RS1, Op2Sel.IMM, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.NO, BranchType.NO_BRANCH),
-
-    # --- M Extension (Multiply) ---
-    # 所有 M 扩展指令共享 OP_R_TYPE (0b0110011)
-    # 通过 funct7=0x01 与基础整数指令区分
-    
-    # 乘法指令 (Multiplication)
-    ('mul', OP_R_TYPE, 0x0, 0x01, ImmType.R, ALUOp.MUL, 
-     RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
-     MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
-    
-    ('mulh', OP_R_TYPE, 0x1, 0x01, ImmType.R, ALUOp.MULH, 
-     RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
-     MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
-    
-    ('mulhsu', OP_R_TYPE, 0x2, 0x01, ImmType.R, ALUOp.MULHSU, 
-     RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
-     MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
-    
-    ('mulhu', OP_R_TYPE, 0x3, 0x01, ImmType.R, ALUOp.MULHU, 
-     RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
-     MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
-    
-    # --- M Extension (Division & Remainder) ---
-    # 所有除法指令共享 OP_R_TYPE (0b0110011), funct7=0x01
-    # 通过 funct3 区分不同的除法指令
-    
-    # 除法指令 (Division)
-    ('single_div.exe', OP_R_TYPE, 0x4, 0x01, ImmType.R, ALUOp.DIV,
-     RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
-     MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
-    
-    ('divu', OP_R_TYPE, 0x5, 0x01, ImmType.R, ALUOp.DIVU,
-     RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
-     MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
-    
-    # 取模指令 (Remainder)
-    ('rem', OP_R_TYPE, 0x6, 0x01, ImmType.R, ALUOp.REM,
-     RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
-     MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
-    
-    ('remu', OP_R_TYPE, 0x7, 0x01, ImmType.R, ALUOp.REMU,
-     RsUse.YES, RsUse.YES, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
-     MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH),
 ]

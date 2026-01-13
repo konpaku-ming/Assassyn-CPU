@@ -25,36 +25,22 @@ class ImmType:
 
 
 # 2. 执行阶段控制信号 (EX Control)
-# ALU 功能码 (One-hot 映射, 扩展到 Bits(32) 以支持 M 扩展)
+# ALU 功能码 (One-hot 映射, 假设 Bits(16))
 # 顺序对应 alu_func[i]
 class ALUOp:
-    # 基础整数运算 (Bits 0-10)
-    ADD = Bits(32)(0b00000000000000000000000000000001)  # Bit 0
-    SUB = Bits(32)(0b00000000000000000000000000000010)  # Bit 1
-    SLL = Bits(32)(0b00000000000000000000000000000100)  # Bit 2
-    SLT = Bits(32)(0b00000000000000000000000000001000)  # Bit 3
-    SLTU = Bits(32)(0b00000000000000000000000000010000)  # Bit 4
-    XOR = Bits(32)(0b00000000000000000000000000100000)  # Bit 5
-    SRL = Bits(32)(0b00000000000000000000000001000000)  # Bit 6
-    SRA = Bits(32)(0b00000000000000000000000010000000)  # Bit 7
-    OR = Bits(32)(0b00000000000000000000000100000000)  # Bit 8
-    AND = Bits(32)(0b00000000000000000000001000000000)  # Bit 9
-    SYS = Bits(32)(0b00000000000000000000010000000000)  # Bit 10
-    
-    # M Extension - 乘法运算 (Bits 11-14)
-    MUL = Bits(32)(0b00000000000000000000100000000000)     # Bit 11
-    MULH = Bits(32)(0b00000000000000000001000000000000)    # Bit 12
-    MULHSU = Bits(32)(0b00000000000000000010000000000000)  # Bit 13
-    MULHU = Bits(32)(0b00000000000000000100000000000000)   # Bit 14
-    
-    # M Extension - 除法运算 (Bits 15-18)
-    DIV = Bits(32)(0b00000000000000001000000000000000)     # Bit 15
-    DIVU = Bits(32)(0b00000000000000010000000000000000)    # Bit 16
-    REM = Bits(32)(0b00000000000000100000000000000000)     # Bit 17
-    REMU = Bits(32)(0b00000000000001000000000000000000)    # Bit 18
-    
-    # 占位与特殊操作 (Bit 31)
-    NOP = Bits(32)(0b10000000000000000000000000000000)     # Bit 31
+    ADD = Bits(16)(0b0000000000000001)
+    SUB = Bits(16)(0b0000000000000010)
+    SLL = Bits(16)(0b0000000000000100)
+    SLT = Bits(16)(0b0000000000001000)
+    SLTU = Bits(16)(0b0000000000010000)
+    XOR = Bits(16)(0b0000000000100000)
+    SRL = Bits(16)(0b0000000001000000)
+    SRA = Bits(16)(0b0000000010000000)
+    OR = Bits(16)(0b0000000100000000)
+    AND = Bits(16)(0b0000001000000000)
+    # 占位/直通/特殊用途
+    SYS = Bits(16)(0b0000010000000000)
+    NOP = Bits(16)(0b1000000000000000)
 
 
 class BranchType:
@@ -128,27 +114,26 @@ class WB:
     NO = 0
 
 
-# Rs 使用标志 (用于判断是否使用 Rs 寄存器，防止虚假冒险)
-class RsUse:
-    NO = 0  # 不使用
-    YES = 1  # 使用
-
-
 # 4. 控制信号结构定义
 
-# 访存域 (MemCtrl)
+# 写回域 (WB Ctrl)
+wb_ctrl_signals = Record(
+    rd_addr=Bits(5),  # 目标寄存器索引，如果是0拒绝写入。
+    halt_if=Bits(1),  # 是否触发仿真终止 (ECALL/EBREAK/sb x0, (-1)x0)
+)
+
+# 访存域 (MEM Ctrl)
 mem_ctrl_signals = Record(
     mem_opcode=Bits(3),  # 内存操作，独热码 (0:None, 1:Load, 2:Store)
     mem_width=Bits(3),  # 访问宽度，独热码 (0:Byte, 1:Half, 2:Word)
     mem_unsigned=Bits(1),  # 是否无符号扩展 (LBU/LHU)
-    rd_addr=Bits(5),  # 【嵌套】携带 WB 级信号
-    halt_if=Bits(1),  # 是否为停机指令
+    wb_ctrl=wb_ctrl_signals,  # 【嵌套】携带 WB 级信号
 )
 
-# 执行域 (ExCtrl)
+# 执行域 (EX Ctrl)
 ex_ctrl_signals = Record(
-    # ALU 功能码，使用 Bits(32) 静态定义 (扩展以支持 M 扩展)
-    alu_func=Bits(32),
+    # ALU 功能码，使用 Bits(16) 静态定义 (ADD:Bits(16)(0b0000000000000001), SUB:Bits(16)(0b0000000000000010), ...)
+    alu_func=Bits(16),
     # rs1结果来源，使用 Bits(4) 静态定义 (RS1:Bits(4)(0b0001), EX_BYPASS:Bits(4)(0b0010), MEM_BYPASS:Bits(4)(0b0100), WB_BYPASS: Bits(4)(0b1000))
     rs1_sel=Bits(4),
     # rs2结果来源，使用 Bits(4) 静态定义 (RS2:Bits(4)(0b0001), EX_BYPASS:Bits(4)(0b0010), MEM_BYPASS:Bits(4)(0b0100), WB_BYPASS:Bits(4)(0b1000))
@@ -164,7 +149,7 @@ ex_ctrl_signals = Record(
 
 pre_decode_t = Record(
     # 原始控制信号
-    alu_func=Bits(32),
+    alu_func=Bits(16),
     op1_sel=Bits(3),
     op2_sel=Bits(3),
     branch_type=Bits(16),  # Branch 指令功能码

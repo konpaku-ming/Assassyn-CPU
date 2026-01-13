@@ -1,6 +1,5 @@
 from assassyn.frontend import *
 from .control_signals import *
-from .debug_utils import log_register_snapshot
 
 
 class MemoryAccess(Module):
@@ -20,43 +19,36 @@ class MemoryAccess(Module):
 
     @module.combinational
     def build(
-            self,
-            wb_module: Module,  # 下一级流水线 (writeback.py)
-            sram_dout: Array,  # SRAM 的输出端口 (Ref)
-            mem_bypass_reg: Array,  # 全局 Bypass 寄存器 (数据)
-            reg_file: Array = None,  # 用于终止时打印寄存器快照
+        self,
+        wb_module: Module,  # 下一级流水线 (writeback.py)
+        sram_dout: Array,  # SRAM 的输出端口 (Ref)
+        mem_bypass_reg: Array,  # 全局 Bypass 寄存器 (数据)
     ):
-        # 1. 弹出并解包
+        # 1. 弹出并解包，提取需要的控制信号
         ctrl, alu_result = self.pop_all_ports(False)
-
-        # 提取需要的控制信号
         mem_opcode = ctrl.mem_opcode
         mem_width = ctrl.mem_width
         mem_unsigned = ctrl.mem_unsigned
-        halt_if = ctrl.halt_if
-        active_mem_op = mem_opcode != MemOp.NONE
+        wb_ctrl = wb_ctrl_signals.view(ctrl.wb_ctrl)
 
+        with Condition(mem_opcode == MemOp.NONE):
+            log("MEM: OP NONE.")
         with Condition(mem_opcode == MemOp.LOAD):
             log("MEM: OP LOAD.")
         with Condition(mem_opcode == MemOp.STORE):
             log("MEM: OP STORE.")
 
-        with Condition(active_mem_op & (mem_width == MemWidth.BYTE)):
+        with Condition(mem_width == MemWidth.BYTE):
             log("MEM: WIDTH BYTE.")
-        with Condition(active_mem_op & (mem_width == MemWidth.HALF)):
+        with Condition(mem_width == MemWidth.HALF):
             log("MEM: WIDTH HALF.")
-        with Condition(active_mem_op & (mem_width == MemWidth.WORD)):
+        with Condition(mem_width == MemWidth.WORD):
             log("MEM: WIDTH WORD.")
 
-        with Condition(active_mem_op & (mem_unsigned == Bits(1)(1))):
+        with Condition(mem_unsigned == Bits(1)(1)):
             log("MEM: UNSIGNED.")
-        with Condition(active_mem_op & (mem_unsigned == Bits(1)(0))):
+        with Condition(mem_unsigned == Bits(1)(0)):
             log("MEM: SIGNED.")
-
-        with Condition(halt_if == Bits(1)(1)):
-            log("MEM: HALT INSTRUCTION.")
-            log_register_snapshot(reg_file)
-            finish()
 
         # 2. SRAM 数据加工 (Data Aligner)
         # 读取 SRAM 原始数据 (32-bit)
@@ -105,23 +97,18 @@ class MemoryAccess(Module):
         final_data = is_load.select(processed_mem_result, alu_result)
 
         # 4. 输出驱动 (Output Driver)
-        # 驱动全局 Bypass 寄存器 (Side Channel)
+        # 驱动级间 Bypass 寄存器
         # 注意：如果当前是气泡 (rd=0)，写入 0 也是安全的
         mem_bypass_reg[0] = final_data
 
-        # 添加日志输出，方便测试验证
         log("MEM: Bypass <= 0x{:x}", final_data)
 
         # 驱动下一级 WB (Main Channel)
-        # 剥离外层 mem_ctrl，只传 wb_ctrl
-        wb_call = wb_module.async_called(ctrl=ctrl.rd_addr, wdata=final_data)
-
-        # 设置 FIFO 深度为 1 (刚性流水线特征)
+        wb_call = wb_module.async_called(ctrl=wb_ctrl, wdata=final_data)
         wb_call.bind.set_fifo_depth(ctrl=1, wdata=1)
 
-        # 状态暴露
-        # 将当前的控制包返回，供 DataHazardUnit 使用
-        return ctrl.rd_addr, is_store
+        # 引脚暴露 (供 HazardUnit 使用)
+        return wb_ctrl.rd_addr, is_store
 
 
 class SingleMemory(Downstream):
@@ -153,7 +140,7 @@ class SingleMemory(Downstream):
         # 1. 定义状态寄存器
         # 0: IDLE/READ Phase; 1: WRITE Phase
         store_state = RegArray(Bits(1), 1, initializer=[0])
-        # 定义锁存器，用于跨周期传递 Store 信息
+        # 定义锁存器，用于跨周期传递 Store 信息)
         store_addr = RegArray(Bits(32), 1)
         store_data = RegArray(Bits(32), 1)
         store_width = RegArray(Bits(3), 1)
