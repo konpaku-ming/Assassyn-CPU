@@ -442,8 +442,6 @@ class Execution(Module):
             log("EX: ALU Operation: AND")
         with Condition(ctrl.alu_func == ALUOp.SYS):
             log("EX: ALU Operation: SYS")
-        with Condition(ctrl.alu_func == ALUOp.NOP):
-            log("EX: ALU Operation: NOP or Reserved")
 
         # M Extension 操作日志
         with Condition(ctrl.alu_func == ALUOp.MUL):

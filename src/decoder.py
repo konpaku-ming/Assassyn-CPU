@@ -227,13 +227,6 @@ class DecoderImpl(Downstream):
         final_branch_type = nop_if.select(BranchType.NO_BRANCH, pre.branch_type)
         final_halt_if = nop_if.select(Bits(1)(0), mem_ctrl.halt_if)
 
-        with Condition(nop_if == Bits(1)(1)):
-            log(
-                "ID: Inserting NOP (Stall={} Flush={})",
-                stall_if == Bits(1)(1),
-                flush_if == Bits(1)(1),
-            )
-
         final_mem_ctrl = mem_ctrl_signals.bundle(
             mem_opcode=final_mem_opcode,
             mem_width=mem_ctrl.mem_width,
