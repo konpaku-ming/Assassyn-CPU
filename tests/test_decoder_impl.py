@@ -198,8 +198,9 @@ class Driver(Module):
         # 打印输入，方便定位
         with Condition(valid_test):
             # 设置Decoder的PC输入
-            dut_call = dut.async_called(pc=current_pc)
-            dut_call.bind.set_fifo_depth(pc=1)
+            next_pc = (current_pc.bitcast(UInt(32)) + UInt(32)(4)).bitcast(Bits(32))
+            dut_call = dut.async_called(pc=current_pc, next_pc=next_pc, stall=current_stall_if)
+            dut_call.bind.set_fifo_depth(pc=1, next_pc=1, stall=1)
 
             # 设置icache_dout的值
             icache_dout[0] = current_instruction
@@ -246,6 +247,7 @@ def check(raw_output):
     ALU_SRA = 0b0000000010000000
     ALU_OR = 0b0000000100000000
     ALU_AND = 0b0000001000000000
+    ALU_SYS = 0b0000010000000000
     ALU_NOP = 0b1000000000000000
 
     # 操作数选择常量
@@ -348,7 +350,7 @@ def check(raw_output):
         },
         # Case 8: 特殊指令测试 - ecall
         {
-            "alu_func": ALU_NOP,
+            "alu_func": ALU_SYS,
             "op1_sel": OP1_RS1,
             "op2_sel": OP2_IMM,
             "imm": 0x0,
@@ -358,7 +360,7 @@ def check(raw_output):
         },
         # Case 9: 流水线停顿测试 - add x3, x1, x2 + stall_if = 1
         {
-            "alu_func": ALU_ADD,
+            "alu_func": ALU_NOP,
             "op1_sel": OP1_RS1,
             "op2_sel": OP2_RS2,
             "imm": 0x0,
@@ -368,7 +370,7 @@ def check(raw_output):
         },
         # Case 10: 流水线刷新测试 - add x3, x1, x2 + branch_target = 0x100
         {
-            "alu_func": ALU_ADD,
+            "alu_func": ALU_NOP,
             "op1_sel": OP1_RS1,
             "op2_sel": OP2_RS2,
             "imm": 0x0,
@@ -497,7 +499,7 @@ if __name__ == "__main__":
         )
 
         # 构建Decoder
-        pre_pkt, _, _, _, _ = dut.build(icache_dout, reg_file)
+        pre_pkt, _, _ = dut.build(icache_dout, reg_file)
 
         stall_if, rs1_sel, rs2_sel = datahazardunit.build()
 

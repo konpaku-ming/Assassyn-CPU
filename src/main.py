@@ -9,11 +9,11 @@ from assassyn import utils
 from .control_signals import *
 from .fetch import Fetcher, FetcherImpl
 from .decoder import Decoder, DecoderImpl
-from .data_hazard import DataHazardUnit
+from .hazard_unit import HazardUnit
 from .execution import Execution
 from .memory import MemoryAccess, SingleMemory
 from .writeback import WriteBack
-from .btb import BTB, BTBImpl, TournamentPredictor, TournamentPredictorImpl
+from .btb import BTB, BTBImpl
 
 # 全局工作区路径
 current_path = os.path.dirname(os.path.abspath(__file__))
@@ -57,11 +57,11 @@ def load_test_case(case_name, source_subdir="workloads"):
     src_exe = os.path.join(source_dir, f"{case_name}.exe")
 
     # 定义目标文件名
-    dst_ins = os.path.join(workspace_dir, f"workload.exe")
+    dst_RAM = os.path.join(workspace_dir, f"workload.exe")
 
     # --- 复制 RAM 文件 (.exe) -> cache ---
     if os.path.exists(src_exe):
-        shutil.copy(src_exe, dst_ins)
+        shutil.copy(src_exe, dst_RAM)
         print(f"  -> Copied Instruction: {case_name}.exe ==> workload.exe")
     else:
         # 如果找不到源文件，抛出错误（因为指令文件是必须的）
@@ -81,12 +81,12 @@ def build_cpu(depth_log):
     sys_name = "rv32i_cpu"
     sys = SysBuilder(sys_name)
 
-    ins_path = os.path.join(workspace, f"workload.exe")
-    print(f"[*] Ins Path: {ins_path}")
+    RAM_path = os.path.join(workspace, f"workload.exe")
+    print(f"[*] Ins Path: {RAM_path}")
 
     with sys:
         # 1. 物理资源初始化
-        cache = SRAM(width=32, depth=1 << depth_log, init_file=ins_path)
+        cache = SRAM(width=32, depth=1 << depth_log, init_file=RAM_path)
         cache.name = "cache"
 
         # 寄存器堆
@@ -102,18 +102,13 @@ def build_cpu(depth_log):
         fetcher = Fetcher()
         fetcher_impl = FetcherImpl()
 
-        # BTB for branch target prediction
+        # BTB for branch prediction
         btb = BTB(num_entries=64, index_bits=6)
         btb_impl = BTBImpl(num_entries=64, index_bits=6)
 
-        # Tournament Predictor for branch direction prediction
-        # Combines local predictor, global predictor (with GHR), and chooser
-        tournament = TournamentPredictor(num_entries=64, index_bits=6, ghr_bits=6)
-        tournament_impl = TournamentPredictorImpl(num_entries=64, index_bits=6, ghr_bits=6)
-
         decoder = Decoder()
         decoder_impl = DecoderImpl()
-        hazard_unit = DataHazardUnit()
+        hazard_unit = HazardUnit()
 
         executor = Execution()
         memory_unit = MemoryAccess()
@@ -124,9 +119,8 @@ def build_cpu(depth_log):
 
         # 3. 逆序构建
 
-        # --- Step 0: BTB 和 Tournament Predictor 构建（需要在使用前构建） ---
+        # --- Step 0: BTB 构建（需要在使用前构建） ---
         btb_valid, btb_tags, btb_targets = btb.build()
-        local_counters, ghr, global_counters, chooser_counters = tournament.build()
 
         # --- Step A: WB 阶段 ---
         wb_rd = writeback.build(
@@ -139,30 +133,23 @@ def build_cpu(depth_log):
             wb_module=writeback,
             sram_dout=cache.dout,
             mem_bypass_reg=mem_bypass_reg,
-            reg_file=reg_file,
         )
 
         # --- Step C: EX 阶段 ---
-        ex_rd, ex_addr, ex_is_load, ex_is_store, ex_width, ex_rs2, ex_mul_busy, ex_div_busy = executor.build(
+        ex_rd, ex_addr, ex_is_load, ex_is_store, ex_width, ex_rs2 = executor.build(
             mem_module=memory_unit,
             ex_bypass=ex_bypass_reg,
             mem_bypass=mem_bypass_reg,
             wb_bypass=wb_bypass_reg,
             branch_target_reg=branch_target_reg,
-            reg_file=reg_file,
             btb_impl=btb_impl,
             btb_valid=btb_valid,
             btb_tags=btb_tags,
             btb_targets=btb_targets,
-            tournament_impl=tournament_impl,
-            local_counters=local_counters,
-            ghr=ghr,
-            global_counters=global_counters,
-            chooser_counters=chooser_counters,
         )
 
         # --- Step D: ID 阶段 (Shell) ---
-        pre_pkt, rs1, rs2, use1, use2 = decoder.build(
+        pre_pkt, rs1, rs2 = decoder.build(
             icache_dout=cache.dout,
             reg_file=reg_file,
         )
@@ -171,15 +158,11 @@ def build_cpu(depth_log):
         rs1_sel, rs2_sel, stall_if = hazard_unit.build(
             rs1_idx=rs1,
             rs2_idx=rs2,
-            rs1_used=use1,
-            rs2_used=use2,
             ex_rd=ex_rd,
             ex_is_load=ex_is_load,
             ex_is_store=ex_is_store,
-            ex_mul_busy=ex_mul_busy,
-            ex_div_busy=ex_div_busy,
-            mem_rd=mem_rd,
             mem_is_store=mem_is_store,
+            mem_rd=mem_rd,
             wb_rd=wb_rd,
         )
 
@@ -206,11 +189,6 @@ def build_cpu(depth_log):
             btb_valid=btb_valid,
             btb_tags=btb_tags,
             btb_targets=btb_targets,
-            tournament_impl=tournament_impl,
-            local_counters=local_counters,
-            ghr=ghr,
-            global_counters=global_counters,
-            chooser_counters=chooser_counters,
         )
 
         # --- Step H: SRAM 驱动 ---
@@ -224,7 +202,7 @@ def build_cpu(depth_log):
             sram=cache,
         )
 
-        # --- Step H: 辅助驱动 ---
+        # --- Step I: 辅助驱动 ---
         driver.build(fetcher=fetcher)
 
         """RegArray exposing"""
@@ -251,9 +229,9 @@ if __name__ == "__main__":
     # 配置
     cfg = config(
         verilog=True,
-        sim_threshold=600000,
+        sim_threshold=50000,
         resource_base="",
-        idle_threshold=600000,
+        idle_threshold=50000,
     )
 
     # 生成源码
@@ -279,10 +257,10 @@ if __name__ == "__main__":
         print(raw, file=f)
 
     # 运行verilog模拟器，捕获输出
-    # print(f"🏃 Running simulation(verilog)...")
-    # raw = utils.run_verilator(verilog_path)
-    # log_path = os.path.join(workspace, f"verilalog_raw.log")
-    # with open(log_path, "w") as f:
-    #    print(raw, file=f)
-    #
-    print("\nDone.")
+    print(f"🏃 Running simulation(verilog)...")
+    raw = utils.run_verilator(verilog_path)
+    log_path = os.path.join(workspace, f"verilalog_raw.log")
+    with open(log_path, "w") as f:
+        print(raw, file=f)
+
+    print("Done.")
