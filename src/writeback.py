@@ -19,7 +19,6 @@ class WriteBack(Module):
         
         # 1. 获取输入 (Consume)
         rd, wdata = self.pop_all_ports(False)
-        log("Input: rd=x{} wdata=0x{:x}", rd, wdata)
 
         # 2. 写入逻辑 (Write Logic)
         # 物理含义：生成寄存器堆的 Write Enable 信号

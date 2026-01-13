@@ -51,21 +51,6 @@ class DataHazardUnit(Downstream):
         mem_is_store_val = mem_is_store.optional(Bits(1)(0)) if mem_is_store is not None else Bits(1)(0)
         wb_rd_val = wb_rd.optional(Bits(5)(0)) if wb_rd is not None else Bits(5)(0)
 
-        log(
-            "Input Signals: rs1_idx={} rs2_idx={} rs1_used={} rs2_used={} ex_rd={} ex_is_load={} ex_is_store={} ex_mul_busy={} ex_div_busy={} mem_rd={} mem_is_store={} wb_rd={}",
-            rs1_idx_val,
-            rs2_idx_val,
-            rs1_used_val,
-            rs2_used_val,
-            ex_rd_val,
-            ex_is_load_val,
-            ex_is_store_val,
-            ex_mul_busy_val,
-            ex_div_busy_val,
-            mem_rd_val,
-            mem_is_store_val,
-            wb_rd_val,
-        )
         # 默认值：不旁路，直接使用寄存器值
         rs1_sel = Rs1Sel.RS1
         rs2_sel = Rs2Sel.RS2
@@ -108,16 +93,18 @@ class DataHazardUnit(Downstream):
         )
         rs2_sel = (rs2_used_val & ~rs2_is_zero).select(rs2_ex_bypass, Rs2Sel.RS2)
 
-        log(
-            "DataHazardUnit: rs1_sel={} rs2_sel={} stall_if={} mul_busy_hazard={} div_busy_hazard={} ex_is_store={} mem_is_store={} ex_is_load={}",
-            rs1_sel,
-            rs2_sel,
-            stall_if,
-            mul_busy_hazard,
-            div_busy_hazard,
-            ex_is_store_val,
-            mem_is_store_val,
-            ex_is_load_val,
-        )
+        log_condition = stall_if | (rs1_sel != Rs1Sel.RS1) | (rs2_sel != Rs2Sel.RS2)
+        with Condition(log_condition == Bits(1)(1)):
+            log(
+                "DataHazardUnit: rs1_sel={} rs2_sel={} stall_if={} mul_busy_hazard={} div_busy_hazard={} ex_is_store={} mem_is_store={} ex_is_load={}",
+                rs1_sel,
+                rs2_sel,
+                stall_if,
+                mul_busy_hazard,
+                div_busy_hazard,
+                ex_is_store_val,
+                mem_is_store_val,
+                ex_is_load_val,
+            )
         # Return bypass selection signals and stall signal
         return rs1_sel, rs2_sel, stall_if
