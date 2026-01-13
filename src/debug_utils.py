@@ -11,7 +11,6 @@ def log_register_snapshot(reg_file):
     if reg_file is None:
         return
     log("Final register file state:")
-    reg_count = MAX_REGISTERS
     try:
         reg_count = min(len(reg_file), MAX_REGISTERS)
     except (TypeError, AttributeError):
@@ -21,4 +20,4 @@ def log_register_snapshot(reg_file):
             log("  x{} = 0x{:x}", idx, reg_file[idx])
         except (IndexError, TypeError, AttributeError):
             log("  x{} = <unavailable>", idx)
-            break
+            continue
