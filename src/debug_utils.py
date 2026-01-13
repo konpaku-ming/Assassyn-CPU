@@ -44,5 +44,5 @@ def log_register_snapshot(reg_file):
         try:
             log("  x{} = {}", idx, reg_file[idx])
         except (IndexError, TypeError, AttributeError):
-            log(f"  x{idx} = <unavailable>")
+            log("  x{} = <unavailable>", idx)
             continue
