@@ -2,6 +2,11 @@ from assassyn.frontend import *
 from .control_signals import *
 
 
+def _resolve_optional(value, default):
+    """Resolve an optional Value (or None) by returning value.optional(default) when value is not None, otherwise return the Bits default directly."""
+    return value.optional(default) if value is not None else default
+
+
 class DataHazardUnit(Downstream):
     """
     DataHazardUnit 是一个纯组合逻辑 (Downstream) 模块。
@@ -15,7 +20,7 @@ class DataHazardUnit(Downstream):
 
     def __init__(self):
         super().__init__()
-        self.name = "DataHazardUnit"
+        self.name = "HazardUnit"
 
     @downstream.combinational
     def build(
@@ -23,8 +28,8 @@ class DataHazardUnit(Downstream):
             # --- 1. 来自 ID 级 (当前指令需求) ---
             rs1_idx: Value,  # 源寄存器 1 索引 (Value)
             rs2_idx: Value,  # 源寄存器 2 索引 (Value)
-            rs1_used: Value,  # 是否需要读取 rs1 (Value) - 避免 LUI 等指令的虚假冒险
-            rs2_used: Value,  # 是否需要读取 rs2 (Value)
+            rs1_used: Value = None,  # Whether rs1 is used (Value, default=1 for backward compatibility); avoids false hazards for LUI, etc.
+            rs2_used: Value = None,  # Whether rs2 is used (Value, default=1 for backward compatibility)
             # --- 2. 来自流水线各级 (实时状态回传) ---
             # 各级 Module build() 的返回值
             ex_rd: Value,  # EX 级目标寄存器索引
@@ -38,18 +43,19 @@ class DataHazardUnit(Downstream):
             **kwargs,
     ):
         # 使用 optional() 处理 Value 接口，如果无效则使用默认值 Bits(x)(0)
-        rs1_idx_val = rs1_idx.optional(Bits(5)(0))
-        rs2_idx_val = rs2_idx.optional(Bits(5)(0))
-        rs1_used_val = rs1_used.optional(Bits(1)(0))
-        rs2_used_val = rs2_used.optional(Bits(1)(0))
-        ex_rd_val = ex_rd.optional(Bits(5)(0))
-        ex_is_load_val = ex_is_load.optional(Bits(1)(0))
-        ex_is_store_val = ex_is_store.optional(Bits(1)(0)) if ex_is_store is not None else Bits(1)(0)
-        ex_mul_busy_val = ex_mul_busy.optional(Bits(1)(0)) if ex_mul_busy is not None else Bits(1)(0)
-        ex_div_busy_val = ex_div_busy.optional(Bits(1)(0)) if ex_div_busy is not None else Bits(1)(0)
-        mem_rd_val = mem_rd.optional(Bits(5)(0)) if mem_rd is not None else Bits(5)(0)
-        mem_is_store_val = mem_is_store.optional(Bits(1)(0)) if mem_is_store is not None else Bits(1)(0)
-        wb_rd_val = wb_rd.optional(Bits(5)(0)) if wb_rd is not None else Bits(5)(0)
+        rs1_idx_val = _resolve_optional(rs1_idx, Bits(5)(0))
+        rs2_idx_val = _resolve_optional(rs2_idx, Bits(5)(0))
+        # 默认假设寄存器被使用（兼容旧 HazardUnit 行为），除非上游显式提供 usage 位
+        rs1_used_val = _resolve_optional(rs1_used, Bits(1)(1))
+        rs2_used_val = _resolve_optional(rs2_used, Bits(1)(1))
+        ex_rd_val = _resolve_optional(ex_rd, Bits(5)(0))
+        ex_is_load_val = _resolve_optional(ex_is_load, Bits(1)(0))
+        ex_is_store_val = _resolve_optional(ex_is_store, Bits(1)(0))
+        ex_mul_busy_val = _resolve_optional(ex_mul_busy, Bits(1)(0))
+        ex_div_busy_val = _resolve_optional(ex_div_busy, Bits(1)(0))
+        mem_rd_val = _resolve_optional(mem_rd, Bits(5)(0))
+        mem_is_store_val = _resolve_optional(mem_is_store, Bits(1)(0))
+        wb_rd_val = _resolve_optional(wb_rd, Bits(5)(0))
 
         # 默认值：不旁路，直接使用寄存器值
         rs1_sel = Rs1Sel.RS1
@@ -96,7 +102,7 @@ class DataHazardUnit(Downstream):
         log_condition = stall_if | (rs1_sel != Rs1Sel.RS1) | (rs2_sel != Rs2Sel.RS2)
         with Condition(log_condition == Bits(1)(1)):
             log(
-                "DataHazardUnit: rs1_sel={} rs2_sel={} stall_if={} mul_busy_hazard={} div_busy_hazard={} ex_is_store={} mem_is_store={} ex_is_load={}",
+                "HazardUnit: rs1_sel={} rs2_sel={} stall_if={} mul_busy_hazard={} div_busy_hazard={} ex_is_store={} mem_is_store={} ex_is_load={}",
                 rs1_sel,
                 rs2_sel,
                 stall_if,

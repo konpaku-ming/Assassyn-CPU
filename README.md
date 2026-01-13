@@ -20,6 +20,7 @@
 1. **Python 3.10+**。
 2. **Assassyn 框架**（必须）：建议使用 Apptainer/Singularity 镜像 `assassyn.sif`（获取与制作方式见 `docs/Agent.md`），或在本地已安装可用的 `assassyn` 包。
 3. **测试依赖**：`pytest`（`pip install pytest`），用于收集和运行测试。
+4. **Verilog 仿真（可选）**：需要 `cocotb`（`pip install cocotb`）。若未安装，`src/main.py` 中的 Verilator + cocotb 流程会被自动跳过，保持其他仿真可用。
 
 > 如果缺少 Assassyn 环境，运行测试会出现 `ModuleNotFoundError: No module named 'assassyn'`。解决方式：使用 Apptainer 镜像运行，或在本地安装可用的 `assassyn` 包并确保其在 `PYTHONPATH` 中。
 
