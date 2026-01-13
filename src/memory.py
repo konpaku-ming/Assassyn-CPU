@@ -172,9 +172,9 @@ class SingleMemory(Downstream):
         shamt = (final_mem_addr[0:1].concat(Bits(3)(0))).bitcast(UInt(5))
         # 生成基础掩码
         raw_mask = final_width.select1hot(
-            Bits(32)(0xFFFFFFFF),  # Word
-            Bits(32)(0x0000FFFF),  # Half
-            Bits(32)(0x000000FF),  # Byte
+            Bits(32)(0x000000FF),  # Byte (bit 0)
+            Bits(32)(0x0000FFFF),  # Half (bit 1)
+            Bits(32)(0xFFFFFFFF),  # Word (bit 2)
         ).bitcast(UInt(32))
         # 移位到目标位置
         shifted_mask = raw_mask << shamt
