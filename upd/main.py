@@ -257,10 +257,14 @@ if __name__ == "__main__":
         print(raw, file=f)
 
     # 运行verilog模拟器，捕获输出
-    print(f"🏃 Running simulation(verilog)...")
-    raw = utils.run_verilator(verilog_path)
-    log_path = os.path.join(workspace, f"verilalog_raw.log")
-    with open(log_path, "w") as f:
-        print(raw, file=f)
+    from importlib.util import find_spec
+    if find_spec("cocotb.runner") is None:
+        print("⚠️ Skipping cocotb Verilator run because cocotb is not installed. Install with `pip install cocotb` to enable.")
+    else:
+        print(f"🏃 Running simulation(verilog)...")
+        raw = utils.run_verilator(verilog_path)
+        log_path = os.path.join(workspace, f"verilalog_raw.log")
+        with open(log_path, "w") as f:
+            print(raw, file=f)
 
     print("Done.")
