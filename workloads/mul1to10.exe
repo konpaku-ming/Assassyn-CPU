@@ -1,19 +1,11 @@
-// Wallace Tree Multiplier Test Program
-// Tests various MUL operations to verify 3-cycle multiplier
-00a00513 //  0: li   a0, 10       ; a0 = 10
-00500593 //  4: li   a1, 5        ; a1 = 5
-02b50633 //  8: mul  a2, a0, a1   ; a2 = 10 * 5 = 50 (0x32)
-06400693 // 12: li   a3, 100      ; a3 = 100
-00700713 // 16: li   a4, 7        ; a4 = 7
-02e687b3 // 20: mul  a5, a3, a4   ; a5 = 100 * 7 = 700 (0x2BC)
-00100513 // 24: li   a0, 1        ; reset a0 = 1 for factorial
-00100593 // 28: li   a1, 1        ; i = 1
-00b00613 // 32: li   a2, 11       ; end = 11
-02b50533 // 36: mul  a0, a0, a1   ; a0 = a0 * i (factorial loop)
-00158593 // 40: addi a1, a1, 1    ; i++
-fec596e3 // 44: bne  a1, a2, -20  ; loop back
-00100073 // 48: ebreak            ; halt - a0 should have 10! = 3628800 (0x375F00)
-00000033 // 52: nop
-00000033 // 56: nop
-00000033 // 60: nop
-00000033 // 64: nop
+00100513 //  0: li   a0, 1        ; res = 1
+00100793 //  4: li   a5, 1        ; i = 1
+00b00693 //  8: li   a3, 11       ; end = 11
+02f50533 // 12: mul  a0, a0, a5   ; a0 = a0 * a5
+00178793 // 16: addi a5, a5, 1    ; i++
+fed79ae3 // 20: bne a5, a3, -12
+00100073 // 24: ebreak
+00000033 // 28: add x0, x0, x0    ; padding
+00000033 // 32: add x0, x0, x0
+00000033 // 36: add x0, x0, x0
+00000033 // 40: add x0, x0, x0
