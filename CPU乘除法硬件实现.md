@@ -94,13 +94,13 @@ M 扩展包含 8 条指令：
 
 在硬件中，生成部分积非常简单：
 
-\`\`\`
+```
 部分积 pp[i] = A AND (B[i] 复制 32 次)
-\`\`\`
+```
 
 用更形式化的表示：
-- 如果 \`B[i] = 1\`，则 \`pp[i] = A\`（左移 i 位）
-- 如果 \`B[i] = 0\`，则 \`pp[i] = 0\`
+- 如果 `B[i] = 1`，则 `pp[i] = A`（左移 i 位）
+- 如果 `B[i] = 0`，则 `pp[i] = 0`
 
 这只需要 32 个 AND 门阵列就能实现。
 
@@ -108,9 +108,9 @@ M 扩展包含 8 条指令：
 
 最简单的方法是使用链式加法器：
 
-\`\`\`
+```
 结果 = pp[0] + pp[1] + pp[2] + ... + pp[31]
-\`\`\`
+```
 
 但这需要 31 次加法操作，每次加法都有进位传播延迟，总延迟非常大！
 
@@ -120,31 +120,31 @@ Wallace Tree 是一种并行压缩结构，使用以下组件快速减少部分�
 
 **3:2 压缩器（全加器）**
 
-\`\`\`
+```
 输入：a, b, c （三个1位数）
 输出：sum, carry
 
 sum   = a ⊕ b ⊕ c        （异或）
 carry = (a·b) | (b·c) | (a·c)  （多数表决）
-\`\`\`
+```
 
 这个电路的关键特性：将 3 个数压缩成 2 个数（sum + carry），且 carry 需要左移 1 位。
 
 **2:2 压缩器（半加器）**
 
-\`\`\`
+```
 输入：a, b （两个1位数）
 输出：sum, carry
 
 sum   = a ⊕ b
 carry = a · b
-\`\`\`
+```
 
 #### 2.1.5 Wallace Tree 压缩过程
 
 对于 32 个部分积，Wallace Tree 逐层压缩：
 
-\`\`\`
+```
 级别 0: 32 行 (原始部分积)
         ↓ 用 10 个 3:2 压缩器处理 30 行，保留 2 行
 级别 1: 22 行
@@ -162,7 +162,7 @@ carry = a · b
 级别 7: 3 行
         ↓ 用 1 个 3:2 压缩器
 级别 8: 2 行 (最终结果)
-\`\`\`
+```
 
 最后，用一个快速加法器（如 Carry-Lookahead Adder）将最后 2 行相加，得到最终的 64 位乘积。
 
@@ -173,11 +173,11 @@ carry = a · b
 
 ### 2.2 Assassyn 代码实现详解
 
-在 \`src/multiplier.py\` 中，我们实现了 3 周期流水线 Wallace Tree 乘法器。
+在 `src/multiplier.py` 中，我们实现了 3 周期流水线 Wallace Tree 乘法器。
 
 #### 2.2.1 整体架构
 
-\`\`\`python
+```python
 class WallaceTreeMul:
     """
     3-cycle pipelined Wallace Tree multiplier
@@ -186,13 +186,13 @@ class WallaceTreeMul:
     Cycle 2 (EX_M2): Wallace Tree 压缩（前几层）
     Cycle 3 (EX_M3): 最终压缩 + CPA 加法
     """
-\`\`\`
+```
 
 #### 2.2.2 流水线寄存器定义
 
-在 Assassyn 中，我们使用 \`RegArray\` 定义寄存器：
+在 Assassyn 中，我们使用 `RegArray` 定义寄存器：
 
-\`\`\`python
+```python
 def __init__(self):
     # 阶段 1 寄存器 (EX_M1)
     self.m1_valid = RegArray(Bits(1), 1, initializer=[0])      # 有效位
@@ -211,16 +211,16 @@ def __init__(self):
     # 阶段 3 寄存器 (EX_M3)
     self.m3_valid = RegArray(Bits(1), 1, initializer=[0])
     self.m3_result = RegArray(Bits(32), 1, initializer=[0])
-\`\`\`
+```
 
 **硬件含义说明**：
-- \`RegArray(Bits(32), 1)\` 表示一个 32 位宽的寄存器
-- \`initializer=[0]\` 表示复位后初值为 0
+- `RegArray(Bits(32), 1)` 表示一个 32 位宽的寄存器
+- `initializer=[0]` 表示复位后初值为 0
 - 这些寄存器在真实硬件中是触发器阵列，在时钟上升沿锁存数据
 
 #### 2.2.3 符号扩展函数
 
-\`\`\`python
+```python
 def sign_zero_extend(op: Bits, signed: Bits) -> Bits:
     """
     将 32 位操作数扩展到 64 位
@@ -231,16 +231,16 @@ def sign_zero_extend(op: Bits, signed: Bits) -> Bits:
     sign_ext = sign_bit.select(Bits(32)(0xFFFFFFFF), Bits(32)(0))  # 符号位扩展
     ext_high = signed.select(sign_ext, Bits(32)(0))         # 根据是否有符号选择
     return concat(ext_high, op)                             # 拼接成 64 位
-\`\`\`
+```
 
 **硬件含义说明**：
-- \`op[31:31]\` 是位选择操作，提取第 31 位（最高位）
-- \`select(a, b)\` 是多路复用器（MUX）：条件为真选 a，否则选 b
-- \`concat(high, low)\` 是位拼接，将两个信号连接成更宽的信号
+- `op[31:31]` 是位选择操作，提取第 31 位（最高位）
+- `select(a, b)` 是多路复用器（MUX）：条件为真选 a，否则选 b
+- `concat(high, low)` 是位拼接，将两个信号连接成更宽的信号
 
 #### 2.2.4 阶段 1：部分积生成
 
-\`\`\`python
+```python
 def cycle_m1(self):
     """
     EX_M1 阶段：部分积生成
@@ -279,16 +279,16 @@ def cycle_m1(self):
         
         # 清除阶段 1 有效位
         self.m1_valid[0] = Bits(1)(0)
-\`\`\`
+```
 
 **硬件含义说明**：
-- \`with Condition(...)\` 类似于 Verilog 的 \`if\` 语句，生成条件控制逻辑
-- \`bitcast(UInt(64))\` 将位向量重新解释为无符号整数类型，允许进行算术运算
+- `with Condition(...)` 类似于 Verilog 的 `if` 语句，生成条件控制逻辑
+- `bitcast(UInt(64))` 将位向量重新解释为无符号整数类型，允许进行算术运算
 - 在真实硬件综合时，乘法会被综合成乘法器电路
 
 #### 2.2.5 阶段 2：Wallace Tree 压缩
 
-\`\`\`python
+```python
 def cycle_m2(self):
     """
     EX_M2 阶段：Wallace Tree 压缩
@@ -310,11 +310,11 @@ def cycle_m2(self):
         
         # 清除阶段 2 有效位
         self.m2_valid[0] = Bits(1)(0)
-\`\`\`
+```
 
 #### 2.2.6 阶段 3：最终压缩 + CPA
 
-\`\`\`python
+```python
 def cycle_m3(self):
     """
     EX_M3 阶段：最终压缩 + 进位传播加法
@@ -326,11 +326,11 @@ def cycle_m3(self):
     with Condition(self.m3_valid[0] == Bits(1)(1)):
         # 结果已在 m3_result 中，保持一个周期供读取
         pass
-\`\`\`
+```
 
 ### 2.3 时钟周期分析
 
-\`\`\`
+```
 时钟周期    流水线状态              操作
 ========================================================
 N           MUL 指令进入 EX        start_multiply() 被调用，m1_valid=1
@@ -338,18 +338,18 @@ N+1         EX_M1 执行             生成部分积，结果进入 m2_xxx 寄�
 N+2         EX_M2 执行             Wallace Tree 压缩，结果进入 m3_xxx 寄存器
 N+3         EX_M3 执行             最终 CPA 加法，结果可读
 N+4         结果写回               结果通过 WB 阶段写回寄存器文件
-\`\`\`
+```
 
 **示意图**：
 
-\`\`\`
+```
 周期 N:   IF → ID → [EX: MUL启动] → MEM → WB
 周期 N+1: IF → ID → [EX: M1执行]  → MEM → WB
 周期 N+2: IF → ID → [EX: M2执行]  → MEM → WB
 周期 N+3: IF → ID → [EX: M3完成]  → MEM → WB  ← 结果可用
 周期 N+4: IF → ID → EX → [MEM: MUL结果] → WB
 周期 N+5: IF → ID → EX → MEM → [WB: 写回 rd]
-\`\`\`
+```
 
 ---
 
@@ -361,14 +361,14 @@ N+4         结果写回               结果通过 WB 阶段写回寄存器文�
 
 回想一下我们如何手工做除法（以 42 ÷ 6 为例）：
 
-\`\`\`
+```
          0 0 0 0 0 1 1 1  = 7 (商)
        _______________
  6 ) 0 0 1 0 1 0 1 0  = 42 (被除数)
         - 6
        -----
           0 (余数 = 0)
-\`\`\`
+```
 
 **手工除法的步骤**：
 1. 从被除数的最高位开始
@@ -382,13 +382,13 @@ N+4         结果写回               结果通过 WB 阶段写回寄存器文�
 恢复除法算法将上述过程形式化：
 
 **寄存器设置**：
-- \`R\`：余数寄存器（初始为 0）
-- \`Q\`：商/被除数寄存器（初始为被除数）
-- \`D\`：除数寄存器
+- `R`：余数寄存器（初始为 0）
+- `Q`：商/被除数寄存器（初始为被除数）
+- `D`：除数寄存器
 
 **算法步骤**（对于 N 位除法，执行 N 次迭代）：
 
-\`\`\`
+```
 for i = N-1 downto 0:
     1. 左移 [R, Q] 一位
        R = (R << 1) | Q[MSB]
@@ -404,7 +404,7 @@ for i = N-1 downto 0:
        else:
            R = R         # 恢复（不改变）
            Q[0] = 0      # 商位为 0
-\`\`\`
+```
 
 **为什么叫"恢复"除法**：
 - 当试减结果为负时，我们"恢复"原来的 R 值
@@ -412,7 +412,7 @@ for i = N-1 downto 0:
 
 #### 3.1.3 具体例子：42 ÷ 6
 
-\`\`\`
+```
 初始状态：R = 0, Q = 42 = 0b101010, D = 6 = 0b110
 
 迭代 1（处理第 6 位）：
@@ -459,7 +459,7 @@ for i = N-1 downto 0:
 
 最终结果：商 Q = 7, 余数 R = 0
 验证：42 = 6 × 7 + 0 ✓
-\`\`\`
+```
 
 ### 3.2 Radix-4 恢复除法算法
 
@@ -471,7 +471,7 @@ for i = N-1 downto 0:
 
 #### 3.2.2 Radix-4 算法步骤
 
-\`\`\`
+```
 for i = 15 downto 0:  # 16 次迭代，每次 2 位
     1. 左移 [R, Q] 两位
        R = (R << 2) | Q[31:30]
@@ -489,7 +489,7 @@ for i = 15 downto 0:  # 16 次迭代，每次 2 位
            Q[1:0] = 01  # 商位 = 1
        else:
            Q[1:0] = 00  # 商位 = 0
-\`\`\`
+```
 
 **关键区别**：
 - 每次处理 2 位商，迭代次数减半
@@ -498,11 +498,11 @@ for i = 15 downto 0:  # 16 次迭代，每次 2 位
 
 ### 3.3 Assassyn 代码实现详解
 
-在 \`src/divider.py\` 中，我们实现了 Radix-4 恢复除法器。
+在 `src/divider.py` 中，我们实现了 Radix-4 恢复除法器。
 
 #### 3.3.1 状态机设计
 
-\`\`\`python
+```python
 # FSM 状态定义
 self.IDLE = Bits(3)(0)       # 空闲，等待启动
 self.DIV_PRE = Bits(3)(1)    # 预处理
@@ -510,11 +510,11 @@ self.DIV_WORKING = Bits(3)(2) # 迭代计算
 self.DIV_END = Bits(3)(3)    # 后处理
 self.DIV_1 = Bits(3)(4)      # 快速路径：除数=1
 self.DIV_ERROR = Bits(3)(5)  # 错误：除数=0
-\`\`\`
+```
 
 **状态转换图**：
 
-\`\`\`
+```
         启动
           ↓
        ┌─────────────────────────────────────┐
@@ -541,11 +541,11 @@ self.DIV_ERROR = Bits(3)(5)  # 错误：除数=0
                               ┌─────────┐   │
                               │ DIV_END │───┘
                               └─────────┘
-\`\`\`
+```
 
 #### 3.3.2 寄存器定义
 
-\`\`\`python
+```python
 def __init__(self):
     # 控制寄存器
     self.busy = RegArray(Bits(1), 1, initializer=[0])    # 忙标志
@@ -569,11 +569,11 @@ def __init__(self):
     self.quotient = RegArray(Bits(32), 1, initializer=[0])    # 商累加器
     self.remainder = RegArray(Bits(34), 1, initializer=[0])   # 余数（34位防溢出）
     self.div_sign = RegArray(Bits(2), 1, initializer=[0])     # 符号位记录
-\`\`\`
+```
 
 #### 3.3.3 启动除法
 
-\`\`\`python
+```python
 def start_divide(self, dividend, divisor, is_signed, is_rem):
     """
     启动除法运算
@@ -592,11 +592,11 @@ def start_divide(self, dividend, divisor, is_signed, is_rem):
     self.busy[0] = Bits(1)(1)
     self.ready[0] = Bits(1)(0)
     self.error[0] = Bits(1)(0)
-\`\`\`
+```
 
 #### 3.3.4 IDLE 状态：特殊情况检测
 
-\`\`\`python
+```python
 with Condition(self.state[0] == self.IDLE):
     with Condition(self.valid_in[0] == Bits(1)(1)):
         # 检测特殊情况
@@ -639,16 +639,16 @@ with Condition(self.state[0] == self.IDLE):
                 self.dividend_in[0][31:31], 
                 self.divisor_in[0][31:31]
             )
-\`\`\`
+```
 
 **硬件含义说明**：
-- \`~value + 1\` 是二进制补码取负操作
-- \`div_sign[1:1]\` 保存被除数符号，\`div_sign[0:0]\` 保存除数符号
+- `~value + 1` 是二进制补码取负操作
+- `div_sign[1:1]` 保存被除数符号，`div_sign[0:0]` 保存除数符号
 - 符号位用于最后的结果符号修正
 
 #### 3.3.5 DIV_WORKING 状态：Radix-4 迭代
 
-\`\`\`python
+```python
 with Condition(self.state[0] == self.DIV_WORKING):
     # 检查是否完成
     with Condition(self.div_cnt[0] == Bits(5)(1)):
@@ -705,16 +705,16 @@ with Condition(self.state[0] == self.DIV_WORKING):
 
     # 递减计数器
     self.div_cnt[0] = (self.div_cnt[0].bitcast(UInt(5)) - Bits(5)(1)).bitcast(Bits(5))
-\`\`\`
+```
 
 **硬件含义说明**：
-- \`concat(Bits(1)(0), divisor, Bits(1)(0))\` 通过左移1位实现乘2
-- \`ge_3d\`, \`ge_2d\`, \`ge_1d\` 是三个并行比较器
-- 嵌套的 \`select\` 实现了优先级编码器
+- `concat(Bits(1)(0), divisor, Bits(1)(0))` 通过左移1位实现乘2
+- `ge_3d`, `ge_2d`, `ge_1d` 是三个并行比较器
+- 嵌套的 `select` 实现了优先级编码器
 
 #### 3.3.6 DIV_END 状态：符号修正
 
-\`\`\`python
+```python
 with Condition(self.state[0] == self.DIV_END):
     # 符号修正规则：
     # - 商：被除数和除数异号时为负
@@ -755,13 +755,13 @@ with Condition(self.state[0] == self.DIV_END):
     self.ready[0] = Bits(1)(1)
     self.busy[0] = Bits(1)(0)
     self.state[0] = self.IDLE
-\`\`\`
+```
 
 ### 3.4 时钟周期分析
 
 #### 3.4.1 Radix-4 除法器时序
 
-\`\`\`
+```
 周期数      状态              操作
 ================================================================
 N           IDLE             检测特殊情况，决定下一状态
@@ -771,7 +771,7 @@ N+3         DIV_WORKING      第 2 次迭代（处理 bit 29-28）
 ...         ...              ...
 N+17        DIV_WORKING      第 16 次迭代（处理 bit 1-0）
 N+18        DIV_END          符号修正，结果就绪
-\`\`\`
+```
 
 **总周期数**：~18 周期（正常情况）
 
@@ -785,7 +785,7 @@ N+18        DIV_END          符号修正，结果就绪
 
 ### 3.5 逐位恢复除法（NaiveDivider）
 
-\`src/naive_divider.py\` 实现了更简单的逐位恢复除法，主要区别：
+`src/naive_divider.py` 实现了更简单的逐位恢复除法，主要区别：
 
 | 特性 | Radix-4 (SRT4Divider) | 逐位 (NaiveDivider) |
 |------|------------------------|---------------------|
@@ -804,13 +804,13 @@ N+18        DIV_END          符号修正，结果就绪
 
 #### 4.1.1 MUL 指令
 
-**指令格式**：\`MUL rd, rs1, rs2\`
+**指令格式**：`MUL rd, rs1, rs2`
 
-**功能**：\`rd = (rs1 × rs2)[31:0]\` （返回乘积的低 32 位）
+**功能**：`rd = (rs1 × rs2)[31:0]` （返回乘积的低 32 位）
 
 **执行流程**：
 
-\`\`\`
+```
 周期 N:   IF 阶段
           ├─ 读取 PC 处的指令
           └─ 发送到 ID
@@ -866,50 +866,50 @@ N+18        DIV_END          符号修正，结果就绪
 周期 N+7: WB 阶段
           ├─ 检测 rd != 0
           └─ 写入：reg_file[rd] = result
-\`\`\`
+```
 
 #### 4.1.2 MULH 指令
 
-**指令格式**：\`MULH rd, rs1, rs2\`
+**指令格式**：`MULH rd, rs1, rs2`
 
-**功能**：\`rd = (signed(rs1) × signed(rs2))[63:32]\` （返回有符号乘积的高 32 位）
+**功能**：`rd = (signed(rs1) × signed(rs2))[63:32]` （返回有符号乘积的高 32 位）
 
 **与 MUL 的区别**：
-- \`result_high = 1\` （选择高 32 位）
-- \`op1_signed = 1, op2_signed = 1\`
+- `result_high = 1` （选择高 32 位）
+- `op1_signed = 1, op2_signed = 1`
 
 #### 4.1.3 MULHSU 指令
 
-**指令格式**：\`MULHSU rd, rs1, rs2\`
+**指令格式**：`MULHSU rd, rs1, rs2`
 
-**功能**：\`rd = (signed(rs1) × unsigned(rs2))[63:32]\`
+**功能**：`rd = (signed(rs1) × unsigned(rs2))[63:32]`
 
 **符号处理**：
-- \`op1_signed = 1\` （rs1 有符号扩展）
-- \`op2_signed = 0\` （rs2 零扩展）
-- \`result_high = 1\`
+- `op1_signed = 1` （rs1 有符号扩展）
+- `op2_signed = 0` （rs2 零扩展）
+- `result_high = 1`
 
 #### 4.1.4 MULHU 指令
 
-**指令格式**：\`MULHU rd, rs1, rs2\`
+**指令格式**：`MULHU rd, rs1, rs2`
 
-**功能**：\`rd = (unsigned(rs1) × unsigned(rs2))[63:32]\`
+**功能**：`rd = (unsigned(rs1) × unsigned(rs2))[63:32]`
 
 **符号处理**：
-- \`op1_signed = 0, op2_signed = 0\` （两个操作数都零扩展）
-- \`result_high = 1\`
+- `op1_signed = 0, op2_signed = 0` （两个操作数都零扩展）
+- `result_high = 1`
 
 ### 4.2 除法指令 (DIV/DIVU)
 
 #### 4.2.1 DIV 指令
 
-**指令格式**：\`DIV rd, rs1, rs2\`
+**指令格式**：`DIV rd, rs1, rs2`
 
-**功能**：\`rd = signed(rs1) / signed(rs2)\`
+**功能**：`rd = signed(rs1) / signed(rs2)`
 
 **执行流程**：
 
-\`\`\`
+```
 周期 N:   IF 阶段
           └─ 读取指令
 
@@ -964,50 +964,50 @@ N+18        DIV_END          符号修正，结果就绪
 
 周期 N+23: WB 阶段
           └─ reg_file[rd] = result
-\`\`\`
+```
 
 **特殊情况处理**：
 
 1. **除数 = 0**：
-   \`\`\`
+   ```
    周期 N+3: IDLE → DIV_ERROR
    周期 N+4: 返回 result = 0xFFFFFFFF (-1)
    总周期: 4 周期
-   \`\`\`
+   ```
 
 2. **除数 = 1**：
-   \`\`\`
+   ```
    周期 N+3: IDLE → DIV_1
    周期 N+4: 返回 result = rs1 (商=被除数)
    总周期: 4 周期
-   \`\`\`
+   ```
 
 3. **有符号溢出 (-2³¹ / -1)**：
-   \`\`\`
+   ```
    在 DIV_END 阶段检测并返回 result = 0x80000000 (-2³¹)
-   \`\`\`
+   ```
 
 #### 4.2.2 DIVU 指令
 
-**指令格式**：\`DIVU rd, rs1, rs2\`
+**指令格式**：`DIVU rd, rs1, rs2`
 
-**功能**：\`rd = unsigned(rs1) / unsigned(rs2)\`
+**功能**：`rd = unsigned(rs1) / unsigned(rs2)`
 
 **与 DIV 的区别**：
-- \`is_signed = 0\` （不进行符号转换）
+- `is_signed = 0` （不进行符号转换）
 - 直接使用原始操作数进行无符号除法
 
 ### 4.3 取模指令 (REM/REMU)
 
 #### 4.3.1 REM 指令
 
-**指令格式**：\`REM rd, rs1, rs2\`
+**指令格式**：`REM rd, rs1, rs2`
 
-**功能**：\`rd = signed(rs1) % signed(rs2)\`
+**功能**：`rd = signed(rs1) % signed(rs2)`
 
 **与 DIV 的区别**：
-- \`is_rem = 1\`
-- 在 DIV_END 阶段，选择 \`result = remainder\`（而非 quotient）
+- `is_rem = 1`
+- 在 DIV_END 阶段，选择 `result = remainder`（而非 quotient）
 
 **余数符号规则**：
 - 余数符号与被除数相同
@@ -1015,9 +1015,9 @@ N+18        DIV_END          符号修正，结果就绪
 
 #### 4.3.2 REMU 指令
 
-**指令格式**：\`REMU rd, rs1, rs2\`
+**指令格式**：`REMU rd, rs1, rs2`
 
-**功能**：\`rd = unsigned(rs1) % unsigned(rs2)\`
+**功能**：`rd = unsigned(rs1) % unsigned(rs2)`
 
 ---
 
@@ -1025,7 +1025,7 @@ N+18        DIV_END          符号修正，结果就绪
 
 ### 5.1 控制信号编码
 
-\`\`\`python
+```python
 # ALU 功能码（独热编码）
 class ALUOp:
     MUL    = Bits(32)(0b00000000000000000000100000000000)  # Bit 11
@@ -1036,7 +1036,7 @@ class ALUOp:
     DIVU   = Bits(32)(0b00000000000000010000000000000000)  # Bit 16
     REM    = Bits(32)(0b00000000000000100000000000000000)  # Bit 17
     REMU   = Bits(32)(0b00000000000001000000000000000000)  # Bit 18
-\`\`\`
+```
 
 ### 5.2 指令编码
 
@@ -1063,7 +1063,7 @@ class ALUOp:
 1. RISC-V "M" Standard Extension for Integer Multiplication and Division
 2. Computer Arithmetic: Algorithms and Hardware Designs (M.D. Ercegovac, T. Lang)
 3. Digital Design and Computer Architecture: RISC-V Edition
-4. Assassyn 语言完整说明书（见 \`docs/Assassyn_语言完整说明书.md\`）
+4. Assassyn 语言完整说明书（见 `docs/Assassyn_语言完整说明书.md`）
 
 ---
 
