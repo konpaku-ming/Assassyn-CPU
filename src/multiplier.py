@@ -507,8 +507,8 @@ class WallaceTreeMul:
         - Level 8: 3 → 2 rows
         - CPA: 2 → 1 (final 64-bit product)
         """
-        # Only process if stage 3 is valid
-        with Condition(self.m3_valid[0] == Bits(1)(1)):
+        # Only process if stage 3 is valid and result is not already ready
+        with Condition((self.m3_valid[0] == Bits(1)(1)) & (self.m3_result_ready[0] == Bits(1)(0))):
             debug_log("EX_M3: Final compression + CPA (Cycle 3/3)")
 
             # Read intermediate rows from pipeline registers
@@ -546,9 +546,11 @@ class WallaceTreeMul:
 
             debug_log("EX_M3: Final result: 0x{:x}", result)
 
-            # Store final result
+            # Store final result and mark as ready
             self.m3_result[0] = result
             self.m3_result_ready[0] = Bits(1)(1)
+            # Clear valid flag since processing is complete
+            self.m3_valid[0] = Bits(1)(0)
 
     def get_result_if_ready(self):
         """
@@ -559,5 +561,4 @@ class WallaceTreeMul:
 
     def clear_result(self):
         """Clear the result after it has been consumed"""
-        self.m3_valid[0] = Bits(1)(0)
         self.m3_result_ready[0] = Bits(1)(0)
