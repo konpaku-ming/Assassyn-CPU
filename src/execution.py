@@ -24,26 +24,26 @@ class Execution(Module):
             }
         )
         self.name = "Executor"
-        
+
         # M-extension functional units
         self.multiplier = WallaceTreeMul()
         self.divider = SRT4Divider()
 
     @module.combinational
     def build(
-        self,
-        mem_module: Module,  # 下一级流水线 (MEM)
-        # --- 旁路数据源 (Forwarding Sources) ---
-        ex_bypass: Array,  # 来自 EX-MEM 旁路寄存器的数据（上条指令结果）
-        mem_bypass: Array,  # 来自 MEM-WB 旁路寄存器的数据 (上上条指令结果)
-        wb_bypass: Array,  # 来自 WB 旁路寄存器的数据 (当前写回数据)
-        # --- 分支反馈 ---
-        branch_target_reg: Array,  # 用于通知 IF 跳转目标的全局寄存器
-        # --- BTB 更新 (可选) ---
-        btb_impl: "BTBImpl" = None,  # BTB 实现逻辑
-        btb_valid: Array = None,  # BTB 有效位数组
-        btb_tags: Array = None,  # BTB 标签数组
-        btb_targets: Array = None,  # BTB 目标地址数组
+            self,
+            mem_module: Module,  # 下一级流水线 (MEM)
+            # --- 旁路数据源 (Forwarding Sources) ---
+            ex_bypass: Array,  # 来自 EX-MEM 旁路寄存器的数据（上条指令结果）
+            mem_bypass: Array,  # 来自 MEM-WB 旁路寄存器的数据 (上上条指令结果)
+            wb_bypass: Array,  # 来自 WB 旁路寄存器的数据 (当前写回数据)
+            # --- 分支反馈 ---
+            branch_target_reg: Array,  # 用于通知 IF 跳转目标的全局寄存器
+            # --- BTB 更新 (可选) ---
+            btb_impl: "BTBImpl" = None,  # BTB 实现逻辑
+            btb_valid: Array = None,  # BTB 有效位数组
+            btb_tags: Array = None,  # BTB 标签数组
+            btb_targets: Array = None,  # BTB 目标地址数组
     ):
         # 1. 弹出所有端口数据
         # 根据 __init__ 定义顺序解包
@@ -154,21 +154,21 @@ class Execution(Module):
         # ============================================================
         # M-Extension: Multiplication
         # ============================================================
-        
+
         # Check if this is a multiplication instruction
         is_mul = ctrl.alu_func == ALUOp.MUL
         is_mulh = ctrl.alu_func == ALUOp.MULH
         is_mulhsu = ctrl.alu_func == ALUOp.MULHSU
         is_mulhu = ctrl.alu_func == ALUOp.MULHU
         is_mul_op = is_mul | is_mulh | is_mulhsu | is_mulhu
-        
+
         # Check if this is a division instruction
         is_div_op = ctrl.div_op != DivOp.NONE
-        
+
         # Get multiplier busy status
         mul_busy = self.multiplier.is_busy()
         div_busy = self.divider.is_busy()
-        
+
         # Start multiplier if this is a new MUL instruction and multiplier is not busy
         with Condition((is_mul_op == Bits(1)(1)) & (mul_busy == Bits(1)(0)) & (flush_if == Bits(1)(0))):
             # Determine sign configuration based on operation:
@@ -179,50 +179,52 @@ class Execution(Module):
             op1_signed_flag = is_mul | is_mulh | is_mulhsu  # signed for MUL, MULH, MULHSU
             op2_signed_flag = is_mul | is_mulh  # signed for MUL, MULH only
             result_high_flag = is_mulh | is_mulhsu | is_mulhu  # high 32 bits for MULH, MULHSU, MULHU
-            
+
             self.multiplier.start_multiply(
                 op1=real_rs1,
                 op2=real_rs2,
                 op1_signed=op1_signed_flag,
                 op2_signed=op2_signed_flag,
-                result_high=result_high_flag
+                result_high=result_high_flag,
+                rd=wb_ctrl.rd_addr
             )
             debug_log("EX: Starting MUL operation, op1=0x{:x}, op2=0x{:x}", real_rs1, real_rs2)
-        
+
         # Start divider if this is a new DIV instruction and divider is not busy
         with Condition((is_div_op == Bits(1)(1)) & (div_busy == Bits(1)(0)) & (flush_if == Bits(1)(0))):
             is_signed_div = (ctrl.div_op == DivOp.DIV) | (ctrl.div_op == DivOp.REM)
             is_rem_op = (ctrl.div_op == DivOp.REM) | (ctrl.div_op == DivOp.REMU)
-            
+
             self.divider.start_divide(
                 dividend=real_rs1,
                 divisor=real_rs2,
                 is_signed=is_signed_div,
-                is_rem=is_rem_op
+                is_rem=is_rem_op,
+                rd=wb_ctrl.rd_addr
             )
             debug_log("EX: Starting DIV operation, dividend=0x{:x}, divisor=0x{:x}", real_rs1, real_rs2)
-        
+
         # Run multiplier pipeline stages
         self.multiplier.cycle_m1()
         self.multiplier.cycle_m2()
         self.multiplier.cycle_m3()
-        
+
         # Run divider state machine
         self.divider.tick()
-        
+
         # Get results from multiplier and divider
-        mul_ready, mul_result = self.multiplier.get_result_if_ready()
-        div_ready, div_result, _ = self.divider.get_result_if_ready()
-        
+        mul_ready, mul_result, mul_rd = self.multiplier.get_result_if_ready()
+        div_ready, div_result, div_rd, _ = self.divider.get_result_if_ready()
+
         # Clear results when consumed
         with Condition(mul_ready == Bits(1)(1)):
             self.multiplier.clear_result()
             debug_log("EX: MUL result ready: 0x{:x}", mul_result)
-        
+
         with Condition(div_ready == Bits(1)(1)):
             self.divider.clear_result()
             debug_log("EX: DIV result ready: 0x{:x}", div_result)
-        
+
         # 2. 结果选择
         # First, select from basic ALU operations
         alu_result = ctrl.alu_func.select1hot(
@@ -243,7 +245,7 @@ class Execution(Module):
             Bits(32)(0),  # MULHU placeholder (bit 14)
             Bits(32)(0),  # NOP (bit 15)
         )
-        
+
         # Select final result: prioritize mul/div results when ready
         # Note: mul and div are mutually exclusive (different instructions), so only one can be ready
         final_result = mul_ready.select(
@@ -360,14 +362,14 @@ class Execution(Module):
         is_taken_geu = (ctrl.branch_type == BranchType.BGEU) & ~is_lt
 
         is_taken = (
-            is_taken_eq
-            | is_taken_ne
-            | is_taken_lt
-            | is_taken_ge
-            | is_taken_ltu
-            | is_taken_geu
-            | (ctrl.branch_type == BranchType.JAL)
-            | is_jalr
+                is_taken_eq
+                | is_taken_ne
+                | is_taken_lt
+                | is_taken_ge
+                | is_taken_ltu
+                | is_taken_geu
+                | (ctrl.branch_type == BranchType.JAL)
+                | is_jalr
         )
 
         final_next_pc = flush_if.select(
@@ -407,7 +409,17 @@ class Execution(Module):
 
         # --- 下一级绑定与状态反馈 ---
         # 构造控制信号包
-        final_rd = flush_if.select(Bits(5)(0), wb_ctrl.rd_addr)
+        # When MUL/DIV result is ready, use the saved rd from the multiplier/divider
+        # Otherwise, use the normal rd from the current instruction
+        # NOTE: We do NOT modify halt_if - it must pass through normally for halt to work
+        effective_rd = mul_ready.select(
+            mul_rd,
+            div_ready.select(
+                div_rd,
+                wb_ctrl.rd_addr
+            )
+        )
+        final_rd = flush_if.select(Bits(5)(0), effective_rd)
         final_halt_if = flush_if.select(Bits(1)(0), wb_ctrl.halt_if)
         final_mem_opcode = flush_if.select(MemOp.NONE, mem_ctrl.mem_opcode)
 

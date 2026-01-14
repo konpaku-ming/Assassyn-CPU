@@ -66,11 +66,13 @@ class SRT4Divider:
         self.divisor_in = RegArray(Bits(32), 1, initializer=[0])
         self.is_signed = RegArray(Bits(1), 1, initializer=[0])
         self.is_rem = RegArray(Bits(1), 1, initializer=[0])  # 1=remainder, 0=quotient
+        self.rd_in = RegArray(Bits(5), 1, initializer=[0])  # Destination register
 
         # Output results
         self.result = RegArray(Bits(32), 1, initializer=[0])
         self.ready = RegArray(Bits(1), 1, initializer=[0])
         self.error = RegArray(Bits(1), 1, initializer=[0])  # Division by zero
+        self.rd_out = RegArray(Bits(5), 1, initializer=[0])  # Output destination register
 
         # State machine registers
         self.state = RegArray(Bits(3), 1, initializer=[0])  # FSM state
@@ -96,7 +98,7 @@ class SRT4Divider:
         """Check if divider is currently processing"""
         return self.busy[0]
 
-    def start_divide(self, dividend, divisor, is_signed, is_rem):
+    def start_divide(self, dividend, divisor, is_signed, is_rem, rd=Bits(5)(0)):
         """
         Start a division operation.
 
@@ -105,11 +107,13 @@ class SRT4Divider:
             divisor: 32-bit divisor (rs2)
             is_signed: 1 for signed (DIV/REM), 0 for unsigned (DIVU/REMU)
             is_rem: 1 to return remainder, 0 to return quotient
+            rd: Destination register (5-bit), defaults to 0
         """
         self.dividend_in[0] = dividend
         self.divisor_in[0] = divisor
         self.is_signed[0] = is_signed
         self.is_rem[0] = is_rem
+        self.rd_in[0] = rd
         self.valid_in[0] = Bits(1)(1)
         self.busy[0] = Bits(1)(1)
         self.ready[0] = Bits(1)(0)
@@ -183,6 +187,7 @@ class SRT4Divider:
                 quotient_on_div0  # Quotient = -1 or 2^32-1
             )
             self.ready[0] = Bits(1)(1)
+            self.rd_out[0] = self.rd_in[0]
             self.error[0] = Bits(1)(1)
             self.busy[0] = Bits(1)(0)
             self.state[0] = self.IDLE
@@ -196,6 +201,7 @@ class SRT4Divider:
                 self.dividend_in[0]  # Quotient = dividend
             )
             self.ready[0] = Bits(1)(1)
+            self.rd_out[0] = self.rd_in[0]
             self.busy[0] = Bits(1)(0)
             self.state[0] = self.IDLE
             debug_log("Divider: Completed via fast path (divisor=1)")
@@ -339,6 +345,7 @@ class SRT4Divider:
                 self.result[0] = self.is_rem[0].select(rem_signed, q_signed)
 
             self.ready[0] = Bits(1)(1)
+            self.rd_out[0] = self.rd_in[0]
             self.busy[0] = Bits(1)(0)
             self.state[0] = self.IDLE
             debug_log("Divider: Completed, result=0x{:x}", self.result[0])
@@ -346,9 +353,9 @@ class SRT4Divider:
     def get_result_if_ready(self):
         """
         Get result if division is complete.
-        Returns: (ready, result, error)
+        Returns: (ready, result, rd, error)
         """
-        return (self.ready[0], self.result[0], self.error[0])
+        return (self.ready[0], self.result[0], self.rd_out[0], self.error[0])
 
     def clear_result(self):
         """Clear result and reset ready flag"""
