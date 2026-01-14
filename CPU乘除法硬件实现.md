@@ -181,11 +181,11 @@ carry = a · b
 ```python
 class WallaceTreeMul:
     """
-    3-cycle pipelined Wallace Tree multiplier
+    3-cycle pipelined Wallace Tree multiplier (平衡关键路径版本)
     
-    Cycle 1 (EX_M1): 部分积生成
-    Cycle 2 (EX_M2): Wallace Tree 压缩（前几层）
-    Cycle 3 (EX_M3): 最终压缩 + CPA 加法
+    Cycle 1 (EX_M1): 部分积生成 + Wallace Tree Levels 1-3 (32 → 10 rows)
+    Cycle 2 (EX_M2): Wallace Tree Levels 4-6 (10 → 4 rows)
+    Cycle 3 (EX_M3): Wallace Tree Levels 7-8 (4 → 2 rows) + CPA 加法
     """
 ```
 
@@ -203,14 +203,20 @@ def __init__(self):
     self.m1_op2_signed = RegArray(Bits(1), 1, initializer=[0]) # op2 是否有符号
     self.m1_result_high = RegArray(Bits(1), 1, initializer=[0]) # 返回高32位还是低32位
     
-    # 阶段 2 寄存器 (EX_M2)
+    # 阶段 2 寄存器 (EX_M2) - 存储 Level 3 输出的 10 行中间结果
     self.m2_valid = RegArray(Bits(1), 1, initializer=[0])
-    self.m2_partial_low = RegArray(Bits(32), 1, initializer=[0])
-    self.m2_partial_high = RegArray(Bits(32), 1, initializer=[0])
     self.m2_result_high = RegArray(Bits(1), 1, initializer=[0])
+    self.m2_row0 = RegArray(Bits(64), 1, initializer=[0])  # s3_0
+    self.m2_row1 = RegArray(Bits(64), 1, initializer=[0])  # c3_0
+    # ... 共 10 个 64 位寄存器存储中间行
     
-    # 阶段 3 寄存器 (EX_M3)
+    # 阶段 3 寄存器 (EX_M3) - 存储 Level 6 输出的 4 行中间结果
     self.m3_valid = RegArray(Bits(1), 1, initializer=[0])
+    self.m3_result_high = RegArray(Bits(1), 1, initializer=[0])
+    self.m3_row0 = RegArray(Bits(64), 1, initializer=[0])  # s6_0
+    self.m3_row1 = RegArray(Bits(64), 1, initializer=[0])  # c6_0
+    self.m3_row2 = RegArray(Bits(64), 1, initializer=[0])  # c5_1
+    self.m3_row3 = RegArray(Bits(64), 1, initializer=[0])  # c3_4
     self.m3_result = RegArray(Bits(32), 1, initializer=[0])
 ```
 
@@ -239,95 +245,147 @@ def sign_zero_extend(op: Bits, signed: Bits) -> Bits:
 - `select(a, b)` 是多路复用器（MUX）：条件为真选 a，否则选 b
 - `concat(high, low)` 是位拼接，将两个信号连接成更宽的信号
 
-#### 2.2.4 阶段 1：部分积生成
+#### 2.2.4 阶段 1：部分积生成 + Wallace Tree Levels 1-3
 
 ```python
 def cycle_m1(self):
     """
-    EX_M1 阶段：部分积生成
+    EX_M1 阶段：部分积生成 + Wallace Tree Levels 1-3 (32 → 10 rows)
     
     在真实硬件中：
     - 对乘数 B 的每一位 i，生成 pp[i] = A AND {32{B[i]}}
     - 每个 pp[i] 左移 i 位
     - 共生成 32 个部分积
+    - 执行 Wallace Tree Levels 1-3 压缩，将 32 行压缩到 10 行
     """
     with Condition(self.m1_valid[0] == Bits(1)(1)):
         # 读取流水线寄存器
         op1 = self.m1_op1[0]
         op2 = self.m1_op2[0]
         op1_signed = self.m1_op1_signed[0]
-        op2_signed = self.m1_op2_signed[0]
         
         # 符号/零扩展到 64 位
-        op1_extended = sign_zero_extend(op1, op1_signed)
-        op2_extended = sign_zero_extend(op2, op2_signed)
+        op1_ext = sign_zero_extend(op1, op1_signed)
         
-        # 计算 64 位乘积
-        # 在仿真中直接使用乘法运算
-        # 在真实硬件中，这代表 32 个部分积的生成
-        product_64 = op1_extended.bitcast(UInt(64)) * op2_extended.bitcast(UInt(64))
-        product_bits = product_64.bitcast(Bits(64))
+        # 生成 32 个部分积 (pp0 - pp31)
+        pp0 = op2[0:0].select(op1_ext, Bits(64)(0))
+        pp1 = op2[1:1].select(concat(op1_ext[0:62], Bits(1)(0)), Bits(64)(0))
+        # ... pp2 到 pp30 ...
+        pp31 = op2[31:31].select(concat(op1_ext[0:32], Bits(31)(0)), Bits(64)(0))
         
-        # 拆分成高低 32 位，传递给下一阶段
-        partial_low = product_bits[0:31].bitcast(Bits(32))
-        partial_high = product_bits[32:63].bitcast(Bits(32))
+        # Level 1: 32 → 22 rows (10 组 3:2 压缩器)
+        s1_0, c1_0 = full_adder_64bit(pp0, pp1, pp2)
+        # ... 共 10 个 3:2 压缩器 ...
         
-        # 更新阶段 2 寄存器
+        # Level 2: 22 → 15 rows (7 组 3:2 压缩器)
+        s2_0, c2_0 = full_adder_64bit(s1_0, c1_0, s1_1)
+        # ... 共 7 个 3:2 压缩器 ...
+        
+        # Level 3: 15 → 10 rows (5 组 3:2 压缩器)
+        s3_0, c3_0 = full_adder_64bit(s2_0, c2_0, s2_1)
+        # ... 共 5 个 3:2 压缩器 ...
+        
+        # 存储 10 行中间结果到 Stage 2 寄存器
+        self.m2_row0[0] = s3_0
+        self.m2_row1[0] = c3_0
+        # ... 共 10 个 64 位寄存器 ...
+        
         self.m2_valid[0] = Bits(1)(1)
-        self.m2_partial_low[0] = partial_low
-        self.m2_partial_high[0] = partial_high
-        self.m2_result_high[0] = self.m1_result_high[0]
-        
-        # 清除阶段 1 有效位
         self.m1_valid[0] = Bits(1)(0)
 ```
 
 **硬件含义说明**：
 - `with Condition(...)` 类似于 Verilog 的 `if` 语句，生成条件控制逻辑
-- `bitcast(UInt(64))` 将位向量重新解释为无符号整数类型，允许进行算术运算
-- 在真实硬件综合时，乘法会被综合成乘法器电路
+- `full_adder_64bit` 是 64 位并行的 3:2 压缩器（全加器）
+- Level 1-3 共使用 22 个 3:2 压缩器，关键路径包括 3 层压缩器延迟
 
-#### 2.2.5 阶段 2：Wallace Tree 压缩
+#### 2.2.5 阶段 2：Wallace Tree Levels 4-6
 
 ```python
 def cycle_m2(self):
     """
-    EX_M2 阶段：Wallace Tree 压缩
+    EX_M2 阶段：Wallace Tree Levels 4-6 (10 → 4 rows)
     
     在真实硬件中：
-    - 执行 Wallace Tree 的前几层压缩
-    - 将 32 个部分积压缩到 6-8 行
+    - 从 Stage 2 寄存器读取 10 行中间结果
+    - 执行 Wallace Tree Levels 4-6 压缩
+    - 将 10 行压缩到 4 行
     """
     with Condition(self.m2_valid[0] == Bits(1)(1)):
-        # 根据指令类型选择返回高位还是低位
-        result = self.m2_result_high[0].select(
-            self.m2_partial_high[0],  # 高32位用于 MULH/MULHSU/MULHU
-            self.m2_partial_low[0]    # 低32位用于 MUL
-        )
+        # 读取 10 行中间结果
+        s3_0 = self.m2_row0[0]
+        c3_0 = self.m2_row1[0]
+        # ...
         
-        # 更新阶段 3 寄存器
+        # Level 4: 10 → 7 rows (3 组 3:2 压缩器)
+        s4_0, c4_0 = full_adder_64bit(s3_0, c3_0, s3_1)
+        # ...
+        
+        # Level 5: 7 → 5 rows (2 组 3:2 压缩器)
+        s5_0, c5_0 = full_adder_64bit(s4_0, c4_0, s4_1)
+        # ...
+        
+        # Level 6: 5 → 4 rows (1 组 3:2 压缩器)
+        s6_0, c6_0 = full_adder_64bit(s5_0, c5_0, s5_1)
+        
+        # 存储 4 行中间结果到 Stage 3 寄存器
+        self.m3_row0[0] = s6_0
+        self.m3_row1[0] = c6_0
+        self.m3_row2[0] = c5_1
+        self.m3_row3[0] = c3_4
+        
         self.m3_valid[0] = Bits(1)(1)
-        self.m3_result[0] = result
-        
-        # 清除阶段 2 有效位
         self.m2_valid[0] = Bits(1)(0)
 ```
+
+**硬件含义说明**：
+- Level 4-6 共使用 6 个 3:2 压缩器，关键路径包括 3 层压缩器延迟
+- 与 Stage 1 的延迟相当，实现了流水线平衡
 
 #### 2.2.6 阶段 3：最终压缩 + CPA
 
 ```python
 def cycle_m3(self):
     """
-    EX_M3 阶段：最终压缩 + 进位传播加法
+    EX_M3 阶段：Wallace Tree Levels 7-8 (4 → 2 rows) + CPA
     
     在真实硬件中：
-    - 完成 Wallace Tree 的最后几层压缩，得到 2 行
+    - 从 Stage 3 寄存器读取 4 行中间结果
+    - 完成 Wallace Tree 的最后两层压缩，得到 2 行
     - 使用 CPA (Carry-Propagate Adder) 完成最终加法
     """
     with Condition(self.m3_valid[0] == Bits(1)(1)):
-        # 结果已在 m3_result 中，保持一个周期供读取
-        pass
+        # 读取 4 行中间结果
+        s6_0 = self.m3_row0[0]
+        c6_0 = self.m3_row1[0]
+        c5_1 = self.m3_row2[0]
+        c3_4 = self.m3_row3[0]
+        
+        # Level 7: 4 → 3 rows (1 组 3:2 压缩器)
+        s7_0, c7_0 = full_adder_64bit(s6_0, c6_0, c5_1)
+        
+        # Level 8: 3 → 2 rows (1 组 3:2 压缩器)
+        s8_final, c8_final = full_adder_64bit(s7_0, c7_0, c3_4)
+        
+        # CPA 最终加法
+        product_64 = carry_propagate_adder_64bit(s8_final, c8_final)
+        
+        # 根据指令类型选择返回高位还是低位
+        partial_low = product_64[0:31].bitcast(Bits(32))
+        partial_high = product_64[32:63].bitcast(Bits(32))
+        result = self.m3_result_high[0].select(
+            partial_high,  # 高32位用于 MULH/MULHSU/MULHU
+            partial_low    # 低32位用于 MUL
+        )
+        
+        self.m3_result[0] = result
+        self.m3_result_ready[0] = Bits(1)(1)
 ```
+
+**硬件含义说明**：
+- Level 7-8 使用 2 个 3:2 压缩器
+- CPA 使用快速加法器（如 Carry-Lookahead Adder）完成最终 64 位加法
+- 关键路径包括 2 层压缩器延迟 + CPA 延迟，与前两阶段平衡
 
 ### 2.3 时钟周期分析
 
@@ -335,19 +393,30 @@ def cycle_m3(self):
 时钟周期    流水线状态              操作
 ========================================================
 N           MUL 指令进入 EX        start_multiply() 被调用，m1_valid=1
-N+1         EX_M1 执行             生成部分积，结果进入 m2_xxx 寄存器
-N+2         EX_M2 执行             Wallace Tree 压缩，结果进入 m3_xxx 寄存器
-N+3         EX_M3 执行             最终 CPA 加法，结果可读
+N+1         EX_M1 执行             部分积生成 + Levels 1-3 (32→10 rows)
+N+2         EX_M2 执行             Levels 4-6 (10→4 rows)
+N+3         EX_M3 执行             Levels 7-8 + CPA (4→2→1)，结果可读
 N+4         结果写回               结果通过 WB 阶段写回寄存器文件
 ```
+
+**关键路径分析（平衡设计）**：
+
+| 阶段 | 压缩器数量 | 压缩层数 | 关键路径 |
+|------|-----------|---------|---------|
+| EX_M1 | 22 个 | 3 层 | 3 × 压缩器延迟 |
+| EX_M2 | 6 个 | 3 层 | 3 × 压缩器延迟 |
+| EX_M3 | 2 个 + CPA | 2 层 + CPA | 2 × 压缩器延迟 + CPA 延迟 |
+
+通过将 Wallace Tree 压缩分布到三个周期，每个周期的关键路径大致相等，
+从而实现了流水线的平衡，提高了整体时钟频率。
 
 **示意图**：
 
 ```
 周期 N:   IF → ID → [EX: MUL启动] → MEM → WB
-周期 N+1: IF → ID → [EX: M1执行]  → MEM → WB
-周期 N+2: IF → ID → [EX: M2执行]  → MEM → WB
-周期 N+3: IF → ID → [EX: M3完成]  → MEM → WB  ← 结果可用
+周期 N+1: IF → ID → [EX: M1执行]  → MEM → WB  (PP + Levels 1-3)
+周期 N+2: IF → ID → [EX: M2执行]  → MEM → WB  (Levels 4-6)
+周期 N+3: IF → ID → [EX: M3完成]  → MEM → WB  (Levels 7-8 + CPA) ← 结果可用
 周期 N+4: IF → ID → EX → [MEM: MUL结果] → WB
 周期 N+5: IF → ID → EX → MEM → [WB: 写回 rd]
 ```
