@@ -204,16 +204,19 @@ class WallaceTreeMul:
         self.m1_op1_signed = RegArray(Bits(1), 1, initializer=[0])
         self.m1_op2_signed = RegArray(Bits(1), 1, initializer=[0])
         self.m1_result_high = RegArray(Bits(1), 1, initializer=[0])  # Whether to return high 32 bits
+        self.m1_rd = RegArray(Bits(5), 1, initializer=[0])  # Destination register
 
         # Stage 2 (EX_M2): Wallace Tree compression (first layers)
         self.m2_valid = RegArray(Bits(1), 1, initializer=[0])
         self.m2_partial_low = RegArray(Bits(32), 1, initializer=[0])
         self.m2_partial_high = RegArray(Bits(32), 1, initializer=[0])
         self.m2_result_high = RegArray(Bits(1), 1, initializer=[0])
+        self.m2_rd = RegArray(Bits(5), 1, initializer=[0])  # Destination register
 
         # Stage 3 (EX_M3): Wallace Tree final compression + CPA
         self.m3_valid = RegArray(Bits(1), 1, initializer=[0])
         self.m3_result = RegArray(Bits(32), 1, initializer=[0])
+        self.m3_rd = RegArray(Bits(5), 1, initializer=[0])  # Destination register
 
     def is_busy(self):
         """
@@ -234,7 +237,7 @@ class WallaceTreeMul:
         """
         return self.m1_valid[0] | self.m2_valid[0] | self.m3_valid[0]
 
-    def start_multiply(self, op1, op2, op1_signed, op2_signed, result_high):
+    def start_multiply(self, op1, op2, op1_signed, op2_signed, result_high, rd):
         """
         Start a new multiplication operation.
 
@@ -244,6 +247,7 @@ class WallaceTreeMul:
             op1_signed: Whether op1 is signed (1) or unsigned (0)
             op2_signed: Whether op2 is signed (1) or unsigned (0)
             result_high: Whether to return high 32 bits (1) or low 32 bits (0)
+            rd: Destination register (5-bit)
         """
         # Load into stage 1 pipeline registers
         self.m1_valid[0] = Bits(1)(1)
@@ -252,6 +256,7 @@ class WallaceTreeMul:
         self.m1_op1_signed[0] = op1_signed
         self.m1_op2_signed[0] = op2_signed
         self.m1_result_high[0] = result_high
+        self.m1_rd[0] = rd
 
     def cycle_m1(self):
         """
@@ -423,6 +428,7 @@ class WallaceTreeMul:
             self.m2_partial_low[0] = partial_low
             self.m2_partial_high[0] = partial_high
             self.m2_result_high[0] = self.m1_result_high[0]
+            self.m2_rd[0] = self.m1_rd[0]
 
             # Clear stage 1
             self.m1_valid[0] = Bits(1)(0)
@@ -449,6 +455,7 @@ class WallaceTreeMul:
             # Advance to stage 3
             self.m3_valid[0] = Bits(1)(1)
             self.m3_result[0] = result
+            self.m3_rd[0] = self.m2_rd[0]
 
             # Clear stage 2
             self.m2_valid[0] = Bits(1)(0)
@@ -471,9 +478,9 @@ class WallaceTreeMul:
     def get_result_if_ready(self):
         """
         Get the multiplication result if it's ready (stage 3 complete).
-        Returns tuple: (result_valid, result_value)
+        Returns tuple: (result_valid, result_value, rd)
         """
-        return (self.m3_valid[0], self.m3_result[0])
+        return (self.m3_valid[0], self.m3_result[0], self.m3_rd[0])
 
     def clear_result(self):
         """Clear the result after it has been consumed"""

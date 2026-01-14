@@ -185,7 +185,8 @@ class Execution(Module):
                 op2=real_rs2,
                 op1_signed=op1_signed_flag,
                 op2_signed=op2_signed_flag,
-                result_high=result_high_flag
+                result_high=result_high_flag,
+                rd=wb_ctrl.rd_addr
             )
             debug_log("EX: Starting MUL operation, op1=0x{:x}, op2=0x{:x}", real_rs1, real_rs2)
         
@@ -198,7 +199,8 @@ class Execution(Module):
                 dividend=real_rs1,
                 divisor=real_rs2,
                 is_signed=is_signed_div,
-                is_rem=is_rem_op
+                is_rem=is_rem_op,
+                rd=wb_ctrl.rd_addr
             )
             debug_log("EX: Starting DIV operation, dividend=0x{:x}, divisor=0x{:x}", real_rs1, real_rs2)
         
@@ -211,8 +213,8 @@ class Execution(Module):
         self.divider.tick()
         
         # Get results from multiplier and divider
-        mul_ready, mul_result = self.multiplier.get_result_if_ready()
-        div_ready, div_result, _ = self.divider.get_result_if_ready()
+        mul_ready, mul_result, mul_rd = self.multiplier.get_result_if_ready()
+        div_ready, div_result, div_rd = self.divider.get_result_if_ready()
         
         # Clear results when consumed
         with Condition(mul_ready == Bits(1)(1)):
@@ -407,9 +409,38 @@ class Execution(Module):
 
         # --- 下一级绑定与状态反馈 ---
         # 构造控制信号包
-        final_rd = flush_if.select(Bits(5)(0), wb_ctrl.rd_addr)
-        final_halt_if = flush_if.select(Bits(1)(0), wb_ctrl.halt_if)
-        final_mem_opcode = flush_if.select(MemOp.NONE, mem_ctrl.mem_opcode)
+        # When MUL/DIV is in progress but result is not ready, insert NOP (rd=0)
+        # to prevent incorrect placeholder result from being written to register file
+        
+        # Detect if we're starting a new MUL operation this cycle
+        # (The multiplier won't be "busy" until next cycle, but we need to NOP now)
+        mul_starting = is_mul_op & ~mul_busy & ~flush_if
+        div_starting = is_div_op & ~div_busy & ~flush_if
+        
+        # MUL/DIV in progress: either already busy, or just starting, and result not ready
+        mul_in_progress = (mul_busy | mul_starting) & ~mul_ready
+        div_in_progress = (div_busy | div_starting) & ~div_ready
+        multi_cycle_in_progress = mul_in_progress | div_in_progress
+        
+        # Determine the rd to use:
+        # - If MUL result is ready, use mul_rd (saved from when MUL started)
+        # - If DIV result is ready, use div_rd (saved from when DIV started)
+        # - If multi-cycle op in progress (not ready), use 0 (NOP)
+        # - If flush, use 0 (NOP)
+        # - Otherwise, use wb_ctrl.rd_addr (normal instruction)
+        effective_rd = mul_ready.select(
+            mul_rd,
+            div_ready.select(
+                div_rd,
+                wb_ctrl.rd_addr
+            )
+        )
+        
+        # NOP insertion: flush_if OR multi-cycle operation in progress (and not ready)
+        nop_condition = flush_if | multi_cycle_in_progress
+        final_rd = nop_condition.select(Bits(5)(0), effective_rd)
+        final_halt_if = nop_condition.select(Bits(1)(0), wb_ctrl.halt_if)
+        final_mem_opcode = nop_condition.select(MemOp.NONE, mem_ctrl.mem_opcode)
 
         debug_log(
             "Control after Flush Check: mem_opcode=0x{:x} rd=0x{:x}",
