@@ -353,9 +353,9 @@ class SRT4Divider:
     def get_result_if_ready(self):
         """
         Get result if division is complete.
-        Returns: (ready, result, rd)
+        Returns: (ready, result, rd, error)
         """
-        return (self.ready[0], self.result[0], self.rd_out[0])
+        return (self.ready[0], self.result[0], self.rd_out[0], self.error[0])
 
     def clear_result(self):
         """Clear result and reset ready flag"""

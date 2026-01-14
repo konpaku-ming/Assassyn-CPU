@@ -214,7 +214,7 @@ class Execution(Module):
         
         # Get results from multiplier and divider
         mul_ready, mul_result, mul_rd = self.multiplier.get_result_if_ready()
-        div_ready, div_result, div_rd = self.divider.get_result_if_ready()
+        div_ready, div_result, div_rd, _ = self.divider.get_result_if_ready()
         
         # Clear results when consumed
         with Condition(mul_ready == Bits(1)(1)):
