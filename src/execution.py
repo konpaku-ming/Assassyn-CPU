@@ -237,18 +237,19 @@ class Execution(Module):
             or_res,  # OR (bit 8)
             and_res,  # AND (bit 9)
             alu_op2,  # SYS (bit 10)
-            alu_op2,  # MUL placeholder (bit 11) - actual result from multiplier
-            alu_op2,  # MULH placeholder (bit 12)
-            alu_op2,  # MULHSU placeholder (bit 13)
-            alu_op2,  # MULHU placeholder (bit 14)
-            alu_op2,  # NOP (bit 15)
+            Bits(32)(0),  # MUL placeholder (bit 11) - actual result from multiplier
+            Bits(32)(0),  # MULH placeholder (bit 12)
+            Bits(32)(0),  # MULHSU placeholder (bit 13)
+            Bits(32)(0),  # MULHU placeholder (bit 14)
+            Bits(32)(0),  # NOP (bit 15)
         )
         
         # Select final result: prioritize mul/div results when ready
-        final_result = div_ready.select(
-            div_result,
-            mul_ready.select(
-                mul_result,
+        # Note: mul and div are mutually exclusive (different instructions), so only one can be ready
+        final_result = mul_ready.select(
+            mul_result,
+            div_ready.select(
+                div_result,
                 alu_result
             )
         )
