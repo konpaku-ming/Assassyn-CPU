@@ -48,13 +48,13 @@ class ALUOp:
     NOP = Bits(16)(0b1000000000000000)
 
 
-# M-extension division operations (separate encoding to avoid 16-bit limit)
+# M-extension division operations (1-hot encoding for proper select1hot support)
 class DivOp:
-    NONE = Bits(4)(0b0000)
-    DIV = Bits(4)(0b0001)     # Signed division
-    DIVU = Bits(4)(0b0010)    # Unsigned division
-    REM = Bits(4)(0b0100)     # Signed remainder
-    REMU = Bits(4)(0b1000)    # Unsigned remainder
+    NONE = Bits(5)(0b00001)   # No division operation
+    DIV = Bits(5)(0b00010)    # Signed division
+    DIVU = Bits(5)(0b00100)   # Unsigned division
+    REM = Bits(5)(0b01000)    # Signed remainder
+    REMU = Bits(5)(0b10000)   # Unsigned remainder
 
 
 class BranchType:
@@ -148,8 +148,8 @@ mem_ctrl_signals = Record(
 ex_ctrl_signals = Record(
     # ALU 功能码，使用 Bits(16) 静态定义 (ADD:Bits(16)(0b0000000000000001), SUB:Bits(16)(0b0000000000000010), ...)
     alu_func=Bits(16),
-    # M-extension division operation (DIV/DIVU/REM/REMU)
-    div_op=Bits(4),
+    # M-extension division operation (DIV/DIVU/REM/REMU) - 1-hot encoding with 5 bits
+    div_op=Bits(5),
     # rs1结果来源，使用 Bits(4) 静态定义 (RS1:Bits(4)(0b0001), EX_BYPASS:Bits(4)(0b0010), MEM_BYPASS:Bits(4)(0b0100), WB_BYPASS: Bits(4)(0b1000))
     rs1_sel=Bits(4),
     # rs2结果来源，使用 Bits(4) 静态定义 (RS2:Bits(4)(0b0001), EX_BYPASS:Bits(4)(0b0010), MEM_BYPASS:Bits(4)(0b0100), WB_BYPASS:Bits(4)(0b1000))
@@ -166,7 +166,7 @@ ex_ctrl_signals = Record(
 pre_decode_t = Record(
     # 原始控制信号
     alu_func=Bits(16),
-    div_op=Bits(4),  # M-extension division operation
+    div_op=Bits(5),  # M-extension division operation (1-hot encoding)
     op1_sel=Bits(3),
     op2_sel=Bits(3),
     branch_type=Bits(16),  # Branch 指令功能码
