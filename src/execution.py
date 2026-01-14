@@ -1,6 +1,8 @@
 from assassyn.frontend import *
 from .control_signals import *
 from .debug_utils import debug_log
+from .multiplier import WallaceTreeMul
+from .divider import SRT4Divider
 
 
 class Execution(Module):
@@ -22,6 +24,10 @@ class Execution(Module):
             }
         )
         self.name = "Executor"
+        
+        # M-extension functional units
+        self.multiplier = WallaceTreeMul()
+        self.divider = SRT4Divider()
 
     @module.combinational
     def build(
@@ -145,24 +151,107 @@ class Execution(Module):
         # 无符号比较小于
         sltu_res = (alu_op1 < alu_op2).bitcast(Bits(32))
 
+        # ============================================================
+        # M-Extension: Multiplication
+        # ============================================================
+        
+        # Check if this is a multiplication instruction
+        is_mul = ctrl.alu_func == ALUOp.MUL
+        is_mulh = ctrl.alu_func == ALUOp.MULH
+        is_mulhsu = ctrl.alu_func == ALUOp.MULHSU
+        is_mulhu = ctrl.alu_func == ALUOp.MULHU
+        is_mul_op = is_mul | is_mulh | is_mulhsu | is_mulhu
+        
+        # Check if this is a division instruction
+        is_div_op = ctrl.div_op != DivOp.NONE
+        
+        # Get multiplier busy status
+        mul_busy = self.multiplier.is_busy()
+        div_busy = self.divider.is_busy()
+        
+        # Start multiplier if this is a new MUL instruction and multiplier is not busy
+        with Condition((is_mul_op == Bits(1)(1)) & (mul_busy == Bits(1)(0)) & (flush_if == Bits(1)(0))):
+            # Determine sign configuration based on operation:
+            # MUL: signed x signed (returns low 32 bits)
+            # MULH: signed x signed (returns high 32 bits)
+            # MULHSU: signed x unsigned (returns high 32 bits)
+            # MULHU: unsigned x unsigned (returns high 32 bits)
+            op1_signed_flag = is_mul | is_mulh | is_mulhsu  # signed for MUL, MULH, MULHSU
+            op2_signed_flag = is_mul | is_mulh  # signed for MUL, MULH only
+            result_high_flag = is_mulh | is_mulhsu | is_mulhu  # high 32 bits for MULH, MULHSU, MULHU
+            
+            self.multiplier.start_multiply(
+                op1=real_rs1,
+                op2=real_rs2,
+                op1_signed=op1_signed_flag,
+                op2_signed=op2_signed_flag,
+                result_high=result_high_flag
+            )
+            debug_log("EX: Starting MUL operation, op1=0x{:x}, op2=0x{:x}", real_rs1, real_rs2)
+        
+        # Start divider if this is a new DIV instruction and divider is not busy
+        with Condition((is_div_op == Bits(1)(1)) & (div_busy == Bits(1)(0)) & (flush_if == Bits(1)(0))):
+            is_signed_div = (ctrl.div_op == DivOp.DIV) | (ctrl.div_op == DivOp.REM)
+            is_rem_op = (ctrl.div_op == DivOp.REM) | (ctrl.div_op == DivOp.REMU)
+            
+            self.divider.start_divide(
+                dividend=real_rs1,
+                divisor=real_rs2,
+                is_signed=is_signed_div,
+                is_rem=is_rem_op
+            )
+            debug_log("EX: Starting DIV operation, dividend=0x{:x}, divisor=0x{:x}", real_rs1, real_rs2)
+        
+        # Run multiplier pipeline stages
+        self.multiplier.cycle_m1()
+        self.multiplier.cycle_m2()
+        self.multiplier.cycle_m3()
+        
+        # Run divider state machine
+        self.divider.tick()
+        
+        # Get results from multiplier and divider
+        mul_ready, mul_result = self.multiplier.get_result_if_ready()
+        div_ready, div_result, _ = self.divider.get_result_if_ready()
+        
+        # Clear results when consumed
+        with Condition(mul_ready == Bits(1)(1)):
+            self.multiplier.clear_result()
+            debug_log("EX: MUL result ready: 0x{:x}", mul_result)
+        
+        with Condition(div_ready == Bits(1)(1)):
+            self.divider.clear_result()
+            debug_log("EX: DIV result ready: 0x{:x}", div_result)
+        
         # 2. 结果选择
+        # First, select from basic ALU operations
         alu_result = ctrl.alu_func.select1hot(
-            add_res,  # ADD
-            sub_res,  # SUB
-            sll_res,  # SLL
-            slt_res,  # SLT
-            sltu_res,  # SLTU
-            xor_res,  # XOR
-            srl_res,  # SRL
-            sra_res,  # SRA
-            or_res,  # OR
-            and_res,  # AND
-            alu_op2,  # SYS
-            alu_op2,  # 占位
-            alu_op2,  # 占位
-            alu_op2,  # 占位
-            alu_op2,  # 占位
-            alu_op2,  # 占位
+            add_res,  # ADD (bit 0)
+            sub_res,  # SUB (bit 1)
+            sll_res,  # SLL (bit 2)
+            slt_res,  # SLT (bit 3)
+            sltu_res,  # SLTU (bit 4)
+            xor_res,  # XOR (bit 5)
+            srl_res,  # SRL (bit 6)
+            sra_res,  # SRA (bit 7)
+            or_res,  # OR (bit 8)
+            and_res,  # AND (bit 9)
+            alu_op2,  # SYS (bit 10)
+            Bits(32)(0),  # MUL placeholder (bit 11) - actual result from multiplier
+            Bits(32)(0),  # MULH placeholder (bit 12)
+            Bits(32)(0),  # MULHSU placeholder (bit 13)
+            Bits(32)(0),  # MULHU placeholder (bit 14)
+            Bits(32)(0),  # NOP (bit 15)
+        )
+        
+        # Select final result: prioritize mul/div results when ready
+        # Note: mul and div are mutually exclusive (different instructions), so only one can be ready
+        final_result = mul_ready.select(
+            mul_result,
+            div_ready.select(
+                div_result,
+                alu_result
+            )
         )
 
         with Condition(ctrl.alu_func == ALUOp.ADD):
@@ -187,13 +276,29 @@ class Execution(Module):
             debug_log("EX: ALU Operation: AND")
         with Condition(ctrl.alu_func == ALUOp.SYS):
             debug_log("EX: ALU Operation: SYS")
+        with Condition(ctrl.alu_func == ALUOp.MUL):
+            debug_log("EX: ALU Operation: MUL")
+        with Condition(ctrl.alu_func == ALUOp.MULH):
+            debug_log("EX: ALU Operation: MULH")
+        with Condition(ctrl.alu_func == ALUOp.MULHSU):
+            debug_log("EX: ALU Operation: MULHSU")
+        with Condition(ctrl.alu_func == ALUOp.MULHU):
+            debug_log("EX: ALU Operation: MULHU")
         with Condition(ctrl.alu_func == ALUOp.NOP):
             debug_log("EX: ALU Operation: NOP or Reserved")
+        with Condition(ctrl.div_op == DivOp.DIV):
+            debug_log("EX: DIV Operation: DIV")
+        with Condition(ctrl.div_op == DivOp.DIVU):
+            debug_log("EX: DIV Operation: DIVU")
+        with Condition(ctrl.div_op == DivOp.REM):
+            debug_log("EX: DIV Operation: REM")
+        with Condition(ctrl.div_op == DivOp.REMU):
+            debug_log("EX: DIV Operation: REMU")
 
         # 3. 更新本级 Bypass 寄存器
-        ex_bypass[0] = alu_result
-        debug_log("EX: ALU Result: 0x{:x}", alu_result)
-        debug_log("EX: Bypass Update: 0x{:x}", alu_result)
+        ex_bypass[0] = final_result
+        debug_log("EX: ALU Result: 0x{:x}", final_result)
+        debug_log("EX: Bypass Update: 0x{:x}", final_result)
 
         # --- 分支处理 (Branch Handling) ---
         # 1. 使用专用加法器计算跳转地址，对于 JALR，基址是 rs1；对于 JAL/Branch，基址是 PC
@@ -325,7 +430,7 @@ class Execution(Module):
         )
 
         # 级间信号：控制 + 数据
-        mem_call = mem_module.async_called(ctrl=final_mem_ctrl, alu_result=alu_result)
+        mem_call = mem_module.async_called(ctrl=final_mem_ctrl, alu_result=final_result)
         mem_call.bind.set_fifo_depth(ctrl=1, alu_result=1)
 
         # --- 访存操作 (Store Handling) ---
@@ -336,11 +441,12 @@ class Execution(Module):
 
         with Condition(is_store):
             debug_log("EX: Memory Operation: STORE")
-            debug_log("EX: Store Address: 0x{:x}", alu_result)
+            debug_log("EX: Store Address: 0x{:x}", final_result)
             debug_log("EX: Store Data: 0x{:x}", real_rs2)
         with Condition(is_load):
             debug_log("EX: Memory Operation: LOAD")
-            debug_log("EX: Load Address: 0x{:x}", alu_result)
+            debug_log("EX: Load Address: 0x{:x}", final_result)
 
         # 返回引脚 (供 HazardUnit 与 SingleMemory 使用)
-        return final_rd, alu_result, is_load, is_store, mem_width, real_rs2
+        # Including mul_busy and div_busy for hazard detection
+        return final_rd, final_result, is_load, is_store, mem_width, real_rs2, mul_busy, div_busy

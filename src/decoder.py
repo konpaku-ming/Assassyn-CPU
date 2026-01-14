@@ -51,6 +51,7 @@ class Decoder(Module):
         funct3 = inst[12:14]
         rs1 = inst[15:19]
         rs2 = inst[20:24]
+        bit25 = inst[25:25]  # funct7[0] - distinguishes M-extension from R-type
         bit30 = inst[30:30]
 
         # 3. 立即数并行生成
@@ -91,6 +92,7 @@ class Decoder(Module):
         acc_mem_wid = Bits(3)(0)
         acc_mem_uns = Bits(1)(0)
         acc_wb_en = Bits(1)(0)
+        acc_div_op = Bits(4)(0)  # M-extension division operation
 
         match_if = Bits(1)(0)
 
@@ -100,6 +102,7 @@ class Decoder(Module):
                 t_op,
                 t_f3,
                 t_b30,
+                t_b25,
                 t_imm_type,
                 t_alu,
                 t_op1,
@@ -109,6 +112,7 @@ class Decoder(Module):
                 t_mem_sgn,
                 t_wb,
                 t_br,
+                t_div_op,
             ) = entry
 
             # --- A. 匹配逻辑 ---
@@ -119,6 +123,9 @@ class Decoder(Module):
 
             if t_b30 is not None:
                 match_if &= bit30 == Bits(1)(t_b30)
+
+            if t_b25 is not None:
+                match_if &= bit25 == Bits(1)(t_b25)
 
             # --- B. 信号累加 (Mux Logic) ---
             # 使用 select 实现 OR 逻辑
@@ -131,6 +138,7 @@ class Decoder(Module):
             acc_wb_en |= match_if.select(Bits(1)(t_wb), Bits(1)(0))
             acc_br_type |= match_if.select(t_br, Bits(16)(0))
             acc_imm_type |= match_if.select(t_imm_type, Bits(6)(0))
+            acc_div_op |= match_if.select(t_div_op, Bits(4)(0))
 
         # Ensure all 1-hot signals have valid defaults when no instruction matched
         # This prevents Select1Hot panics from invalid (all-zero) selectors
@@ -141,6 +149,7 @@ class Decoder(Module):
         acc_mem_wid = (acc_mem_wid == Bits(3)(0)).select(MemWidth.WORD, acc_mem_wid)
         acc_br_type = (acc_br_type == Bits(16)(0)).select(BranchType.NO_BRANCH, acc_br_type)
         acc_imm_type = (acc_imm_type == Bits(6)(0)).select(ImmType.R, acc_imm_type)
+        acc_div_op = (acc_div_op == Bits(4)(0)).select(DivOp.NONE, acc_div_op)
 
         acc_imm = acc_imm_type.select1hot(
             Bits(32)(0),
@@ -173,6 +182,7 @@ class Decoder(Module):
 
         pre = pre_decode_t.bundle(
             alu_func=acc_alu_func,
+            div_op=acc_div_op,
             op1_sel=acc_op1_sel,
             op2_sel=acc_op2_sel,
             branch_type=acc_br_type,
@@ -236,6 +246,7 @@ class DecoderImpl(Downstream):
         final_halt_if = nop_if.select(Bits(1)(0), wb_ctrl.halt_if)
         final_mem_opcode = nop_if.select(MemOp.NONE, mem_ctrl.mem_opcode)
         final_alu_func = nop_if.select(ALUOp.NOP, pre.alu_func)
+        final_div_op = nop_if.select(DivOp.NONE, pre.div_op)
         final_branch_type = nop_if.select(BranchType.NO_BRANCH, pre.branch_type)
 
         with Condition(nop_if == Bits(1)(1)):
@@ -259,6 +270,7 @@ class DecoderImpl(Downstream):
 
         final_ex_ctrl = ex_ctrl_signals.bundle(
             alu_func=final_alu_func,
+            div_op=final_div_op,
             op1_sel=pre.op1_sel,
             op2_sel=pre.op2_sel,
             rs1_sel=rs1_sel,
