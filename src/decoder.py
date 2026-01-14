@@ -92,7 +92,7 @@ class Decoder(Module):
         acc_mem_wid = Bits(3)(0)
         acc_mem_uns = Bits(1)(0)
         acc_wb_en = Bits(1)(0)
-        acc_div_op = Bits(4)(0)  # M-extension division operation
+        acc_div_op = Bits(5)(0)  # M-extension division operation (1-hot encoding)
 
         match_if = Bits(1)(0)
 
@@ -138,7 +138,7 @@ class Decoder(Module):
             acc_wb_en |= match_if.select(Bits(1)(t_wb), Bits(1)(0))
             acc_br_type |= match_if.select(t_br, Bits(16)(0))
             acc_imm_type |= match_if.select(t_imm_type, Bits(6)(0))
-            acc_div_op |= match_if.select(t_div_op, Bits(4)(0))
+            acc_div_op |= match_if.select(t_div_op, Bits(5)(0))
 
         # Ensure all 1-hot signals have valid defaults when no instruction matched
         # This prevents Select1Hot panics from invalid (all-zero) selectors
@@ -149,7 +149,7 @@ class Decoder(Module):
         acc_mem_wid = (acc_mem_wid == Bits(3)(0)).select(MemWidth.WORD, acc_mem_wid)
         acc_br_type = (acc_br_type == Bits(16)(0)).select(BranchType.NO_BRANCH, acc_br_type)
         acc_imm_type = (acc_imm_type == Bits(6)(0)).select(ImmType.R, acc_imm_type)
-        acc_div_op = (acc_div_op == Bits(4)(0)).select(DivOp.NONE, acc_div_op)
+        acc_div_op = (acc_div_op == Bits(5)(0)).select(DivOp.NONE, acc_div_op)
 
         acc_imm = acc_imm_type.select1hot(
             Bits(32)(0),

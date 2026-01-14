@@ -7,47 +7,48 @@ from .control_signals import *
 rv32i_table = [
 
     # --- R-Type ---
-    ('add', OP_R_TYPE, 0x0, 0, None, ImmType.R, ALUOp.ADD, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    # For R-type instructions, bit25=0 distinguishes them from M-extension (bit25=1)
+    ('add', OP_R_TYPE, 0x0, 0, 0, ImmType.R, ALUOp.ADD, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH, DivOp.NONE),
-    ('sub', OP_R_TYPE, 0x0, 1, None, ImmType.R, ALUOp.SUB, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('sub', OP_R_TYPE, 0x0, 1, 0, ImmType.R, ALUOp.SUB, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH, DivOp.NONE),
-    ('sll', OP_R_TYPE, 0x1, 0, None, ImmType.R, ALUOp.SLL, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('sll', OP_R_TYPE, 0x1, 0, 0, ImmType.R, ALUOp.SLL, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH, DivOp.NONE),
-    ('slt', OP_R_TYPE, 0x2, 0, None, ImmType.R, ALUOp.SLT, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('slt', OP_R_TYPE, 0x2, 0, 0, ImmType.R, ALUOp.SLT, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH, DivOp.NONE),
-    ('sltu', OP_R_TYPE, 0x3, 0, None, ImmType.R, ALUOp.SLTU, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('sltu', OP_R_TYPE, 0x3, 0, 0, ImmType.R, ALUOp.SLTU, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH, DivOp.NONE),
-    ('xor', OP_R_TYPE, 0x4, 0, None, ImmType.R, ALUOp.XOR, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('xor', OP_R_TYPE, 0x4, 0, 0, ImmType.R, ALUOp.XOR, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH, DivOp.NONE),
-    ('srl', OP_R_TYPE, 0x5, 0, None, ImmType.R, ALUOp.SRL, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('srl', OP_R_TYPE, 0x5, 0, 0, ImmType.R, ALUOp.SRL, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH, DivOp.NONE),
-    ('sra', OP_R_TYPE, 0x5, 1, None, ImmType.R, ALUOp.SRA, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('sra', OP_R_TYPE, 0x5, 1, 0, ImmType.R, ALUOp.SRA, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH, DivOp.NONE),
-    ('or', OP_R_TYPE, 0x6, 0, None, ImmType.R, ALUOp.OR, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('or', OP_R_TYPE, 0x6, 0, 0, ImmType.R, ALUOp.OR, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH, DivOp.NONE),
-    ('and', OP_R_TYPE, 0x7, 0, None, ImmType.R, ALUOp.AND, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('and', OP_R_TYPE, 0x7, 0, 0, ImmType.R, ALUOp.AND, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH, DivOp.NONE),
 
     # --- M-Extension (Multiply) ---
-    # funct7 = 0x01, bit25 = 1
-    ('mul', OP_R_TYPE, 0x0, None, 1, ImmType.R, ALUOp.MUL, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    # funct7 = 0x01 (bit25 = 1, bit30 = 0)
+    ('mul', OP_R_TYPE, 0x0, 0, 1, ImmType.R, ALUOp.MUL, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH, DivOp.NONE),
-    ('mulh', OP_R_TYPE, 0x1, None, 1, ImmType.R, ALUOp.MULH, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('mulh', OP_R_TYPE, 0x1, 0, 1, ImmType.R, ALUOp.MULH, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH, DivOp.NONE),
-    ('mulhsu', OP_R_TYPE, 0x2, None, 1, ImmType.R, ALUOp.MULHSU, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('mulhsu', OP_R_TYPE, 0x2, 0, 1, ImmType.R, ALUOp.MULHSU, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH, DivOp.NONE),
-    ('mulhu', OP_R_TYPE, 0x3, None, 1, ImmType.R, ALUOp.MULHU, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('mulhu', OP_R_TYPE, 0x3, 0, 1, ImmType.R, ALUOp.MULHU, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH, DivOp.NONE),
 
     # --- M-Extension (Divide) ---
-    # funct7 = 0x01, bit25 = 1
-    ('div', OP_R_TYPE, 0x4, None, 1, ImmType.R, ALUOp.ADD, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    # funct7 = 0x01 (bit25 = 1, bit30 = 0)
+    ('div', OP_R_TYPE, 0x4, 0, 1, ImmType.R, ALUOp.ADD, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH, DivOp.DIV),
-    ('divu', OP_R_TYPE, 0x5, None, 1, ImmType.R, ALUOp.ADD, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('divu', OP_R_TYPE, 0x5, 0, 1, ImmType.R, ALUOp.ADD, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH, DivOp.DIVU),
-    ('rem', OP_R_TYPE, 0x6, None, 1, ImmType.R, ALUOp.ADD, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('rem', OP_R_TYPE, 0x6, 0, 1, ImmType.R, ALUOp.ADD, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH, DivOp.REM),
-    ('remu', OP_R_TYPE, 0x7, None, 1, ImmType.R, ALUOp.ADD, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
+    ('remu', OP_R_TYPE, 0x7, 0, 1, ImmType.R, ALUOp.ADD, Op1Sel.RS1, Op2Sel.RS2, MemOp.NONE,
      MemWidth.WORD, Bits(1)(0), WB.YES, BranchType.NO_BRANCH, DivOp.REMU),
 
     # --- I-Type (ALU) ---
