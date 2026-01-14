@@ -461,8 +461,8 @@ class WallaceTreeMul:
         """
         # Only process if stage 3 is valid
         with Condition(self.m3_valid[0] == Bits(1)(1)):
-            debug_log("EX_M3: Final Wallace Tree compression + CPA (Cycle 3/3)")
-            debug_log("EX_M3:   Result ready: 0x{:x}", self.m3_result[0])
+            debug_log("EX_M3: Result ready (Cycle 3/3)")
+            debug_log("EX_M3:   Final result: 0x{:x}", self.m3_result[0])
             
             # Result is already in m3_result[0]
             # The execution stage will read it and call clear_result()
