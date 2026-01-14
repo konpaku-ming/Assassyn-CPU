@@ -5,7 +5,7 @@ MAX_REGISTERS = 32
 # 调试模式开关，默认打开
 # True: 打印所有日志（与当前行为相同）
 # False: 只打印停机时的寄存器状态
-DEBUG_MODE = True
+DEBUG_MODE = False
 
 
 def set_debug_mode(enabled: bool):

@@ -1,5 +1,6 @@
 .venv
 .idea
+codegen/
 workspace/
 */__pycache__
 */.workspace/
