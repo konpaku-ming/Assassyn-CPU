@@ -237,7 +237,7 @@ class WallaceTreeMul:
         """
         return self.m1_valid[0] | self.m2_valid[0] | self.m3_valid[0]
 
-    def start_multiply(self, op1, op2, op1_signed, op2_signed, result_high, rd):
+    def start_multiply(self, op1, op2, op1_signed, op2_signed, result_high, rd=Bits(5)(0)):
         """
         Start a new multiplication operation.
 
@@ -247,7 +247,7 @@ class WallaceTreeMul:
             op1_signed: Whether op1 is signed (1) or unsigned (0)
             op2_signed: Whether op2 is signed (1) or unsigned (0)
             result_high: Whether to return high 32 bits (1) or low 32 bits (0)
-            rd: Destination register (5-bit)
+            rd: Destination register (5-bit), defaults to 0
         """
         # Load into stage 1 pipeline registers
         self.m1_valid[0] = Bits(1)(1)

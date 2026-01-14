@@ -409,25 +409,9 @@ class Execution(Module):
 
         # --- 下一级绑定与状态反馈 ---
         # 构造控制信号包
-        # When MUL/DIV is in progress but result is not ready, insert NOP (rd=0)
-        # to prevent incorrect placeholder result from being written to register file
-        
-        # Detect if we're starting a new MUL operation this cycle
-        # (The multiplier won't be "busy" until next cycle, but we need to NOP now)
-        mul_starting = is_mul_op & ~mul_busy & ~flush_if
-        div_starting = is_div_op & ~div_busy & ~flush_if
-        
-        # MUL/DIV in progress: either already busy, or just starting, and result not ready
-        mul_in_progress = (mul_busy | mul_starting) & ~mul_ready
-        div_in_progress = (div_busy | div_starting) & ~div_ready
-        multi_cycle_in_progress = mul_in_progress | div_in_progress
-        
-        # Determine the rd to use:
-        # - If MUL result is ready, use mul_rd (saved from when MUL started)
-        # - If DIV result is ready, use div_rd (saved from when DIV started)
-        # - If multi-cycle op in progress (not ready), use 0 (NOP)
-        # - If flush, use 0 (NOP)
-        # - Otherwise, use wb_ctrl.rd_addr (normal instruction)
+        # When MUL/DIV result is ready, use the saved rd from the multiplier/divider
+        # Otherwise, use the normal rd from the current instruction
+        # NOTE: We do NOT modify halt_if - it must pass through normally for halt to work
         effective_rd = mul_ready.select(
             mul_rd,
             div_ready.select(
@@ -435,12 +419,9 @@ class Execution(Module):
                 wb_ctrl.rd_addr
             )
         )
-        
-        # NOP insertion: flush_if OR multi-cycle operation in progress (and not ready)
-        nop_condition = flush_if | multi_cycle_in_progress
-        final_rd = nop_condition.select(Bits(5)(0), effective_rd)
-        final_halt_if = nop_condition.select(Bits(1)(0), wb_ctrl.halt_if)
-        final_mem_opcode = nop_condition.select(MemOp.NONE, mem_ctrl.mem_opcode)
+        final_rd = flush_if.select(Bits(5)(0), effective_rd)
+        final_halt_if = flush_if.select(Bits(1)(0), wb_ctrl.halt_if)
+        final_mem_opcode = flush_if.select(MemOp.NONE, mem_ctrl.mem_opcode)
 
         debug_log(
             "Control after Flush Check: mem_opcode=0x{:x} rd=0x{:x}",

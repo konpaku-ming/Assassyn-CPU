@@ -98,7 +98,7 @@ class SRT4Divider:
         """Check if divider is currently processing"""
         return self.busy[0]
 
-    def start_divide(self, dividend, divisor, is_signed, is_rem, rd):
+    def start_divide(self, dividend, divisor, is_signed, is_rem, rd=Bits(5)(0)):
         """
         Start a division operation.
 
@@ -107,7 +107,7 @@ class SRT4Divider:
             divisor: 32-bit divisor (rs2)
             is_signed: 1 for signed (DIV/REM), 0 for unsigned (DIVU/REMU)
             is_rem: 1 to return remainder, 0 to return quotient
-            rd: Destination register (5-bit)
+            rd: Destination register (5-bit), defaults to 0
         """
         self.dividend_in[0] = dividend
         self.divisor_in[0] = divisor
