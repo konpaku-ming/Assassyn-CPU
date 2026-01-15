@@ -282,6 +282,12 @@ def __init__(self):
 - 这些寄存器在真实硬件中是触发器阵列，在时钟上升沿锁存数据
 - 阶段间需要存储多行中间结果（10 行或 4 行）以保存 Wallace Tree 的压缩状态
 
+**组合逻辑 / 时序逻辑写法与乘法器划分**：
+- 在 Assassyn 中，纯算术/逻辑表达式或 `reg[i] = value` 属于组合逻辑（当前周期立即生效）；`reg[i] <= value` 或 `(reg & self)[i] <= value` 表达时序逻辑（下一时钟沿更新，带时钟域绑定）。
+- 乘法器里的 `full_adder_64bit`、`half_adder_64bit`、`carry_propagate_adder_64bit` 以及 `cycle_m1/cycle_m2/cycle_m3` 中的部分积生成、Wallace Tree 压缩、CPA 求和都只由位运算/算术和多路选择组成，是纯组合逻辑。
+- `start_multiply` 将输入、符号位、高/低位选择与 rd 写入 `m1_*` 寄存器，`cycle_m1`/`cycle_m2`/`cycle_m3` 依次把 10 行、4 行压缩结果与 valid 位搬运到下一阶段寄存器，最终由 `m3_result_ready` 置位产出结果；`is_busy` 与 `clear_result` 读取/清空这些寄存器。它们共同刻画了跨周期的时序逻辑，只在时钟推进时向前流动。
+- valid 位的串联保证一条 MUL 指令会占用 EX_M1/EX_M2/EX_M3 三个周期，输出延迟与“3 周期 Wallace Tree 乘法器”设计一致，对应代码的组合/时序划分正确。
+
 #### 2.2.4 符号扩展函数
 
 ```python
