@@ -178,20 +178,62 @@ carry = a · b
 
 #### 2.2.1 整体架构
 
+根据 `src/multiplier.py` 的实现，乘法器采用真正的 Wallace Tree 压缩结构：
+
 ```python
 class WallaceTreeMul:
     """
     3-cycle pipelined Wallace Tree multiplier
     
-    Cycle 1 (EX_M1): 部分积生成
-    Cycle 2 (EX_M2): Wallace Tree 压缩（前几层）
-    Cycle 3 (EX_M3): 最终压缩 + CPA 加法
+    Cycle 1 (EX_M1): 部分积生成 + Wallace Tree Levels 1-3 (32 → 10 rows)
+    Cycle 2 (EX_M2): Wallace Tree Levels 4-6 (10 → 4 rows)
+    Cycle 3 (EX_M3): Wallace Tree Levels 7-8 (4 → 2 rows) + CPA 加法
     """
 ```
 
-#### 2.2.2 流水线寄存器定义
+#### 2.2.2 3:2 和 2:2 压缩器的硬件实现
 
-在 Assassyn 中，我们使用 `RegArray` 定义寄存器：
+Wallace Tree 的核心组件是压缩器。在 `src/multiplier.py` 中定义了两种压缩器：
+
+**3:2 压缩器（全加器）**：
+
+```python
+def full_adder_64bit(a: Bits, b: Bits, c: Bits) -> tuple:
+    """
+    64-bit 3:2 compressor (Full Adder)
+    
+    Takes 3 64-bit inputs and produces:
+    - sum: 64-bit XOR result (a ⊕ b ⊕ c)
+    - carry: 64-bit carry result ((a&b) | (b&c) | (a&c)), shifted left by 1 bit
+    """
+    # XOR for sum: sum[i] = a[i] ⊕ b[i] ⊕ c[i]
+    sum_result = a ^ b ^ c
+
+    # Majority function for carry: carry[i] = (a[i]&b[i]) | (b[i]&c[i]) | (a[i]&c[i])
+    carry_unshifted = (a & b) | (b & c) | (a & c)
+
+    # Carry is shifted left by 1 bit (carry[i+1] in hardware)
+    carry_shifted = concat(carry_unshifted[0:62], Bits(1)(0))
+
+    return (sum_result, carry_shifted)
+```
+
+**2:2 压缩器（半加器）**：
+
+```python
+def half_adder_64bit(a: Bits, b: Bits) -> tuple:
+    """
+    64-bit 2:2 compressor (Half Adder)
+    """
+    sum_result = a ^ b              # XOR for sum
+    carry_unshifted = a & b         # AND for carry
+    carry_shifted = concat(carry_unshifted[0:62], Bits(1)(0))
+    return (sum_result, carry_shifted)
+```
+
+#### 2.2.3 流水线寄存器定义
+
+在 Assassyn 中，我们使用 `RegArray` 定义寄存器。实际代码中的寄存器定义如下：
 
 ```python
 def __init__(self):
@@ -202,24 +244,39 @@ def __init__(self):
     self.m1_op1_signed = RegArray(Bits(1), 1, initializer=[0]) # op1 是否有符号
     self.m1_op2_signed = RegArray(Bits(1), 1, initializer=[0]) # op2 是否有符号
     self.m1_result_high = RegArray(Bits(1), 1, initializer=[0]) # 返回高32位还是低32位
-    
-    # 阶段 2 寄存器 (EX_M2)
+    self.m1_rd = RegArray(Bits(5), 1, initializer=[0])         # 目标寄存器
+
+    # 阶段 2 寄存器 (EX_M2) - 存储 10 行中间结果（Level 3 输出）
     self.m2_valid = RegArray(Bits(1), 1, initializer=[0])
-    self.m2_partial_low = RegArray(Bits(32), 1, initializer=[0])
-    self.m2_partial_high = RegArray(Bits(32), 1, initializer=[0])
     self.m2_result_high = RegArray(Bits(1), 1, initializer=[0])
-    
-    # 阶段 3 寄存器 (EX_M3)
+    self.m2_rd = RegArray(Bits(5), 1, initializer=[0])
+    # 10 个 64 位寄存器存储 Wallace Tree Level 3 的输出
+    self.m2_row0 = RegArray(Bits(64), 1, initializer=[0])
+    self.m2_row1 = RegArray(Bits(64), 1, initializer=[0])
+    # ... (m2_row2 到 m2_row9)
+
+    # 阶段 3 寄存器 (EX_M3) - 存储 4 行中间结果（Level 6 输出）
     self.m3_valid = RegArray(Bits(1), 1, initializer=[0])
+    self.m3_result_high = RegArray(Bits(1), 1, initializer=[0])
+    self.m3_rd = RegArray(Bits(5), 1, initializer=[0])
+    # 4 个 64 位寄存器存储 Wallace Tree Level 6 的输出
+    self.m3_row0 = RegArray(Bits(64), 1, initializer=[0])
+    self.m3_row1 = RegArray(Bits(64), 1, initializer=[0])
+    self.m3_row2 = RegArray(Bits(64), 1, initializer=[0])
+    self.m3_row3 = RegArray(Bits(64), 1, initializer=[0])
+
+    # 最终结果
+    self.m3_result_ready = RegArray(Bits(1), 1, initializer=[0])
     self.m3_result = RegArray(Bits(32), 1, initializer=[0])
 ```
 
 **硬件含义说明**：
-- `RegArray(Bits(32), 1)` 表示一个 32 位宽的寄存器
+- `RegArray(Bits(64), 1)` 表示一个 64 位宽的寄存器
 - `initializer=[0]` 表示复位后初值为 0
 - 这些寄存器在真实硬件中是触发器阵列，在时钟上升沿锁存数据
+- 阶段间需要存储多行中间结果（10 行或 4 行）以保存 Wallace Tree 的压缩状态
 
-#### 2.2.3 符号扩展函数
+#### 2.2.4 符号扩展函数
 
 ```python
 def sign_zero_extend(op: Bits, signed: Bits) -> Bits:
@@ -239,94 +296,152 @@ def sign_zero_extend(op: Bits, signed: Bits) -> Bits:
 - `select(a, b)` 是多路复用器（MUX）：条件为真选 a，否则选 b
 - `concat(high, low)` 是位拼接，将两个信号连接成更宽的信号
 
-#### 2.2.4 阶段 1：部分积生成
+#### 2.2.5 阶段 1：部分积生成 + Wallace Tree Levels 1-3
+
+实际代码（`src/multiplier.py` 的 `cycle_m1` 函数）实现了完整的部分积生成和前三层压缩：
 
 ```python
 def cycle_m1(self):
     """
-    EX_M1 阶段：部分积生成
+    EX_M1 阶段：部分积生成 + Wallace Tree Levels 1-3
     
-    在真实硬件中：
-    - 对乘数 B 的每一位 i，生成 pp[i] = A AND {32{B[i]}}
-    - 每个 pp[i] 左移 i 位
-    - 共生成 32 个部分积
+    1. 对乘数 B 的每一位 i，生成 pp[i] = A AND {64{B[i]}}，左移 i 位
+    2. 应用 Wallace Tree Levels 1-3，将 32 行压缩到 10 行
     """
     with Condition(self.m1_valid[0] == Bits(1)(1)):
-        # 读取流水线寄存器
         op1 = self.m1_op1[0]
         op2 = self.m1_op2[0]
         op1_signed = self.m1_op1_signed[0]
-        op2_signed = self.m1_op2_signed[0]
         
         # 符号/零扩展到 64 位
-        op1_extended = sign_zero_extend(op1, op1_signed)
-        op2_extended = sign_zero_extend(op2, op2_signed)
+        op1_ext = sign_zero_extend(op1, op1_signed)
         
-        # 计算 64 位乘积
-        # 在仿真中直接使用乘法运算
-        # 在真实硬件中，这代表 32 个部分积的生成
-        product_64 = op1_extended.bitcast(UInt(64)) * op2_extended.bitcast(UInt(64))
-        product_bits = product_64.bitcast(Bits(64))
+        # 生成 32 个部分积（每个根据 op2 对应位决定是否有效）
+        # pp[i] = op2[i] ? (op1_ext << i) : 0
+        pp0 = op2[0:0].select(op1_ext, Bits(64)(0))
+        pp1 = op2[1:1].select(concat(op1_ext[0:62], Bits(1)(0)), Bits(64)(0))
+        pp2 = op2[2:2].select(concat(op1_ext[0:61], Bits(2)(0)), Bits(64)(0))
+        # ... (pp3 到 pp31，每个左移相应位数)
         
-        # 拆分成高低 32 位，传递给下一阶段
-        partial_low = product_bits[0:31].bitcast(Bits(32))
-        partial_high = product_bits[32:63].bitcast(Bits(32))
+        # === Wallace Tree Level 1: 32 → 22 rows ===
+        # 使用 10 个 3:2 压缩器处理 30 行，保留 2 行
+        s1_0, c1_0 = full_adder_64bit(pp0, pp1, pp2)
+        s1_1, c1_1 = full_adder_64bit(pp3, pp4, pp5)
+        # ... (s1_2 到 s1_9)
+        # Passthrough: pp30, pp31
         
-        # 更新阶段 2 寄存器
+        # === Wallace Tree Level 2: 22 → 15 rows ===
+        s2_0, c2_0 = full_adder_64bit(s1_0, c1_0, s1_1)
+        s2_1, c2_1 = full_adder_64bit(c1_1, s1_2, c1_2)
+        # ... (s2_2 到 s2_6)
+        
+        # === Wallace Tree Level 3: 15 → 10 rows ===
+        s3_0, c3_0 = full_adder_64bit(s2_0, c2_0, s2_1)
+        s3_1, c3_1 = full_adder_64bit(c2_1, s2_2, c2_2)
+        # ... (s3_2 到 s3_4)
+        
+        # 存储 10 行中间结果到 M2 寄存器
+        self.m2_row0[0] = s3_0
+        self.m2_row1[0] = c3_0
+        # ... (m2_row2 到 m2_row9)
+        
         self.m2_valid[0] = Bits(1)(1)
-        self.m2_partial_low[0] = partial_low
-        self.m2_partial_high[0] = partial_high
-        self.m2_result_high[0] = self.m1_result_high[0]
-        
-        # 清除阶段 1 有效位
         self.m1_valid[0] = Bits(1)(0)
 ```
 
 **硬件含义说明**：
 - `with Condition(...)` 类似于 Verilog 的 `if` 语句，生成条件控制逻辑
-- `bitcast(UInt(64))` 将位向量重新解释为无符号整数类型，允许进行算术运算
-- 在真实硬件综合时，乘法会被综合成乘法器电路
+- `concat(op1_ext[0:62], Bits(1)(0))` 实现左移 1 位（高位截断，低位补 0）
+- `full_adder_64bit` 是 3:2 压缩器，将 3 个 64 位数压缩成 2 个 64 位数（sum 和 carry）
 
-#### 2.2.5 阶段 2：Wallace Tree 压缩
+#### 2.2.6 阶段 2：Wallace Tree Levels 4-6
 
 ```python
 def cycle_m2(self):
     """
-    EX_M2 阶段：Wallace Tree 压缩
-    
-    在真实硬件中：
-    - 执行 Wallace Tree 的前几层压缩
-    - 将 32 个部分积压缩到 6-8 行
+    EX_M2 阶段：Wallace Tree Levels 4-6 (10 → 4 rows)
     """
     with Condition(self.m2_valid[0] == Bits(1)(1)):
-        # 根据指令类型选择返回高位还是低位
-        result = self.m2_result_high[0].select(
-            self.m2_partial_high[0],  # 高32位用于 MULH/MULHSU/MULHU
-            self.m2_partial_low[0]    # 低32位用于 MUL
-        )
+        # 读取 Level 3 输出（10 行）
+        s3_0 = self.m2_row0[0]
+        c3_0 = self.m2_row1[0]
+        # ... (s3_1 到 c3_4)
         
-        # 更新阶段 3 寄存器
+        # === Level 4: 10 → 7 rows ===
+        s4_0, c4_0 = full_adder_64bit(s3_0, c3_0, s3_1)
+        s4_1, c4_1 = full_adder_64bit(c3_1, s3_2, c3_2)
+        s4_2, c4_2 = full_adder_64bit(s3_3, c3_3, s3_4)
+        # Passthrough: c3_4
+        
+        # === Level 5: 7 → 5 rows ===
+        s5_0, c5_0 = full_adder_64bit(s4_0, c4_0, s4_1)
+        s5_1, c5_1 = full_adder_64bit(c4_1, s4_2, c4_2)
+        # Passthrough: c3_4
+        
+        # === Level 6: 5 → 4 rows ===
+        s6_0, c6_0 = full_adder_64bit(s5_0, c5_0, s5_1)
+        # Passthrough: c5_1, c3_4
+        # Output: s6_0, c6_0, c5_1, c3_4
+        
+        # 存储 4 行中间结果
+        self.m3_row0[0] = s6_0
+        self.m3_row1[0] = c6_0
+        self.m3_row2[0] = c5_1
+        self.m3_row3[0] = c3_4
+        
         self.m3_valid[0] = Bits(1)(1)
-        self.m3_result[0] = result
-        
-        # 清除阶段 2 有效位
         self.m2_valid[0] = Bits(1)(0)
 ```
 
-#### 2.2.6 阶段 3：最终压缩 + CPA
+#### 2.2.7 阶段 3：最终压缩 + CPA
 
 ```python
 def cycle_m3(self):
     """
-    EX_M3 阶段：最终压缩 + 进位传播加法
-    
-    在真实硬件中：
-    - 完成 Wallace Tree 的最后几层压缩，得到 2 行
-    - 使用 CPA (Carry-Propagate Adder) 完成最终加法
+    EX_M3 阶段：Wallace Tree Levels 7-8 (4 → 2 rows) + CPA 最终加法
     """
-    with Condition(self.m3_valid[0] == Bits(1)(1)):
-        # 结果已在 m3_result 中，保持一个周期供读取
-        pass
+    with Condition((self.m3_valid[0] == Bits(1)(1)) & 
+                   (self.m3_result_ready[0] == Bits(1)(0))):
+        # 读取 Level 6 输出（4 行）
+        s6_0 = self.m3_row0[0]
+        c6_0 = self.m3_row1[0]
+        c5_1 = self.m3_row2[0]
+        c3_4 = self.m3_row3[0]
+        
+        # === Level 7: 4 → 3 rows ===
+        s7_0, c7_0 = full_adder_64bit(s6_0, c6_0, c5_1)
+        # Passthrough: c3_4
+        
+        # === Level 8: 3 → 2 rows (最终 Wallace Tree 压缩) ===
+        s8_final, c8_final = full_adder_64bit(s7_0, c7_0, c3_4)
+        
+        # === CPA (Carry-Propagate Adder) 最终加法 ===
+        product_64 = carry_propagate_adder_64bit(s8_final, c8_final)
+        
+        # 根据指令类型选择高 32 位或低 32 位
+        partial_low = product_64[0:31].bitcast(Bits(32))
+        partial_high = product_64[32:63].bitcast(Bits(32))
+        
+        result = self.m3_result_high[0].select(
+            partial_high,  # MULH/MULHSU/MULHU
+            partial_low    # MUL
+        )
+        
+        self.m3_result[0] = result
+        self.m3_result_ready[0] = Bits(1)(1)
+        self.m3_valid[0] = Bits(1)(0)
+```
+
+**CPA (Carry-Propagate Adder) 实现**：
+
+```python
+def carry_propagate_adder_64bit(a: Bits, b: Bits) -> Bits:
+    """
+    64-bit Carry-Propagate Adder
+    最后将 2 行相加得到 64 位乘积
+    """
+    result = (a.bitcast(UInt(64)) + b.bitcast(UInt(64))).bitcast(Bits(64))
+    return result
 ```
 
 ### 2.3 时钟周期分析
@@ -335,10 +450,11 @@ def cycle_m3(self):
 时钟周期    流水线状态              操作
 ========================================================
 N           MUL 指令进入 EX        start_multiply() 被调用，m1_valid=1
-N+1         EX_M1 执行             生成部分积，结果进入 m2_xxx 寄存器
-N+2         EX_M2 执行             Wallace Tree 压缩，结果进入 m3_xxx 寄存器
-N+3         EX_M3 执行             最终 CPA 加法，结果可读
-N+4         结果写回               结果通过 WB 阶段写回寄存器文件
+N+1         EX_M1 执行             部分积生成 + Level 1-3，结果进入 m2 寄存器
+N+2         EX_M2 执行             Wallace Tree Level 4-6，结果进入 m3 寄存器
+N+3         EX_M3 执行             Level 7-8 + CPA 加法，m3_result_ready=1
+N+4         结果输出               结果通过 MEM 阶段传递
+N+5         写回                   结果写回寄存器文件
 ```
 
 **示意图**：
@@ -350,6 +466,30 @@ N+4         结果写回               结果通过 WB 阶段写回寄存器文�
 周期 N+3: IF → ID → [EX: M3完成]  → MEM → WB  ← 结果可用
 周期 N+4: IF → ID → EX → [MEM: MUL结果] → WB
 周期 N+5: IF → ID → EX → MEM → [WB: 写回 rd]
+```
+
+### 2.4 流水线冒险处理（src/hazard_unit.py）
+
+乘法器在执行期间会产生结构冒险，需要暂停流水线：
+
+```python
+# src/execution.py 中返回 mul_busy 信号
+mul_busy = self.multiplier.is_busy()
+
+# src/hazard_unit.py 中检测冒险
+# 当乘法器或除法器忙时，流水线需要暂停
+stall_for_mul_div = mul_busy | div_busy
+```
+
+**is_busy() 的实现**：
+
+```python
+def is_busy(self):
+    """
+    检查乘法器是否有正在执行的操作。
+    当 M1、M2 或 M3 任一阶段有效时返回 True。
+    """
+    return self.m1_valid[0] | self.m2_valid[0] | self.m3_valid[0]
 ```
 
 ---
@@ -799,15 +939,54 @@ N+18        DIV_END          符号修正，结果就绪
 
 ## 4. RV32IM 扩展指令执行流程
 
-本节详细展示每条 M 扩展指令在五级流水线 CPU 中的执行过程。
+本节详细展示每条 M 扩展指令在五级流水线 CPU 中的执行过程。以下内容基于 `src/execution.py` 中的实际实现。
 
 ### 4.1 乘法指令 (MUL/MULH/MULHSU/MULHU)
 
-#### 4.1.1 MUL 指令
+#### 4.1.1 指令解码（src/instruction_table.py）
+
+M 扩展乘法指令的编码如下（opcode=0x33, funct7=0x01, bit25=1）：
+
+```python
+# src/instruction_table.py 中的定义
+('mul', OP_R_TYPE, 0x0, 0, 1, ImmType.R, ALUOp.MUL, Op1Sel.RS1, Op2Sel.RS2, ...),
+('mulh', OP_R_TYPE, 0x1, 0, 1, ImmType.R, ALUOp.MULH, Op1Sel.RS1, Op2Sel.RS2, ...),
+('mulhsu', OP_R_TYPE, 0x2, 0, 1, ImmType.R, ALUOp.MULHSU, Op1Sel.RS1, Op2Sel.RS2, ...),
+('mulhu', OP_R_TYPE, 0x3, 0, 1, ImmType.R, ALUOp.MULHU, Op1Sel.RS1, Op2Sel.RS2, ...),
+```
+
+#### 4.1.2 MUL 指令
 
 **指令格式**：`MUL rd, rs1, rs2`
 
 **功能**：`rd = (rs1 × rs2)[31:0]` （返回乘积的低 32 位）
+
+**EX 阶段处理（src/execution.py）**：
+
+```python
+# 检测乘法指令
+is_mul = ctrl.alu_func == ALUOp.MUL
+is_mulh = ctrl.alu_func == ALUOp.MULH
+is_mulhsu = ctrl.alu_func == ALUOp.MULHSU
+is_mulhu = ctrl.alu_func == ALUOp.MULHU
+is_mul_op = is_mul | is_mulh | is_mulhsu | is_mulhu
+
+# 启动乘法器
+with Condition((is_mul_op == Bits(1)(1)) & (mul_busy == Bits(1)(0)) & (flush_if == Bits(1)(0))):
+    # 根据指令类型设置符号配置
+    op1_signed_flag = is_mul | is_mulh | is_mulhsu  # MUL, MULH, MULHSU 的 op1 有符号
+    op2_signed_flag = is_mul | is_mulh              # MUL, MULH 的 op2 有符号
+    result_high_flag = is_mulh | is_mulhsu | is_mulhu  # MULH* 返回高 32 位
+    
+    self.multiplier.start_multiply(
+        op1=real_rs1,
+        op2=real_rs2,
+        op1_signed=op1_signed_flag,
+        op2_signed=op2_signed_flag,
+        result_high=result_high_flag,
+        rd=wb_ctrl.rd_addr
+    )
+```
 
 **执行流程**：
 
@@ -817,48 +996,55 @@ N+18        DIV_END          符号修正，结果就绪
           └─ 发送到 ID
 
 周期 N+1: ID 阶段
-          ├─ 解码指令：opcode=0x33, funct3=0x0, funct7=0x01
+          ├─ 解码指令：opcode=0x33, funct3=0x0, funct7=0x01 (bit25=1)
           ├─ 识别为 MUL 指令
           ├─ 读取 rs1, rs2 数据
           ├─ 设置控制信号：
-          │   ├─ alu_func = ALUOp.MUL
+          │   ├─ alu_func = ALUOp.MUL (Bits(16)(0b0000100000000000))
           │   ├─ op1_sel = RS1
           │   ├─ op2_sel = RS2
           │   └─ rd_addr = rd
           └─ 发送到 EX
 
 周期 N+2: EX 阶段 - 启动
-          ├─ 检测到 is_mul_op = 1
+          ├─ 检测 is_mul_op = 1
           ├─ 调用 multiplier.start_multiply()
-          │   ├─ op1 = rs1_data
-          │   ├─ op2 = rs2_data
+          │   ├─ op1 = real_rs1 (经旁路处理)
+          │   ├─ op2 = real_rs2
           │   ├─ op1_signed = 1 (有符号)
           │   ├─ op2_signed = 1 (有符号)
-          │   └─ result_high = 0 (返回低32位)
-          ├─ m1_valid = 1
-          └─ 向 MEM 发送 NOP (rd=0)
+          │   ├─ result_high = 0 (返回低32位)
+          │   └─ rd = rd_addr (目标寄存器)
+          ├─ m1_valid = 1, mul_busy = 1
+          └─ 流水线暂停，后续指令等待
 
-周期 N+3: EX 阶段 - M1
+周期 N+3: EX 阶段 - M1 (部分积生成 + Level 1-3)
           ├─ cycle_m1() 执行
-          │   ├─ 符号扩展 op1, op2 到 64 位
-          │   ├─ 计算 64 位乘积
-          │   └─ 拆分为 partial_low, partial_high
-          ├─ m1_valid = 0, m2_valid = 1
-          └─ 向 MEM 发送 NOP
+          │   ├─ 符号扩展 op1 到 64 位
+          │   ├─ 生成 32 个部分积 (pp0-pp31)
+          │   ├─ Wallace Tree Level 1: 32 → 22 rows
+          │   ├─ Wallace Tree Level 2: 22 → 15 rows
+          │   └─ Wallace Tree Level 3: 15 → 10 rows
+          ├─ 10 行中间结果存入 m2_row0-m2_row9
+          └─ m1_valid = 0, m2_valid = 1
 
-周期 N+4: EX 阶段 - M2
+周期 N+4: EX 阶段 - M2 (Level 4-6)
           ├─ cycle_m2() 执行
-          │   ├─ 选择 partial_low (因为 result_high=0)
-          │   └─ 写入 m3_result
-          ├─ m2_valid = 0, m3_valid = 1
-          └─ 向 MEM 发送 NOP
+          │   ├─ Wallace Tree Level 4: 10 → 7 rows
+          │   ├─ Wallace Tree Level 5: 7 → 5 rows
+          │   └─ Wallace Tree Level 6: 5 → 4 rows
+          ├─ 4 行中间结果存入 m3_row0-m3_row3
+          └─ m2_valid = 0, m3_valid = 1
 
-周期 N+5: EX 阶段 - M3
+周期 N+5: EX 阶段 - M3 (Level 7-8 + CPA)
           ├─ cycle_m3() 执行
-          │   └─ 结果保持在 m3_result
-          ├─ mul_result_valid = 1
-          ├─ 读取 mul_result_value
-          └─ 向 MEM 发送 (rd=rd_addr, result=mul_result_value)
+          │   ├─ Wallace Tree Level 7: 4 → 3 rows
+          │   ├─ Wallace Tree Level 8: 3 → 2 rows
+          │   ├─ CPA 加法: 2 → 1 (64位乘积)
+          │   └─ 选择低 32 位 (result_high=0)
+          ├─ m3_result_ready = 1
+          ├─ 读取结果，更新旁路寄存器 ex_bypass
+          └─ 向 MEM 发送 (rd=rd_addr, result=mul_result)
 
 周期 N+6: MEM 阶段
           ├─ mem_opcode = NONE (不访存)
@@ -869,7 +1055,7 @@ N+18        DIV_END          符号修正，结果就绪
           └─ 写入：reg_file[rd] = result
 ```
 
-#### 4.1.2 MULH 指令
+#### 4.1.3 MULH 指令
 
 **指令格式**：`MULH rd, rs1, rs2`
 
@@ -879,7 +1065,7 @@ N+18        DIV_END          符号修正，结果就绪
 - `result_high = 1` （选择高 32 位）
 - `op1_signed = 1, op2_signed = 1`
 
-#### 4.1.3 MULHSU 指令
+#### 4.1.4 MULHSU 指令
 
 **指令格式**：`MULHSU rd, rs1, rs2`
 
@@ -890,7 +1076,7 @@ N+18        DIV_END          符号修正，结果就绪
 - `op2_signed = 0` （rs2 零扩展）
 - `result_high = 1`
 
-#### 4.1.4 MULHU 指令
+#### 4.1.5 MULHU 指令
 
 **指令格式**：`MULHU rd, rs1, rs2`
 
@@ -902,11 +1088,43 @@ N+18        DIV_END          符号修正，结果就绪
 
 ### 4.2 除法指令 (DIV/DIVU)
 
-#### 4.2.1 DIV 指令
+#### 4.2.1 指令解码
+
+除法指令使用单独的 `div_op` 控制信号（与 `alu_func` 分开）：
+
+```python
+# src/instruction_table.py 中的定义
+('div', OP_R_TYPE, 0x4, 0, 1, ImmType.R, ALUOp.ADD, ..., DivOp.DIV),
+('divu', OP_R_TYPE, 0x5, 0, 1, ImmType.R, ALUOp.ADD, ..., DivOp.DIVU),
+('rem', OP_R_TYPE, 0x6, 0, 1, ImmType.R, ALUOp.ADD, ..., DivOp.REM),
+('remu', OP_R_TYPE, 0x7, 0, 1, ImmType.R, ALUOp.ADD, ..., DivOp.REMU),
+```
+
+#### 4.2.2 DIV 指令
 
 **指令格式**：`DIV rd, rs1, rs2`
 
 **功能**：`rd = signed(rs1) / signed(rs2)`
+
+**EX 阶段处理（src/execution.py）**：
+
+```python
+# 检测除法指令
+is_div_op = ctrl.div_op != DivOp.NONE
+
+# 启动除法器
+with Condition((is_div_op == Bits(1)(1)) & (div_busy == Bits(1)(0)) & (flush_if == Bits(1)(0))):
+    is_signed_div = (ctrl.div_op == DivOp.DIV) | (ctrl.div_op == DivOp.REM)
+    is_rem_op = (ctrl.div_op == DivOp.REM) | (ctrl.div_op == DivOp.REMU)
+    
+    self.divider.start_divide(
+        dividend=real_rs1,
+        divisor=real_rs2,
+        is_signed=is_signed_div,
+        is_rem=is_rem_op,
+        rd=wb_ctrl.rd_addr
+    )
+```
 
 **执行流程**：
 
@@ -915,43 +1133,47 @@ N+18        DIV_END          符号修正，结果就绪
           └─ 读取指令
 
 周期 N+1: ID 阶段
-          ├─ 解码：opcode=0x33, funct3=0x4, funct7=0x01
+          ├─ 解码：opcode=0x33, funct3=0x4, funct7=0x01 (bit25=1)
           ├─ 识别为 DIV 指令
-          └─ 设置 alu_func = ALUOp.DIV
+          └─ 设置 div_op = DivOp.DIV (Bits(5)(0b00010))
 
 周期 N+2: EX 阶段 - 启动
           ├─ 检测 is_div_op = 1
           ├─ 调用 divider.start_divide()
-          │   ├─ dividend = rs1_data
-          │   ├─ divisor = rs2_data
+          │   ├─ dividend = real_rs1
+          │   ├─ divisor = real_rs2
           │   ├─ is_signed = 1
-          │   └─ is_rem = 0
-          ├─ busy = 1, state = IDLE
-          └─ 向 MEM 发送 NOP
+          │   ├─ is_rem = 0
+          │   └─ rd = rd_addr
+          ├─ busy = 1, state = IDLE, valid_in = 1
+          └─ 流水线暂停
 
 周期 N+3: EX 阶段 - IDLE → DIV_PRE
           ├─ tick() 执行
           │   ├─ 检测 valid_in = 1
           │   ├─ 检查除数 ≠ 0, ≠ 1
-          │   ├─ 转换为无符号
+          │   ├─ 计算被除数和除数的绝对值
+          │   ├─ 保存符号信息到 div_sign
           │   └─ state → DIV_PRE
-          └─ 向 MEM 发送 NOP
+          └─ 流水线保持暂停
 
-周期 N+4: EX 阶段 - DIV_PRE
+周期 N+4: EX 阶段 - DIV_PRE → DIV_WORKING
           ├─ tick() 执行
           │   ├─ quotient = dividend_abs
-          │   ├─ remainder = 0
+          │   ├─ remainder = 0 (34 bits)
           │   ├─ div_cnt = 16
           │   └─ state → DIV_WORKING
-          └─ 向 MEM 发送 NOP
+          └─ 流水线保持暂停
 
 周期 N+5 ~ N+20: EX 阶段 - DIV_WORKING (16 次迭代)
           ├─ 每次 tick() 执行一次 Radix-4 迭代：
-          │   ├─ 左移 remainder, quotient
-          │   ├─ 比较 R 与 3D, 2D, D
-          │   ├─ 更新 remainder, quotient
+          │   ├─ 左移 remainder 2 位，引入 quotient 高 2 位
+          │   ├─ 计算 d1=D, d2=2D, d3=3D
+          │   ├─ 并行比较：ge_3d, ge_2d, ge_1d
+          │   ├─ 选择商位 q_bits (00/01/10/11)
+          │   ├─ 更新 remainder 和 quotient
           │   └─ div_cnt -= 1
-          └─ 向 MEM 发送 NOP
+          └─ 流水线保持暂停
 
 周期 N+21: EX 阶段 - DIV_END
           ├─ tick() 执行
@@ -1024,33 +1246,51 @@ N+18        DIV_END          符号修正，结果就绪
 
 ## 5. 附录
 
-### 5.1 控制信号编码
+### 5.1 控制信号编码（src/control_signals.py）
 
 ```python
-# ALU 功能码（独热编码）
+# ALU 功能码（独热编码，16位）
 class ALUOp:
-    MUL    = Bits(32)(0b00000000000000000000100000000000)  # Bit 11
-    MULH   = Bits(32)(0b00000000000000000001000000000000)  # Bit 12
-    MULHSU = Bits(32)(0b00000000000000000010000000000000)  # Bit 13
-    MULHU  = Bits(32)(0b00000000000000000100000000000000)  # Bit 14
-    DIV    = Bits(32)(0b00000000000000001000000000000000)  # Bit 15
-    DIVU   = Bits(32)(0b00000000000000010000000000000000)  # Bit 16
-    REM    = Bits(32)(0b00000000000000100000000000000000)  # Bit 17
-    REMU   = Bits(32)(0b00000000000001000000000000000000)  # Bit 18
+    ADD = Bits(16)(0b0000000000000001)     # Bit 0
+    SUB = Bits(16)(0b0000000000000010)     # Bit 1
+    SLL = Bits(16)(0b0000000000000100)     # Bit 2
+    SLT = Bits(16)(0b0000000000001000)     # Bit 3
+    SLTU = Bits(16)(0b0000000000010000)    # Bit 4
+    XOR = Bits(16)(0b0000000000100000)     # Bit 5
+    SRL = Bits(16)(0b0000000001000000)     # Bit 6
+    SRA = Bits(16)(0b0000000010000000)     # Bit 7
+    OR = Bits(16)(0b0000000100000000)      # Bit 8
+    AND = Bits(16)(0b0000001000000000)     # Bit 9
+    SYS = Bits(16)(0b0000010000000000)     # Bit 10
+    MUL = Bits(16)(0b0000100000000000)     # Bit 11
+    MULH = Bits(16)(0b0001000000000000)    # Bit 12
+    MULHSU = Bits(16)(0b0010000000000000)  # Bit 13
+    MULHU = Bits(16)(0b0100000000000000)   # Bit 14
+    NOP = Bits(16)(0b1000000000000000)     # Bit 15
+
+# 除法操作码（独热编码，5位）- 与 ALU 功能码分开
+class DivOp:
+    NONE = Bits(5)(0b00001)   # 无除法操作
+    DIV = Bits(5)(0b00010)    # 有符号除法
+    DIVU = Bits(5)(0b00100)   # 无符号除法
+    REM = Bits(5)(0b01000)    # 有符号取余
+    REMU = Bits(5)(0b10000)   # 无符号取余
 ```
 
 ### 5.2 指令编码
 
-| 指令 | opcode | funct3 | funct7 | 机器码示例 |
-|------|--------|--------|--------|-----------|
-| MUL | 0110011 | 000 | 0000001 | 0x02A28033 (x0 = x5 × x10) |
-| MULH | 0110011 | 001 | 0000001 | - |
-| MULHSU | 0110011 | 010 | 0000001 | - |
-| MULHU | 0110011 | 011 | 0000001 | - |
-| DIV | 0110011 | 100 | 0000001 | 0x02A2C033 (x0 = x5 / x10) |
-| DIVU | 0110011 | 101 | 0000001 | - |
-| REM | 0110011 | 110 | 0000001 | - |
-| REMU | 0110011 | 111 | 0000001 | - |
+| 指令 | opcode | funct3 | funct7 | bit25 | 机器码示例 |
+|------|--------|--------|--------|-------|-----------|
+| MUL | 0110011 | 000 | 0000001 | 1 | 0x02A28033 (x0 = x5 × x10) |
+| MULH | 0110011 | 001 | 0000001 | 1 | - |
+| MULHSU | 0110011 | 010 | 0000001 | 1 | - |
+| MULHU | 0110011 | 011 | 0000001 | 1 | - |
+| DIV | 0110011 | 100 | 0000001 | 1 | 0x02A2C033 (x0 = x5 / x10) |
+| DIVU | 0110011 | 101 | 0000001 | 1 | - |
+| REM | 0110011 | 110 | 0000001 | 1 | - |
+| REMU | 0110011 | 111 | 0000001 | 1 | - |
+
+**注**：bit25=1 用于区分 M 扩展指令和普通 R-type 指令（如 ADD/SUB 等 bit25=0）。
 
 ### 5.3 性能对比
 
