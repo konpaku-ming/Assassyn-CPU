@@ -118,38 +118,6 @@ def full_adder_64bit(a: Bits, b: Bits, c: Bits) -> tuple:
 
     return (sum_result, carry_shifted)
 
-
-# =============================================================================
-# 2:2 Compressor (Half Adder) - Hardware Implementation
-# =============================================================================
-def half_adder_64bit(a: Bits, b: Bits) -> tuple:
-    """
-    64-bit 2:2 compressor (Half Adder)
-
-    Takes 2 64-bit inputs and produces:
-    - sum: 64-bit XOR result (a ⊕ b)
-    - carry: 64-bit carry result (a & b), shifted left by 1 bit
-
-    In hardware, this is implemented as 64 parallel half adders, one per bit position.
-
-    Args:
-        a, b: Two 64-bit input values
-
-    Returns:
-        (sum, carry): Two 64-bit values where carry is already shifted left
-    """
-    # XOR for sum: sum[i] = a[i] ⊕ b[i]
-    sum_result = a ^ b
-
-    # AND for carry: carry[i] = a[i] & b[i]
-    carry_unshifted = a & b
-
-    # Carry is shifted left by 1 bit
-    carry_shifted = concat(carry_unshifted[0:62], Bits(1)(0))
-
-    return (sum_result, carry_shifted)
-
-
 # =============================================================================
 # Carry-Propagate Adder (CPA) - Hardware Implementation
 # =============================================================================
