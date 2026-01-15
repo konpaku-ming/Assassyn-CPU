@@ -1210,7 +1210,7 @@ with Condition((is_div_op == Bits(1)(1)) & (div_busy == Bits(1)(0)) & (flush_if 
    在 DIV_END 阶段检测并返回 result = 0x80000000 (-2³¹)
    ```
 
-#### 4.2.2 DIVU 指令
+#### 4.2.3 DIVU 指令
 
 **指令格式**：`DIVU rd, rs1, rs2`
 
