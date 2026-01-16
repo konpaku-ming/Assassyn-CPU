@@ -120,6 +120,10 @@ class SRT4Divider:
         Find position of leading 1 bit.
         Returns the bit position (0-31) of the most significant 1 bit.
         Returns 32 if value is 0.
+        
+        Note: This helper method is provided for compatibility but is not used
+        in the main division algorithm. To get the shift amount for normalization,
+        compute (31 - find_leading_one(value)).
         """
         result = Bits(6)(32)
         for i in range(31, -1, -1):
@@ -247,10 +251,10 @@ class SRT4Divider:
             self.state[0] = self.IDLE
             debug_log("SRT4Divider: Completed via fast path (divisor=1)")
 
-        # State: DIV_PRE - Preprocessing for SRT-4
+        # State: DIV_PRE - Preprocessing for division
         with Condition(self.state[0] == self.DIV_PRE):
-            # Initialize for Radix-4 restoring division (proven correct approach)
-            # quotient starts as dividend (will be shifted out as we compute)
+            # Initialize for division using Radix-4 quotient selection
+            # quotient register holds dividend initially (bits shifted out during iteration)
             # remainder starts as 0
             self.quotient[0] = self.dividend_r[0]
             self.remainder[0] = Bits(34)(0)
@@ -267,8 +271,8 @@ class SRT4Divider:
 
             debug_log("SRT4Divider: Preprocessing complete, starting 16 iterations")
 
-        # State: DIV_WORKING - Iterative Radix-4 restoring division
-        # (Using the proven correct algorithm from original implementation)
+        # State: DIV_WORKING - Iterative division using Radix-4 quotient selection
+        # with SRT-4 style on-the-fly conversion for Q/QM registers
         with Condition(self.state[0] == self.DIV_WORKING):
             # Check if done FIRST (counter reaches 1, meaning this is the last iteration)
             with Condition(self.div_cnt[0] == Bits(5)(1)):
@@ -334,8 +338,8 @@ class SRT4Divider:
             self.remainder[0] = new_remainder
             self.quotient[0] = (shifted_quotient.bitcast(UInt(32)) | q_bits.bitcast(UInt(32))).bitcast(Bits(32))
 
-            # Update Q/QM with on-the-fly conversion for SRT-4 style accumulation
-            # This demonstrates the on-the-fly technique while using Radix-4 quotient selection
+            # Update Q/QM with on-the-fly conversion (for API compatibility)
+            # Note: Final result uses quotient register, Q/QM kept for interface compatibility
             Q_shifted = concat(self.Q[0][0:29], Bits(2)(0))
             QM_shifted = concat(self.QM[0][0:29], Bits(2)(0))
             
