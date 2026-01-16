@@ -81,18 +81,19 @@ class Radix16Divider:
 
         # Radix-16 specific registers
         self.quotient = RegArray(Bits(32), 1, initializer=[0])  # Quotient accumulator
-        self.remainder = RegArray(Bits(36), 1, initializer=[0])  # Partial remainder (36 bits for 4-bit shift + 15*d overflow)
+        self.remainder = RegArray(Bits(36), 1,
+                                  initializer=[0])  # Partial remainder (36 bits for 4-bit shift + 15*d overflow)
 
         # Divisor multiples (computed in DIV_PRE) - need 36 bits for 15*d overflow
-        self.d1 = RegArray(Bits(36), 1, initializer=[0])   # 1*d
-        self.d2 = RegArray(Bits(36), 1, initializer=[0])   # 2*d
-        self.d3 = RegArray(Bits(36), 1, initializer=[0])   # 3*d
-        self.d4 = RegArray(Bits(36), 1, initializer=[0])   # 4*d
-        self.d5 = RegArray(Bits(36), 1, initializer=[0])   # 5*d
-        self.d6 = RegArray(Bits(36), 1, initializer=[0])   # 6*d
-        self.d7 = RegArray(Bits(36), 1, initializer=[0])   # 7*d
-        self.d8 = RegArray(Bits(36), 1, initializer=[0])   # 8*d
-        self.d9 = RegArray(Bits(36), 1, initializer=[0])   # 9*d
+        self.d1 = RegArray(Bits(36), 1, initializer=[0])  # 1*d
+        self.d2 = RegArray(Bits(36), 1, initializer=[0])  # 2*d
+        self.d3 = RegArray(Bits(36), 1, initializer=[0])  # 3*d
+        self.d4 = RegArray(Bits(36), 1, initializer=[0])  # 4*d
+        self.d5 = RegArray(Bits(36), 1, initializer=[0])  # 5*d
+        self.d6 = RegArray(Bits(36), 1, initializer=[0])  # 6*d
+        self.d7 = RegArray(Bits(36), 1, initializer=[0])  # 7*d
+        self.d8 = RegArray(Bits(36), 1, initializer=[0])  # 8*d
+        self.d9 = RegArray(Bits(36), 1, initializer=[0])  # 9*d
         self.d10 = RegArray(Bits(36), 1, initializer=[0])  # 10*d
         self.d11 = RegArray(Bits(36), 1, initializer=[0])  # 11*d
         self.d12 = RegArray(Bits(36), 1, initializer=[0])  # 12*d
@@ -236,9 +237,9 @@ class Radix16Divider:
         self.error[0] = Bits(1)(0)
 
         debug_log("Radix16Divider: Start division, dividend=0x{:x}, divisor=0x{:x}, signed={}",
-            dividend,
-            divisor,
-            is_signed)
+                  dividend,
+                  divisor,
+                  is_signed)
 
     def tick(self):
         """
@@ -382,7 +383,7 @@ class Radix16Divider:
             self.state[0] = self.DIV_WORKING
 
             debug_log("Radix16Divider: Preprocessing complete, d1=0x{:x}, d15=0x{:x}",
-                d1_val, d15_val)
+                      d1_val, d15_val)
 
         # State: DIV_WORKING - Radix-16 iteration
         with Condition(self.state[0] == self.DIV_WORKING):
@@ -474,7 +475,7 @@ class Radix16Divider:
             self.div_cnt[0] = (self.div_cnt[0].bitcast(UInt(5)) - UInt(5)(1)).bitcast(Bits(5))
 
             debug_log("Radix16Divider: iter, shifted_rem=0x{:x}, q={}, new_rem=0x{:x}, new_quot=0x{:x}",
-                shifted_rem, q_digit, new_rem, new_quot)
+                      shifted_rem, q_digit, new_rem, new_quot)
 
             # Check if done
             is_last = (self.div_cnt[0] == Bits(5)(1))
@@ -488,7 +489,7 @@ class Radix16Divider:
             rem_out = self.remainder[0][0:31]  # Take lower 32 bits of remainder
 
             debug_log("Radix16Divider: DIV_END - quotient=0x{:x}, remainder=0x{:x}",
-                q_out, rem_out)
+                      q_out, rem_out)
 
             # Apply sign correction
             q_needs_neg = (self.div_sign[0] == Bits(2)(0b01)) | (self.div_sign[0] == Bits(2)(0b10))
@@ -521,7 +522,7 @@ class Radix16Divider:
                 )
 
                 debug_log("Radix16Divider: q_signed=0x{:x}, rem_signed=0x{:x}, is_rem={}",
-                    q_signed, rem_signed, self.is_rem[0])
+                          q_signed, rem_signed, self.is_rem[0])
 
                 self.result[0] = self.is_rem[0].select(rem_signed, q_signed)
 
