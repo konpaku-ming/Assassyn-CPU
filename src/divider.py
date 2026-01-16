@@ -202,72 +202,104 @@ class SRT4Divider:
         # Default result
         q_table = Bits(2)(0)
         
-        # Helper: signed comparison using 7-bit signed interpretation
-        # dividend_index is already signed (7-bit 2's complement)
+        # Convert dividend_index to signed for proper comparison
+        # In Verilog, dividend_index is declared as "signed[6:0]"
+        div_idx_s = dividend_index.bitcast(Int(7))
+        
+        # Define comparison results using SIGNED comparisons
+        # Positive thresholds
+        x_ge_12 = (div_idx_s >= Int(7)(12))
+        x_ge_14 = (div_idx_s >= Int(7)(14))
+        x_ge_15 = (div_idx_s >= Int(7)(15))
+        x_ge_16 = (div_idx_s >= Int(7)(16))
+        x_ge_18 = (div_idx_s >= Int(7)(18))
+        x_ge_20 = (div_idx_s >= Int(7)(20))
+        x_ge_24 = (div_idx_s >= Int(7)(24))
+        
+        x_ge_4 = (div_idx_s >= Int(7)(4))
+        x_ge_6 = (div_idx_s >= Int(7)(6))
+        x_ge_8 = (div_idx_s >= Int(7)(8))
+        
+        # Negative thresholds (using signed Int for proper comparison)
+        x_ge_neg4 = (div_idx_s >= Int(7)(-4))
+        x_ge_neg6 = (div_idx_s >= Int(7)(-6))
+        x_ge_neg8 = (div_idx_s >= Int(7)(-8))
+        
+        x_ge_neg13 = (div_idx_s >= Int(7)(-13))
+        x_ge_neg15 = (div_idx_s >= Int(7)(-15))
+        x_ge_neg16 = (div_idx_s >= Int(7)(-16))
+        x_ge_neg18 = (div_idx_s >= Int(7)(-18))
+        x_ge_neg20 = (div_idx_s >= Int(7)(-20))
+        x_ge_neg22 = (div_idx_s >= Int(7)(-22))
+        x_ge_neg24 = (div_idx_s >= Int(7)(-24))
+        
+        # Divisor index comparisons
+        d_1000 = (divisor_index == Bits(4)(8))
+        d_1001 = (divisor_index == Bits(4)(9))
+        d_1010 = (divisor_index == Bits(4)(10))
+        d_1011 = (divisor_index == Bits(4)(11))
+        d_1100 = (divisor_index == Bits(4)(12))
+        d_1101 = (divisor_index == Bits(4)(13))
+        d_1110 = (divisor_index == Bits(4)(14))
+        d_1111 = (divisor_index == Bits(4)(15))
         
         # For d=1.000 (divisor_index=8): thresholds are 12, 4, -4, -13
-        d_1000 = (divisor_index == Bits(4)(8))
-        d_1000_q2 = d_1000 & (dividend_index >= Bits(7)(12))
-        d_1000_q1 = d_1000 & (dividend_index >= Bits(7)(4)) & (dividend_index < Bits(7)(12))
-        d_1000_q0 = d_1000 & (dividend_index >= Bits(7)(0b1111100)) & (dividend_index < Bits(7)(4))  # >= -4
-        d_1000_qn1 = d_1000 & (dividend_index >= Bits(7)(0b1110011)) & (dividend_index < Bits(7)(0b1111100))  # >= -13, < -4
-        d_1000_qn2 = d_1000 & (dividend_index < Bits(7)(0b1110011))  # < -13
+        d_1000_q2 = d_1000 & x_ge_12
+        d_1000_q1 = d_1000 & x_ge_4 & ~x_ge_12
+        d_1000_q0 = d_1000 & ~x_ge_4 & x_ge_neg4
+        d_1000_qn1 = d_1000 & x_ge_neg13 & ~x_ge_neg4
+        d_1000_qn2 = d_1000 & ~x_ge_neg13
         
         # For d=1.001 (divisor_index=9): thresholds are 14, 4, -6, -15
-        d_1001 = (divisor_index == Bits(4)(9))
-        d_1001_q2 = d_1001 & (dividend_index >= Bits(7)(14))
-        d_1001_q1 = d_1001 & (dividend_index >= Bits(7)(4)) & (dividend_index < Bits(7)(14))
-        d_1001_q0 = d_1001 & (dividend_index >= Bits(7)(0b1111010)) & (dividend_index < Bits(7)(4))  # >= -6
-        d_1001_qn1 = d_1001 & (dividend_index >= Bits(7)(0b1110001)) & (dividend_index < Bits(7)(0b1111010))  # >= -15, < -6
-        d_1001_qn2 = d_1001 & (dividend_index < Bits(7)(0b1110001))  # < -15
+        d_1001_q2 = d_1001 & x_ge_14
+        d_1001_q1 = d_1001 & x_ge_4 & ~x_ge_14
+        d_1001_q0 = d_1001 & x_ge_neg6 & ~x_ge_4
+        d_1001_qn1 = d_1001 & x_ge_neg15 & ~x_ge_neg6
+        d_1001_qn2 = d_1001 & ~x_ge_neg15
         
         # For d=1.010 (divisor_index=10): thresholds are 15, 4, -6, -16
-        d_1010 = (divisor_index == Bits(4)(10))
-        d_1010_q2 = d_1010 & (dividend_index >= Bits(7)(15))
-        d_1010_q1 = d_1010 & (dividend_index >= Bits(7)(4)) & (dividend_index < Bits(7)(15))
-        d_1010_q0 = d_1010 & (dividend_index >= Bits(7)(0b1111010)) & (dividend_index < Bits(7)(4))  # >= -6
-        d_1010_qn1 = d_1010 & (dividend_index >= Bits(7)(0b1110000)) & (dividend_index < Bits(7)(0b1111010))  # >= -16, < -6
-        d_1010_qn2 = d_1010 & (dividend_index < Bits(7)(0b1110000))  # < -16
+        d_1010_q2 = d_1010 & x_ge_15
+        d_1010_q1 = d_1010 & x_ge_4 & ~x_ge_15
+        d_1010_q0 = d_1010 & x_ge_neg6 & ~x_ge_4
+        d_1010_qn1 = d_1010 & x_ge_neg16 & ~x_ge_neg6
+        d_1010_qn2 = d_1010 & ~x_ge_neg16
         
         # For d=1.011 (divisor_index=11): thresholds are 16, 4, -6, -18
-        d_1011 = (divisor_index == Bits(4)(11))
-        d_1011_q2 = d_1011 & (dividend_index >= Bits(7)(16))
-        d_1011_q1 = d_1011 & (dividend_index >= Bits(7)(4)) & (dividend_index < Bits(7)(16))
-        d_1011_q0 = d_1011 & (dividend_index >= Bits(7)(0b1111010)) & (dividend_index < Bits(7)(4))  # >= -6
-        d_1011_qn1 = d_1011 & (dividend_index >= Bits(7)(0b1101110)) & (dividend_index < Bits(7)(0b1111010))  # >= -18, < -6
-        d_1011_qn2 = d_1011 & (dividend_index < Bits(7)(0b1101110))  # < -18
+        d_1011_q2 = d_1011 & x_ge_16
+        d_1011_q1 = d_1011 & x_ge_4 & ~x_ge_16
+        d_1011_q0 = d_1011 & x_ge_neg6 & ~x_ge_4
+        d_1011_qn1 = d_1011 & x_ge_neg18 & ~x_ge_neg6
+        d_1011_qn2 = d_1011 & ~x_ge_neg18
         
         # For d=1.100 (divisor_index=12): thresholds are 18, 6, -8, -20
-        d_1100 = (divisor_index == Bits(4)(12))
-        d_1100_q2 = d_1100 & (dividend_index >= Bits(7)(18))
-        d_1100_q1 = d_1100 & (dividend_index >= Bits(7)(6)) & (dividend_index < Bits(7)(18))
-        d_1100_q0 = d_1100 & (dividend_index >= Bits(7)(0b1111000)) & (dividend_index < Bits(7)(6))  # >= -8
-        d_1100_qn1 = d_1100 & (dividend_index >= Bits(7)(0b1101100)) & (dividend_index < Bits(7)(0b1111000))  # >= -20, < -8
-        d_1100_qn2 = d_1100 & (dividend_index < Bits(7)(0b1101100))  # < -20
+        d_1100_q2 = d_1100 & x_ge_18
+        d_1100_q1 = d_1100 & x_ge_6 & ~x_ge_18
+        d_1100_q0 = d_1100 & x_ge_neg8 & ~x_ge_6
+        d_1100_qn1 = d_1100 & x_ge_neg20 & ~x_ge_neg8
+        d_1100_qn2 = d_1100 & ~x_ge_neg20
         
         # For d=1.101 (divisor_index=13): thresholds are 20, 6, -8, -20
-        d_1101 = (divisor_index == Bits(4)(13))
-        d_1101_q2 = d_1101 & (dividend_index >= Bits(7)(20))
-        d_1101_q1 = d_1101 & (dividend_index >= Bits(7)(6)) & (dividend_index < Bits(7)(20))
-        d_1101_q0 = d_1101 & (dividend_index >= Bits(7)(0b1111000)) & (dividend_index < Bits(7)(6))  # >= -8
-        d_1101_qn1 = d_1101 & (dividend_index >= Bits(7)(0b1101100)) & (dividend_index < Bits(7)(0b1111000))  # >= -20, < -8
-        d_1101_qn2 = d_1101 & (dividend_index < Bits(7)(0b1101100))  # < -20
+        d_1101_q2 = d_1101 & x_ge_20
+        d_1101_q1 = d_1101 & x_ge_6 & ~x_ge_20
+        d_1101_q0 = d_1101 & x_ge_neg8 & ~x_ge_6
+        d_1101_qn1 = d_1101 & x_ge_neg20 & ~x_ge_neg8
+        d_1101_qn2 = d_1101 & ~x_ge_neg20
         
         # For d=1.110 (divisor_index=14): thresholds are 20, 8, -8, -22
-        d_1110 = (divisor_index == Bits(4)(14))
-        d_1110_q2 = d_1110 & (dividend_index >= Bits(7)(20))
-        d_1110_q1 = d_1110 & (dividend_index >= Bits(7)(8)) & (dividend_index < Bits(7)(20))
-        d_1110_q0 = d_1110 & (dividend_index >= Bits(7)(0b1111000)) & (dividend_index < Bits(7)(8))  # >= -8
-        d_1110_qn1 = d_1110 & (dividend_index >= Bits(7)(0b1101010)) & (dividend_index < Bits(7)(0b1111000))  # >= -22, < -8
-        d_1110_qn2 = d_1110 & (dividend_index < Bits(7)(0b1101010))  # < -22
+        d_1110_q2 = d_1110 & x_ge_20
+        d_1110_q1 = d_1110 & x_ge_8 & ~x_ge_20
+        d_1110_q0 = d_1110 & x_ge_neg8 & ~x_ge_8
+        d_1110_qn1 = d_1110 & x_ge_neg22 & ~x_ge_neg8
+        d_1110_qn2 = d_1110 & ~x_ge_neg22
         
         # For d=1.111 (divisor_index=15): thresholds are 24, 8, -8, -24
-        d_1111 = (divisor_index == Bits(4)(15))
-        d_1111_q2 = d_1111 & (dividend_index >= Bits(7)(24))
-        d_1111_q1 = d_1111 & (dividend_index >= Bits(7)(8)) & (dividend_index < Bits(7)(24))
-        d_1111_q0 = d_1111 & (dividend_index >= Bits(7)(0b1111000)) & (dividend_index < Bits(7)(8))  # >= -8
-        d_1111_qn1 = d_1111 & (dividend_index >= Bits(7)(0b1101000)) & (dividend_index < Bits(7)(0b1111000))  # >= -24, < -8
-        d_1111_qn2 = d_1111 & (dividend_index < Bits(7)(0b1101000))  # < -24
+        # Note: Verilog has a bug in d_1111_q_1 which uses x_ge_20 instead of x_ge_24
+        # We follow the Verilog exactly: q_1 uses ~x_ge_20 (not ~x_ge_24)
+        d_1111_q2 = d_1111 & x_ge_24
+        d_1111_q1 = d_1111 & x_ge_8 & ~x_ge_20  # Match Verilog: ~x_ge_20
+        d_1111_q0 = d_1111 & x_ge_neg8 & ~x_ge_8
+        d_1111_qn1 = d_1111 & x_ge_neg24 & ~x_ge_neg8
+        d_1111_qn2 = d_1111 & ~x_ge_neg24
         
         # Combine all q=2 cases
         q_2 = d_1000_q2 | d_1001_q2 | d_1010_q2 | d_1011_q2 | d_1100_q2 | d_1101_q2 | d_1110_q2 | d_1111_q2
@@ -275,18 +307,24 @@ class SRT4Divider:
         # Combine all q=1 cases
         q_1 = d_1000_q1 | d_1001_q1 | d_1010_q1 | d_1011_q1 | d_1100_q1 | d_1101_q1 | d_1110_q1 | d_1111_q1
         
+        # Combine all q=0 cases
+        q_0 = d_1000_q0 | d_1001_q0 | d_1010_q0 | d_1011_q0 | d_1100_q0 | d_1101_q0 | d_1110_q0 | d_1111_q0
+        
         # Combine all q=-1 cases
         q_n1 = d_1000_qn1 | d_1001_qn1 | d_1010_qn1 | d_1011_qn1 | d_1100_qn1 | d_1101_qn1 | d_1110_qn1 | d_1111_qn1
         
         # Combine all q=-2 cases
         q_n2 = d_1000_qn2 | d_1001_qn2 | d_1010_qn2 | d_1011_qn2 | d_1100_qn2 | d_1101_qn2 | d_1110_qn2 | d_1111_qn2
         
-        # Output: 2-bit magnitude
+        # Output: 2-bit magnitude (matches Verilog exactly)
         q_table = (q_2 | q_n2).select(
             Bits(2)(0b10),
             (q_1 | q_n1).select(
                 Bits(2)(0b01),
-                Bits(2)(0b00)
+                q_0.select(
+                    Bits(2)(0b00),
+                    Bits(2)(0b00)  # Default
+                )
             )
         )
         
