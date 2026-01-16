@@ -4,29 +4,29 @@ from .debug_utils import debug_log
 
 class TournamentPredictor(Module):
     """
-    Tournament Predictor - Combines local (Bimodal) and global (Gshare) predictors
-    with a selector to choose between them.
+    竞赛预测器 - 结合局部（Bimodal）和全局（Gshare）预测器，
+    并使用选择器在两者之间进行选择。
 
-    Architecture:
-    - Bimodal: 2-bit saturating counters indexed by PC
-    - Gshare: 2-bit counters indexed by (PC XOR Global History)
-    - Selector: 2-bit counters that learn which predictor is better for each branch
+    架构：
+    - Bimodal: 以PC为索引的2位饱和计数器
+    - Gshare: 以（PC XOR 全局历史）为索引的2位计数器
+    - Selector: 学习哪个预测器对每个分支更好的2位计数器
 
-    2-bit saturating counter states:
-    - 00: Strongly Not Taken
-    - 01: Weakly Not Taken
-    - 10: Weakly Taken
-    - 11: Strongly Taken
+    2位饱和计数器状态：
+    - 00: 强不跳转
+    - 01: 弱不跳转
+    - 10: 弱跳转
+    - 11: 强跳转
     """
 
     def __init__(self, num_entries=64, index_bits=6, history_bits=6):
         """
-        Initialize Tournament Predictor.
+        初始化竞赛预测器。
 
-        Args:
-            num_entries: Number of entries in each table (should be power of 2)
-            index_bits: Number of bits for indexing (log2(num_entries))
-            history_bits: Number of bits in global history register
+        参数：
+            num_entries: 每个表的条目数（应为2的幂）
+            index_bits: 用于索引的位数（log2(num_entries)）
+            history_bits: 全局历史寄存器的位数
         """
         super().__init__(ports={}, no_arbiter=True)
         self.name = "TournamentPredictor"
@@ -36,26 +36,26 @@ class TournamentPredictor(Module):
 
     @module.combinational
     def build(self):
-        # Bimodal predictor: 2-bit counters indexed by PC
-        # Initialize to "Weakly Taken" (2) for better initial behavior on loops
+        # Bimodal预测器：以PC为索引的2位计数器
+        # 初始化为"弱跳转"(2)，以获得更好的循环初始行为
         bimodal_counters = RegArray(
             Bits(2), self.num_entries, initializer=[2] * self.num_entries
         )
 
-        # Gshare predictor: 2-bit counters indexed by (PC XOR Global History)
-        # Initialize to "Weakly Taken" (2)
+        # Gshare预测器：以（PC XOR 全局历史）为索引的2位计数器
+        # 初始化为"弱跳转"(2)
         gshare_counters = RegArray(
             Bits(2), self.num_entries, initializer=[2] * self.num_entries
         )
 
-        # Global History Register (GHR): shift register of branch outcomes
-        # Initialize to 0
+        # 全局历史寄存器（GHR）：分支结果的移位寄存器
+        # 初始化为0
         global_history = RegArray(Bits(self.history_bits), 1, initializer=[0])
 
-        # Selector: 2-bit counters to choose between predictors
-        # 00, 01: Use Bimodal
-        # 10, 11: Use Gshare
-        # Initialize to "Weakly Bimodal" (1) - slight preference for local predictor
+        # 选择器：用于在预测器之间选择的2位计数器
+        # 00, 01: 使用Bimodal
+        # 10, 11: 使用Gshare
+        # 初始化为"弱Bimodal"(1) - 略微偏向局部预测器
         selector_counters = RegArray(
             Bits(2), self.num_entries, initializer=[1] * self.num_entries
         )
@@ -65,8 +65,8 @@ class TournamentPredictor(Module):
 
 class TournamentPredictorImpl:
     """
-    Tournament Predictor implementation logic.
-    Helper class with pure combinational logic methods.
+    竞赛预测器实现逻辑。
+    包含纯组合逻辑方法的辅助类。
     """
 
     def __init__(self, num_entries=64, index_bits=6, history_bits=6):
@@ -77,23 +77,23 @@ class TournamentPredictorImpl:
         self.index_mask = (1 << index_bits) - 1
 
     def _get_pc_index(self, pc: Bits(32)):
-        """Extract index from PC (skip lowest 2 bits for word alignment)."""
+        """从PC中提取索引（跳过最低2位以进行字对齐）。"""
         index_32 = (pc >> UInt(32)(2)) & Bits(32)(self.index_mask)
         return index_32[0 : self.index_bits - 1].bitcast(Bits(self.index_bits))
 
     def _get_gshare_index(self, pc: Bits(32), global_history: Bits):
-        """Calculate Gshare index: PC[index_bits:2] XOR Global History."""
+        """计算Gshare索引：PC[index_bits:2] XOR 全局历史。"""
         pc_bits = (pc >> UInt(32)(2)) & Bits(32)(self.index_mask)
         pc_index = pc_bits[0 : self.index_bits - 1].bitcast(Bits(self.index_bits))
 
-        # XOR with global history (extend/truncate history to match index bits)
+        # 与全局历史进行XOR运算（扩展/截断历史以匹配索引位数）
         ghr = global_history[0 : self.history_bits - 1].bitcast(Bits(self.history_bits))
 
-        # Pad or truncate GHR to match index bits
+        # 填充或截断GHR以匹配索引位数
         if self.history_bits >= self.index_bits:
             ghr_matched = ghr[0 : self.index_bits - 1].bitcast(Bits(self.index_bits))
         else:
-            # Zero-extend GHR to index_bits
+            # 将GHR零扩展到index_bits位
             ghr_matched = concat(
                 Bits(self.index_bits - self.history_bits)(0), ghr
             ).bitcast(Bits(self.index_bits))
@@ -109,37 +109,37 @@ class TournamentPredictorImpl:
         selector_counters: Array,
     ):
         """
-        Predict branch direction using Tournament predictor.
+        使用竞赛预测器预测分支方向。
 
-        Returns:
-            predict_taken: Bits(1) - 1 if predict taken, 0 if predict not-taken
+        返回：
+            predict_taken: Bits(1) - 如果预测跳转则为1，如果预测不跳转则为0
         """
-        # Get indices
+        # 获取索引
         pc_index = self._get_pc_index(pc)
         ghr = global_history[0]
         gshare_index = self._get_gshare_index(pc, ghr)
 
-        # Read predictor states
+        # 读取预测器状态
         bimodal_state = bimodal_counters[pc_index]
         gshare_state = gshare_counters[gshare_index]
         selector_state = selector_counters[pc_index]
 
-        # Bimodal prediction: taken if counter >= 2
-        bimodal_taken = bimodal_state[1:1]  # MSB indicates taken/not-taken
+        # Bimodal预测：如果计数器 >= 2则跳转
+        bimodal_taken = bimodal_state[1:1]  # 最高位表示跳转/不跳转
 
-        # Gshare prediction: taken if counter >= 2
+        # Gshare预测：如果计数器 >= 2则跳转
         gshare_taken = gshare_state[1:1]
 
-        # Selector decision: use Gshare if selector >= 2, else use Bimodal
+        # 选择器决策：如果选择器 >= 2则使用Gshare，否则使用Bimodal
         use_gshare = selector_state[1:1]
 
-        # Final prediction
+        # 最终预测
         predict_taken = use_gshare.select(gshare_taken, bimodal_taken)
 
-        # Debug logging
+        # 调试日志
         with Condition(predict_taken == Bits(1)(1)):
             debug_log(
-                "TP: PREDICT TAKEN at PC=0x{:x}, Bimodal={}, Gshare={}, Selector={}, UseGshare={}",
+                "TP: 预测跳转 PC=0x{:x}, Bimodal={}, Gshare={}, Selector={}, UseGshare={}",
                 pc,
                 bimodal_state,
                 gshare_state,
@@ -148,7 +148,7 @@ class TournamentPredictorImpl:
             )
         with Condition(predict_taken == Bits(1)(0)):
             debug_log(
-                "TP: PREDICT NOT-TAKEN at PC=0x{:x}, Bimodal={}, Gshare={}, Selector={}, UseGshare={}",
+                "TP: 预测不跳转 PC=0x{:x}, Bimodal={}, Gshare={}, Selector={}, UseGshare={}",
                 pc,
                 bimodal_state,
                 gshare_state,
@@ -161,50 +161,50 @@ class TournamentPredictorImpl:
     def update(
         self,
         pc: Bits(32),
-        actual_taken: Value,  # Bits(1): actual branch outcome
-        is_branch: Value,  # Bits(1): whether this is a branch instruction
+        actual_taken: Value,  # Bits(1): 实际分支结果
+        is_branch: Value,  # Bits(1): 是否为分支指令
         bimodal_counters: Array,
         gshare_counters: Array,
         global_history: Array,
         selector_counters: Array,
     ):
         """
-        Update Tournament predictor with actual branch outcome.
+        使用实际分支结果更新竞赛预测器。
 
-        Updates:
-        1. Bimodal counter at PC index
-        2. Gshare counter at (PC XOR GHR) index
-        3. Selector counter based on which predictor was correct
-        4. Global History Register
+        更新内容：
+        1. PC索引处的Bimodal计数器
+        2. (PC XOR GHR)索引处的Gshare计数器
+        3. 基于哪个预测器正确来更新选择器计数器
+        4. 全局历史寄存器
         """
-        # Get indices
+        # 获取索引
         pc_index = self._get_pc_index(pc)
         ghr = global_history[0]
         gshare_index = self._get_gshare_index(pc, ghr)
 
         with Condition(is_branch == Bits(1)(1)):
-            # Read current counter states
+            # 读取当前计数器状态
             bimodal_state = bimodal_counters[pc_index]
             gshare_state = gshare_counters[gshare_index]
             selector_state = selector_counters[pc_index]
 
-            # Determine what each predictor predicted
+            # 确定每个预测器的预测结果
             bimodal_predicted_taken = bimodal_state[1:1]
             gshare_predicted_taken = gshare_state[1:1]
 
-            # Check if each predictor was correct
+            # 检查每个预测器是否正确
             bimodal_correct = bimodal_predicted_taken == actual_taken
             gshare_correct = gshare_predicted_taken == actual_taken
 
-            # --- Update Bimodal Counter ---
-            # Increment if taken, decrement if not taken (saturating)
+            # --- 更新Bimodal计数器 ---
+            # 如果跳转则增加，如果不跳转则减少（饱和）
             bimodal_new = actual_taken.select(
-                # Taken: increment (saturate at 3)
+                # 跳转：增加（在3处饱和）
                 (bimodal_state == Bits(2)(3)).select(
                     Bits(2)(3),
                     (bimodal_state.bitcast(UInt(2)) + UInt(2)(1)).bitcast(Bits(2)),
                 ),
-                # Not Taken: decrement (saturate at 0)
+                # 不跳转：减少（在0处饱和）
                 (bimodal_state == Bits(2)(0)).select(
                     Bits(2)(0),
                     (bimodal_state.bitcast(UInt(2)) - UInt(2)(1)).bitcast(Bits(2)),
@@ -212,14 +212,14 @@ class TournamentPredictorImpl:
             )
             bimodal_counters[pc_index] <= bimodal_new
 
-            # --- Update Gshare Counter ---
+            # --- 更新Gshare计数器 ---
             gshare_new = actual_taken.select(
-                # Taken: increment (saturate at 3)
+                # 跳转：增加（在3处饱和）
                 (gshare_state == Bits(2)(3)).select(
                     Bits(2)(3),
                     (gshare_state.bitcast(UInt(2)) + UInt(2)(1)).bitcast(Bits(2)),
                 ),
-                # Not Taken: decrement (saturate at 0)
+                # 不跳转：减少（在0处饱和）
                 (gshare_state == Bits(2)(0)).select(
                     Bits(2)(0),
                     (gshare_state.bitcast(UInt(2)) - UInt(2)(1)).bitcast(Bits(2)),
@@ -227,44 +227,44 @@ class TournamentPredictorImpl:
             )
             gshare_counters[gshare_index] <= gshare_new
 
-            # --- Update Selector Counter ---
-            # Increment (toward Gshare) if Gshare correct and Bimodal wrong
-            # Decrement (toward Bimodal) if Bimodal correct and Gshare wrong
-            # No change if both correct or both wrong
+            # --- 更新选择器计数器 ---
+            # 如果Gshare正确且Bimodal错误，则增加（偏向Gshare）
+            # 如果Bimodal正确且Gshare错误，则减少（偏向Bimodal）
+            # 如果两者都正确或都错误，则不变
             gshare_better = gshare_correct & (~bimodal_correct)
             bimodal_better = bimodal_correct & (~gshare_correct)
 
             selector_new = gshare_better.select(
-                # Gshare was better: increment toward Gshare (saturate at 3)
+                # Gshare更好：增加偏向Gshare（在3处饱和）
                 (selector_state == Bits(2)(3)).select(
                     Bits(2)(3),
                     (selector_state.bitcast(UInt(2)) + UInt(2)(1)).bitcast(Bits(2)),
                 ),
                 bimodal_better.select(
-                    # Bimodal was better: decrement toward Bimodal (saturate at 0)
+                    # Bimodal更好：减少偏向Bimodal（在0处饱和）
                     (selector_state == Bits(2)(0)).select(
                         Bits(2)(0),
                         (selector_state.bitcast(UInt(2)) - UInt(2)(1)).bitcast(Bits(2)),
                     ),
-                    # Both correct or both wrong: no change
+                    # 两者都正确或都错误：不变
                     selector_state,
                 ),
             )
             selector_counters[pc_index] <= selector_new
 
-            # --- Update Global History Register ---
-            # Shift left by 1 and insert new outcome
+            # --- 更新全局历史寄存器 ---
+            # 左移1位并插入新结果
             ghr_shifted = (ghr << UInt(self.history_bits)(1)) | actual_taken.bitcast(
                 Bits(self.history_bits)
             )
-            # Keep only history_bits
+            # 只保留history_bits位
             ghr_new = ghr_shifted[0 : self.history_bits - 1].bitcast(
                 Bits(self.history_bits)
             )
             global_history[0] <= ghr_new
 
             debug_log(
-                "TP: UPDATE at PC=0x{:x}, Taken={}, Bimodal: {}->{}, Gshare: {}->{}, Selector: {}->{}, GHR->{}",
+                "TP: 更新 PC=0x{:x}, Taken={}, Bimodal: {}->{}, Gshare: {}->{}, Selector: {}->{}, GHR->{}",
                 pc,
                 actual_taken,
                 bimodal_state,
