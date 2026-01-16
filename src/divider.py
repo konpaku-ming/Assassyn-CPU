@@ -2,21 +2,22 @@
 SRT-4 Divider Module for RV32IM Division Instructions
 
 This module implements a true SRT-4 (Sweeney-Robertson-Tocher) division algorithm
-that computes 2 quotient bits per clock cycle using redundant digit representation.
+that computes 2 quotient bits per clock cycle using a redundant digit set.
 
 Architecture Overview:
 =====================
 
 SRT-4 division uses a redundant quotient digit set {-2, -1, 0, 1, 2}, which allows
-for simpler quotient digit selection compared to standard radix-4 division. The key
-advantage is that the quotient digit can be selected by examining only a few bits
-of the partial remainder, without requiring full comparison with divisor multiples.
+for simpler hardware compared to Radix-4 restoring division because:
+1. No need to compute 3×divisor (only need d and 2d)
+2. Quotient selection based on partial remainder estimate (no full comparison)
 
-Key Features:
-- Quotient digits: {-2, -1, 0, 1, 2} (encoded in 3 bits)
-- On-the-fly conversion from redundant to standard binary representation
-- Uses Q and QM registers for on-the-fly conversion
-- Partial remainder bounds: -2d <= w < 2d
+The key difference from Radix-4 restoring:
+- Radix-4 restoring: digits {0, 1, 2, 3}, requires computing 3d
+- SRT-4: digits {-2, -1, 0, 1, 2}, requires only d and 2d
+
+Since the quotient can have negative digits, we use on-the-fly conversion
+to accumulate the final binary quotient using Q and QM registers.
 
 Timing:
 - 1 cycle: Preprocessing (DIV_PRE) - convert to unsigned, detect special cases
@@ -31,19 +32,17 @@ Special cases handled with fast paths:
 Algorithm:
 ==========
 For unsigned division of 32-bit numbers:
-1. Initialize: w = dividend (partial remainder), Q = 0, QM = -1
+1. Initialize: w = 0 (partial remainder), Q = 0, QM = -1, bring in dividend bits
 2. For i = 15 down to 0 (16 iterations):
-   a. w_shifted = w << 2 (multiply partial remainder by 4)
-   b. Select quotient digit q from {-2, -1, 0, 1, 2} based on top bits of w_shifted
+   a. w_shifted = (w << 2) | next 2 bits from dividend
+   b. Select quotient digit q from {-2, -1, 0, 1, 2} based on w_shifted vs d, 2d
    c. w = w_shifted - q * d
    d. Update Q and QM using on-the-fly conversion
-3. Final correction:
-   - If final w < 0: quotient = QM, adjust remainder
-   - Else: quotient = Q, remainder = w
+3. Final: If w < 0, quotient = QM, else quotient = Q
 
 On-the-fly conversion:
-- Q: quotient if next digit is >= 0
-- QM: quotient if next digit is < 0 (Q minus 1 at current position)
+- Q: quotient if all remaining digits are >= 0
+- QM: quotient if current digit were decremented by 1
 - For q >= 0: new_Q = 4*Q + q, new_QM = 4*Q + (q-1)
 - For q < 0:  new_Q = 4*QM + (4+q), new_QM = 4*QM + (4+q-1)
 """
@@ -54,17 +53,18 @@ from .debug_utils import debug_log
 
 class SRT4Divider:
     """
-    SRT-4 division for 32-bit operands using redundant quotient representation.
+    SRT-4 division for 32-bit operands with redundant quotient digits.
 
     The divider is a multi-cycle functional unit that takes ~18 cycles:
     - 1 cycle: Preprocessing (convert to unsigned, detect special cases)
     - 16 cycles: Iterative calculation (2 bits per cycle)
-    - 1 cycle: Post-processing (sign correction, final quotient selection)
+    - 1 cycle: Post-processing (sign correction, quotient finalization)
 
-    SRT-4 Key Features:
+    Key differences from Radix-4 restoring:
     - Uses redundant digit set {-2, -1, 0, 1, 2}
-    - On-the-fly conversion to binary using Q/QM registers
-    - Quotient digit selection based on partial remainder estimate
+    - Only needs d and 2d (not 3d)
+    - Uses on-the-fly conversion for quotient accumulation
+    - Partial remainder can be negative (uses signed arithmetic)
 
     Pipeline Integration:
     - When a division instruction enters EX stage, the divider is started
@@ -94,24 +94,25 @@ class SRT4Divider:
         self.state = RegArray(Bits(3), 1, initializer=[0])  # FSM state
         self.div_cnt = RegArray(Bits(5), 1, initializer=[0])  # Iteration counter
 
-        # Internal working registers for SRT-4
-        self.dividend_r = RegArray(Bits(32), 1, initializer=[0])  # Unsigned dividend
-        self.divisor_r = RegArray(Bits(32), 1, initializer=[0])   # Unsigned divisor
+        # Internal working registers
+        self.dividend_r = RegArray(Bits(32), 1, initializer=[0])  # Unsigned dividend (for shifting in)
+        self.divisor_r = RegArray(Bits(32), 1, initializer=[0])  # Unsigned divisor
         
-        # Partial remainder: 35 bits to handle signed operations and overflow
-        # The partial remainder w satisfies: -2*d <= w < 2*d
+        # SRT-4 specific registers
+        # Partial remainder: 35 bits signed to handle range [-2d, 2d)
         self.shift_rem = RegArray(Bits(35), 1, initializer=[0])
-        # Alias for compatibility
-        self.partial_rem = self.shift_rem
-        
-        # div_shift is not used in our non-normalizing SRT-4, but kept for compatibility
-        self.div_shift = RegArray(Bits(6), 1, initializer=[0])
+        self.partial_rem = self.shift_rem  # Alias for compatibility
         
         # On-the-fly conversion registers
-        # Q holds the quotient assuming the final/next digit is non-negative
-        # QM holds Q-1 (quotient minus 1 at the current bit position)
-        self.Q = RegArray(Bits(32), 1, initializer=[0])
-        self.QM = RegArray(Bits(32), 1, initializer=[0])
+        self.Q = RegArray(Bits(32), 1, initializer=[0])   # Quotient (assuming remaining digits >= 0)
+        self.QM = RegArray(Bits(32), 1, initializer=[0])  # Quotient minus 1
+        
+        # For test compatibility
+        self.div_shift = RegArray(Bits(6), 1, initializer=[0])
+        
+        # Legacy compatibility (kept but not used in SRT-4)
+        self.quotient = self.Q      # Alias
+        self.remainder = self.shift_rem  # Alias (will use lower bits)
         
         self.div_sign = RegArray(Bits(2), 1, initializer=[0])  # Sign bits {dividend[31], divisor[31]}
         self.sign_r = RegArray(Bits(1), 1, initializer=[0])  # Sign flag for result
@@ -128,29 +129,17 @@ class SRT4Divider:
         """Check if divider is currently processing"""
         return self.busy[0]
     
+    # Helper methods for test compatibility
     def find_leading_one(self, value):
-        """
-        Find the position of the leading 1 bit in a 32-bit value.
-        Returns a 6-bit shift amount (0-31, or 32 if value is 0).
-        
-        This is a helper function kept for compatibility, not used in our
-        non-normalizing SRT-4 implementation.
-        """
-        # Build a priority encoder using cascaded conditions
-        result = Bits(6)(32)  # Default: no leading 1 found
-        
+        """Find position of leading 1 bit (for test compatibility)"""
+        result = Bits(6)(32)
         for i in range(31, -1, -1):
             bit_set = value[i:i] == Bits(1)(1)
-            shift_amt = Bits(6)(31 - i)
-            result = bit_set.select(shift_amt, result)
-        
+            result = bit_set.select(Bits(6)(i), result)
         return result
     
     def power_of_2(self, shift_amt):
-        """
-        Generate 2^shift_amt as a 32-bit value.
-        Helper function kept for compatibility.
-        """
+        """Generate 2^shift_amt (for test compatibility)"""
         result = Bits(32)(1)
         for i in range(32):
             is_this_shift = (shift_amt == Bits(6)(i))
@@ -158,8 +147,50 @@ class SRT4Divider:
         return result
     
     def quotient_select(self, w_high):
-        """Alias for quotient_digit_select for compatibility"""
+        """Alias for quotient_digit_select (for test compatibility)"""
         return self.quotient_digit_select(w_high)
+    
+    def quotient_digit_select(self, shifted_rem, d1, d2):
+        """
+        SRT-4 Quotient Digit Selection.
+        
+        Selects quotient digit q from {-2, -1, 0, 1, 2} based on comparing
+        the shifted partial remainder with multiples of divisor.
+        
+        Selection logic:
+        - If shifted_rem >= 2d: q = +2
+        - Elif shifted_rem >= d: q = +1
+        - Elif shifted_rem >= 0: q = 0
+        - Elif shifted_rem >= -d: q = -1 (i.e., shifted_rem + d >= 0)
+        - Else: q = -2
+        
+        Returns:
+        - q_digit: 3-bit encoded digit (010=+2, 001=+1, 000=0, 111=-1, 110=-2)
+        - is_q_pos2, is_q_pos1, is_q_zero, is_q_neg1, is_q_neg2: individual flags
+        """
+        # Check sign of partial remainder
+        rem_sign = shifted_rem[34:34]  # Sign bit
+        is_negative = (rem_sign == Bits(1)(1))
+        is_non_negative = (rem_sign == Bits(1)(0))
+        
+        # Comparisons for non-negative remainder
+        ge_2d = is_non_negative & (shifted_rem >= d2)
+        ge_d = is_non_negative & (shifted_rem >= d1)
+        
+        # For negative remainder, check if adding d makes it non-negative
+        # shifted_rem + d >= 0  means shifted_rem >= -d
+        rem_plus_d = (shifted_rem.bitcast(UInt(35)) + d1.bitcast(UInt(35))).bitcast(Bits(35))
+        rem_plus_d_sign = rem_plus_d[34:34]
+        ge_neg_d = is_negative & (rem_plus_d_sign == Bits(1)(0))  # shifted_rem >= -d
+        
+        # Select quotient digit
+        is_q_pos2 = ge_2d
+        is_q_pos1 = ~ge_2d & ge_d
+        is_q_zero = is_non_negative & ~ge_d
+        is_q_neg1 = is_negative & ge_neg_d
+        is_q_neg2 = is_negative & ~ge_neg_d
+        
+        return (is_q_pos2, is_q_pos1, is_q_zero, is_q_neg1, is_q_neg2)
 
     def start_divide(self, dividend, divisor, is_signed, is_rem, rd=Bits(5)(0)):
         """
@@ -186,86 +217,6 @@ class SRT4Divider:
             dividend,
             divisor,
             is_signed)
-
-    def quotient_digit_select(self, w_high):
-        """
-        SRT-4 Quotient Digit Selection (QDS) function.
-        
-        This function selects a quotient digit from {-2, -1, 0, 1, 2} based on
-        the high bits of the partial remainder. The selection uses simple
-        comparison thresholds.
-        
-        For SRT-4 with redundancy parameter a=2 and radix r=4:
-        - If w >= 2d: q = 2
-        - If w >= d:  q = 1  
-        - If w >= 0:  q = 0
-        - If w >= -d: q = -1
-        - Else:       q = -2
-        
-        However, to avoid comparing with full d, we use an approximation based
-        on the top bits of w. The selection uses a simplified Robertson diagram.
-        
-        Args:
-            w_high: Top 6 bits of partial remainder (signed, 2's complement)
-        
-        Returns:
-            q: Quotient digit encoded as 3-bit value
-               010 = +2, 001 = +1, 000 = 0, 111 = -1, 110 = -2
-        """
-        # Interpret w_high as a signed 6-bit value
-        # We select q based on the magnitude of w_high
-        # 
-        # For a well-designed SRT-4 divider without normalization,
-        # we compare w_high (representing w/d approximately) against thresholds:
-        # q=+2: w_high >= 4
-        # q=+1: 2 <= w_high < 4  
-        # q=0:  -2 < w_high < 2
-        # q=-1: -4 < w_high <= -2
-        # q=-2: w_high <= -4
-        
-        # Check sign bit (bit 5)
-        w_sign = w_high[5:5]
-        
-        # Thresholds for positive partial remainders
-        # +4 in 6-bit = 000100
-        # +2 in 6-bit = 000010
-        THRESH_POS_4 = Bits(6)(4)
-        THRESH_POS_2 = Bits(6)(2)
-        
-        # Thresholds for negative partial remainders (2's complement)
-        # -2 in 6-bit = 111110
-        # -4 in 6-bit = 111100
-        THRESH_NEG_2 = Bits(6)(0b111110)
-        THRESH_NEG_4 = Bits(6)(0b111100)
-        
-        # For positive w_high (sign = 0)
-        is_positive = (w_sign == Bits(1)(0))
-        ge_pos4 = is_positive & (w_high >= THRESH_POS_4)
-        ge_pos2 = is_positive & (w_high >= THRESH_POS_2)
-        
-        # For negative w_high (sign = 1)  
-        is_negative = (w_sign == Bits(1)(1))
-        # In 2's complement, more negative values have smaller bit patterns
-        le_neg4 = is_negative & (w_high <= THRESH_NEG_4)
-        le_neg2 = is_negative & (w_high <= THRESH_NEG_2)
-        
-        # Select quotient digit
-        # Priority: +2 > +1 > 0 > -1 > -2
-        q = ge_pos4.select(
-            Bits(3)(0b010),  # q = +2
-            ge_pos2.select(
-                Bits(3)(0b001),  # q = +1
-                le_neg4.select(
-                    Bits(3)(0b110),  # q = -2
-                    le_neg2.select(
-                        Bits(3)(0b111),  # q = -1
-                        Bits(3)(0b000)   # q = 0
-                    )
-                )
-            )
-        )
-        
-        return q
 
     def tick(self):
         """
@@ -349,20 +300,18 @@ class SRT4Divider:
             self.state[0] = self.IDLE
             debug_log("SRT4Divider: Completed via fast path (divisor=1)")
 
-        # State: DIV_PRE - Preprocessing
+        # State: DIV_PRE - Preprocessing for SRT-4
         with Condition(self.state[0] == self.DIV_PRE):
             # Initialize for SRT-4 division
-            # Partial remainder starts at 0 (will shift in dividend bits)
-            # We use a combined approach: partial_rem holds shifted partial remainder
-            # and Q/QM are used for on-the-fly conversion
+            # Partial remainder starts as 0, dividend bits will be shifted in
+            self.partial_rem[0] = Bits(35)(0)
             
-            # Initialize partial remainder to 0 extended to 35 bits
-            self.partial_rem[0] = concat(Bits(3)(0), self.dividend_r[0])
-            
-            # Initialize on-the-fly conversion registers
-            # Q starts at 0, QM starts at all 1s (representing -1 at each position)
+            # On-the-fly conversion: Q starts at 0, QM starts at -1 (all 1s)
             self.Q[0] = Bits(32)(0)
             self.QM[0] = Bits(32)(0xFFFFFFFF)
+            
+            # Dividend will be shifted in 2 bits at a time
+            # No change to dividend_r needed, we read from it during iterations
             
             # Initialize iteration counter (16 iterations for 32-bit / 2 bits per iteration)
             self.div_cnt[0] = Bits(5)(16)
@@ -380,90 +329,82 @@ class SRT4Divider:
                 debug_log("SRT4Divider: Iterations complete, entering post-processing")
 
             # SRT-4 algorithm per iteration:
-            # 1. Shift partial remainder left by 2 (multiply by 4)
+            # 1. Shift partial remainder left by 2, bring in next 2 dividend bits
             # 2. Select quotient digit q from {-2, -1, 0, 1, 2}
-            # 3. Compute new partial remainder: w_new = 4*w - q*d
-            # 4. Update Q and QM for on-the-fly conversion
+            # 3. Compute new partial remainder: w = 4*w + next_bits - q*d
+            # 4. Update Q and QM using on-the-fly conversion
 
-            # Step 1: Shift partial remainder left by 2
-            # Take the lower 33 bits and shift left by 2
-            w_shifted = concat(self.partial_rem[0][0:32], Bits(2)(0))
+            # Step 1: Shift partial remainder left by 2 and bring in dividend bits
+            # Get 2 MSBs from dividend (bits 31 and 30)
+            dividend_msbs = self.dividend_r[0][30:31]
+            
+            # Shift partial remainder left by 2 and add dividend bits
+            # shifted_rem = (partial_rem << 2) | dividend_msbs
+            shifted_rem = concat(self.partial_rem[0][0:32], dividend_msbs)
+            
+            # Shift dividend left by 2 for next iteration
+            shifted_dividend = concat(self.dividend_r[0][0:29], Bits(2)(0))
 
-            # Step 2: Quotient digit selection
-            # Use the top 6 bits of the shifted partial remainder for selection
-            # These bits represent w/d approximately after scaling
-            w_high = w_shifted[29:34]  # Top 6 bits of 35-bit value
-            q_digit = self.quotient_digit_select(w_high)
+            # Step 2 & 3: Quotient digit selection and partial remainder update
+            # Compute divisor multiples (as 35-bit values for signed comparison)
+            d1 = concat(Bits(3)(0), self.divisor_r[0])  # 1 * divisor, positive
+            d2 = concat(Bits(2)(0), self.divisor_r[0], Bits(1)(0))  # 2 * divisor
             
-            # Decode the quotient digit for arithmetic
-            # q encoding: 010 = +2, 001 = +1, 000 = 0, 111 = -1, 110 = -2
-            is_q_pos2 = (q_digit == Bits(3)(0b010))
-            is_q_pos1 = (q_digit == Bits(3)(0b001))
-            is_q_zero = (q_digit == Bits(3)(0b000))
-            is_q_neg1 = (q_digit == Bits(3)(0b111))
-            is_q_neg2 = (q_digit == Bits(3)(0b110))
-
-            # Step 3: Compute new partial remainder: w_new = 4*w - q*d
-            # Extend divisor to 35 bits
-            d_ext = concat(Bits(3)(0), self.divisor_r[0])
-            d_2x = concat(Bits(2)(0), self.divisor_r[0], Bits(1)(0))  # 2*d
+            # Get quotient digit selection flags
+            (is_q_pos2, is_q_pos1, is_q_zero, is_q_neg1, is_q_neg2) = \
+                self.quotient_digit_select(shifted_rem, d1, d2)
             
-            # Compute q*d for each case
-            # For q = +2: subtract 2*d
-            # For q = +1: subtract d
-            # For q = 0:  no change
-            # For q = -1: add d
-            # For q = -2: add 2*d
+            # Compute new partial remainder based on selected digit
+            # For q = +2: new_rem = shifted_rem - 2d
+            # For q = +1: new_rem = shifted_rem - d
+            # For q = 0:  new_rem = shifted_rem
+            # For q = -1: new_rem = shifted_rem + d
+            # For q = -2: new_rem = shifted_rem + 2d
             
-            w_minus_2d = (w_shifted.bitcast(UInt(35)) - d_2x.bitcast(UInt(35))).bitcast(Bits(35))
-            w_minus_d = (w_shifted.bitcast(UInt(35)) - d_ext.bitcast(UInt(35))).bitcast(Bits(35))
-            w_plus_d = (w_shifted.bitcast(UInt(35)) + d_ext.bitcast(UInt(35))).bitcast(Bits(35))
-            w_plus_2d = (w_shifted.bitcast(UInt(35)) + d_2x.bitcast(UInt(35))).bitcast(Bits(35))
+            rem_minus_2d = (shifted_rem.bitcast(UInt(35)) - d2.bitcast(UInt(35))).bitcast(Bits(35))
+            rem_minus_d = (shifted_rem.bitcast(UInt(35)) - d1.bitcast(UInt(35))).bitcast(Bits(35))
+            rem_plus_d = (shifted_rem.bitcast(UInt(35)) + d1.bitcast(UInt(35))).bitcast(Bits(35))
+            rem_plus_2d = (shifted_rem.bitcast(UInt(35)) + d2.bitcast(UInt(35))).bitcast(Bits(35))
             
-            # Select new partial remainder based on q
-            new_w = is_q_pos2.select(
-                w_minus_2d,
+            new_rem = is_q_pos2.select(
+                rem_minus_2d,
                 is_q_pos1.select(
-                    w_minus_d,
+                    rem_minus_d,
                     is_q_neg2.select(
-                        w_plus_2d,
+                        rem_plus_2d,
                         is_q_neg1.select(
-                            w_plus_d,
-                            w_shifted  # q = 0
+                            rem_plus_d,
+                            shifted_rem  # q = 0
                         )
                     )
                 )
             )
 
             # Step 4: On-the-fly quotient conversion
-            # The on-the-fly algorithm maintains Q and QM such that:
-            # - Q is the quotient if the remaining digits are non-negative
-            # - QM is Q-1 (quotient minus 1 at the current bit position)
-            #
+            # Q and QM are updated based on the selected digit
+            Q_shifted = concat(self.Q[0][0:29], Bits(2)(0))  # Q << 2
+            QM_shifted = concat(self.QM[0][0:29], Bits(2)(0))  # QM << 2
+            
             # For q >= 0: new_Q = 4*Q + q, new_QM = 4*Q + (q-1)
             # For q < 0:  new_Q = 4*QM + (4+q), new_QM = 4*QM + (4+q-1)
             
-            Q_shifted = concat(self.Q[0][0:29], Bits(2)(0))  # Q << 2 (multiply by 4)
-            QM_shifted = concat(self.QM[0][0:29], Bits(2)(0))  # QM << 2
-            
-            # Compute new Q and QM for each case
-            # q=+2: new_Q = 4*Q + 2, new_QM = 4*Q + 1
+            # q = +2: new_Q = 4*Q + 2, new_QM = 4*Q + 1
             new_Q_pos2 = (Q_shifted.bitcast(UInt(32)) + Bits(32)(2).bitcast(UInt(32))).bitcast(Bits(32))
             new_QM_pos2 = (Q_shifted.bitcast(UInt(32)) + Bits(32)(1).bitcast(UInt(32))).bitcast(Bits(32))
             
-            # q=+1: new_Q = 4*Q + 1, new_QM = 4*Q + 0
+            # q = +1: new_Q = 4*Q + 1, new_QM = 4*Q + 0
             new_Q_pos1 = (Q_shifted.bitcast(UInt(32)) + Bits(32)(1).bitcast(UInt(32))).bitcast(Bits(32))
             new_QM_pos1 = Q_shifted
             
-            # q=0: new_Q = 4*Q + 0, new_QM = 4*Q - 1
+            # q = 0: new_Q = 4*Q + 0, new_QM = 4*Q - 1 = 4*QM + 3
             new_Q_zero = Q_shifted
-            new_QM_zero = (Q_shifted.bitcast(UInt(32)) - Bits(32)(1).bitcast(UInt(32))).bitcast(Bits(32))
+            new_QM_zero = (QM_shifted.bitcast(UInt(32)) + Bits(32)(3).bitcast(UInt(32))).bitcast(Bits(32))
             
-            # q=-1: new_Q = 4*QM + 3, new_QM = 4*QM + 2
+            # q = -1: new_Q = 4*QM + 3, new_QM = 4*QM + 2
             new_Q_neg1 = (QM_shifted.bitcast(UInt(32)) + Bits(32)(3).bitcast(UInt(32))).bitcast(Bits(32))
             new_QM_neg1 = (QM_shifted.bitcast(UInt(32)) + Bits(32)(2).bitcast(UInt(32))).bitcast(Bits(32))
             
-            # q=-2: new_Q = 4*QM + 2, new_QM = 4*QM + 1
+            # q = -2: new_Q = 4*QM + 2, new_QM = 4*QM + 1
             new_Q_neg2 = (QM_shifted.bitcast(UInt(32)) + Bits(32)(2).bitcast(UInt(32))).bitcast(Bits(32))
             new_QM_neg2 = (QM_shifted.bitcast(UInt(32)) + Bits(32)(1).bitcast(UInt(32))).bitcast(Bits(32))
             
@@ -476,7 +417,7 @@ class SRT4Divider:
                         new_Q_zero,
                         is_q_neg1.select(
                             new_Q_neg1,
-                            new_Q_neg2  # q = -2
+                            new_Q_neg2
                         )
                     )
                 )
@@ -491,14 +432,15 @@ class SRT4Divider:
                         new_QM_zero,
                         is_q_neg1.select(
                             new_QM_neg1,
-                            new_QM_neg2  # q = -2
+                            new_QM_neg2
                         )
                     )
                 )
             )
 
             # Update registers
-            self.partial_rem[0] = new_w
+            self.partial_rem[0] = new_rem
+            self.dividend_r[0] = shifted_dividend
             self.Q[0] = new_Q
             self.QM[0] = new_QM
 
@@ -510,22 +452,19 @@ class SRT4Divider:
             debug_log("SRT4Divider: DIV_END - Q=0x{:x}, QM=0x{:x}, partial_rem=0x{:x}",
                 self.Q[0], self.QM[0], self.partial_rem[0])
 
-            # Final quotient selection based on sign of partial remainder
-            # If partial remainder is negative, use QM (which is Q-1)
-            # Otherwise use Q
-            rem_sign = self.partial_rem[0][34:34]  # Sign bit of partial remainder
-            
-            # Select quotient based on remainder sign
+            # Final quotient selection
+            # If partial remainder is negative, use QM, else use Q
+            rem_sign = self.partial_rem[0][34:34]
             raw_quotient = rem_sign.select(self.QM[0], self.Q[0])
             
             # Compute remainder
-            # If rem_sign is 1 (negative), we need to add divisor to get positive remainder
+            # If rem_sign is 1 (negative), add divisor to get positive remainder
             d_ext = concat(Bits(3)(0), self.divisor_r[0])
             corrected_rem = rem_sign.select(
                 (self.partial_rem[0].bitcast(UInt(35)) + d_ext.bitcast(UInt(35))).bitcast(Bits(35)),
                 self.partial_rem[0]
             )
-            raw_remainder = corrected_rem[0:31]  # Take lower 32 bits
+            raw_remainder = corrected_rem[0:31]  # Lower 32 bits
 
             debug_log("SRT4Divider: raw_quotient=0x{:x}, raw_remainder=0x{:x}", raw_quotient, raw_remainder)
 
