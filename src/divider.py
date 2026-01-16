@@ -174,18 +174,6 @@ class SRT4Divider:
         
         return result
 
-    def power_of_2(self, shift_amt, width=32):
-        """
-        Generate 2^shift_amt as a width-bit value.
-        Used for barrel shifting operations.
-        """
-        # Build using cascaded selects
-        result = Bits(width)(1)
-        for i in range(width):
-            is_this_shift = (shift_amt == Bits(6)(i))
-            result = is_this_shift.select(Bits(width)(1 << i), result)
-        return result
-
     def quotient_select(self, w_truncated):
         """
         SRT-4 Quotient Digit Selection (QDS) function.
@@ -221,20 +209,32 @@ class SRT4Divider:
         # Check if w_truncated is negative (sign bit)
         w_sign = w_truncated[5:5]
         
-        # Convert to signed comparison values
-        # Threshold for q=+2: w >= 6 (binary 000110)
-        # Threshold for q=+1: w >= 2 (binary 000010)
-        # Threshold for q=-1: w <= -2 (binary 111110 in 2's complement)
-        # Threshold for q=-2: w <= -6 (binary 111010 in 2's complement)
+        # Threshold constants for QDS (in 6-bit 2's complement):
+        # THRESHOLD_POS_6 = 6 (binary 000110) - boundary for q=+2
+        # THRESHOLD_POS_2 = 2 (binary 000010) - boundary for q=+1
+        # For negative values in 2's complement:
+        # -2 = 111110 (0x3E)
+        # -6 = 111010 (0x3A)
+        # In 2's complement, more negative values have smaller unsigned representation
+        THRESHOLD_POS_6 = Bits(6)(6)
+        THRESHOLD_POS_2 = Bits(6)(2)
+        THRESHOLD_NEG_2 = Bits(6)(0b111110)  # -2 in 6-bit 2's complement
+        THRESHOLD_NEG_6 = Bits(6)(0b111010)  # -6 in 6-bit 2's complement
         
-        ge_6 = (w_truncated >= Bits(6)(6)) & (w_sign == Bits(1)(0))
-        ge_2 = (w_truncated >= Bits(6)(2)) & (w_sign == Bits(1)(0))
-        le_neg2 = w_sign == Bits(1)(1)  # Simplified: any negative value
-        le_neg6 = (w_truncated <= Bits(6)(0b111010)) & (w_sign == Bits(1)(1))
+        # For positive values (sign bit = 0), check against positive thresholds
+        # For negative values (sign bit = 1), check against negative thresholds
+        ge_6 = (w_sign == Bits(1)(0)) & (w_truncated >= THRESHOLD_POS_6)
+        ge_2 = (w_sign == Bits(1)(0)) & (w_truncated >= THRESHOLD_POS_2)
         
-        # Also check for values between -2 and -6
-        # w <= -2 but w > -6 means -6 < w <= -2
-        neg_but_not_very = le_neg2 & ~le_neg6
+        # For negative values in 2's complement:
+        # w <= -6 means w_truncated <= 111010 (more negative values have smaller binary)
+        # w <= -2 means w_truncated <= 111110
+        # -6 < w <= -2 means 111010 < w_truncated <= 111110
+        is_negative = (w_sign == Bits(1)(1))
+        # In 2's complement, w <= -6 means the binary value is <= 0b111010
+        le_neg6 = is_negative & (w_truncated <= THRESHOLD_NEG_6)
+        # -6 < w <= -2 (between -6 and -2, exclusive of -6)
+        in_neg2_range = is_negative & (w_truncated > THRESHOLD_NEG_6) & (w_truncated <= THRESHOLD_NEG_2)
         
         # Select quotient digit (encoded as 3-bit: +2=010, +1=001, 0=000, -1=111, -2=110)
         q = ge_6.select(
@@ -243,7 +243,7 @@ class SRT4Divider:
                 Bits(3)(0b001),  # q = +1
                 le_neg6.select(
                     Bits(3)(0b110),  # q = -2
-                    neg_but_not_very.select(
+                    in_neg2_range.select(
                         Bits(3)(0b111),  # q = -1
                         Bits(3)(0b000)   # q = 0
                     )
@@ -346,15 +346,19 @@ class SRT4Divider:
             divisor_val = self.divisor_r[0]
             
             # Build normalized divisor using cascaded shifts
+            # Handle the special case where shift_amt = 0 (already normalized)
             norm_divisor = divisor_val
             for i in range(32):
                 is_shift_i = (shift_amt == Bits(6)(i))
-                shifted = Bits(32)(0)
                 # Left shift by i positions
                 if i == 0:
                     shifted = divisor_val
+                elif i == 31:
+                    # Special case: left shift by 31 moves bit 0 (LSB) to bit 31 (MSB position)
+                    # and fills lower 31 bits with zeros
+                    shifted = concat(divisor_val[0:0], Bits(31)(0))
                 else:
-                    # Shift left by i: take bits [0:31-i] and pad with zeros
+                    # Left shift by i: take lower (32-i) bits and pad with i zeros on the right
                     shifted = concat(divisor_val[0:31-i], Bits(i)(0))
                 norm_divisor = is_shift_i.select(shifted, norm_divisor)
             
@@ -398,7 +402,8 @@ class SRT4Divider:
             # Step 2: Compute new partial remainder
             # w_new = 4 * w - q * d
             # First, shift w left by 2 (multiply by 4)
-            w_shifted = concat(self.shift_rem[0][0:32], Bits(2)(0))  # 35 bits shifted left by 2
+            # Take lower 33 bits and shift left by 2, then truncate to 35 bits
+            w_shifted = concat(self.shift_rem[0][0:32], Bits(2)(0))  # Take bits 0-32, shift left by 2
             
             # Compute q * d (where q is from {-2, -1, 0, 1, 2})
             # d is 32 bits, extend to 35 bits for arithmetic
@@ -521,6 +526,9 @@ class SRT4Divider:
                 is_shift_i = (shift_amt == Bits(6)(i))
                 if i == 0:
                     shifted_q = raw_quotient
+                elif i == 31:
+                    # Special case: right shift by 31 keeps only the MSB at LSB position
+                    shifted_q = concat(Bits(31)(0), raw_quotient[31:31])
                 else:
                     # Right shift by i: take bits [i:31] and pad with zeros on left
                     shifted_q = concat(Bits(i)(0), raw_quotient[i:31])
@@ -540,6 +548,9 @@ class SRT4Divider:
                 is_shift_i = (shift_amt == Bits(6)(i))
                 if i == 0:
                     unshifted_d = self.divisor_r[0]
+                elif i == 31:
+                    # Special case: right shift by 31 keeps only the MSB at LSB position
+                    unshifted_d = concat(Bits(31)(0), self.divisor_r[0][31:31])
                 else:
                     unshifted_d = concat(Bits(i)(0), self.divisor_r[0][i:31])
                 orig_divisor = is_shift_i.select(unshifted_d, orig_divisor)

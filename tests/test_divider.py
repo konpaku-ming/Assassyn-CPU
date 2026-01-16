@@ -272,8 +272,7 @@ def test_divider_basic():
     print("Test 3: SRT-4 key methods check")
     assert hasattr(divider, 'find_leading_one'), "Should have find_leading_one method for normalization"
     assert hasattr(divider, 'quotient_select'), "Should have quotient_select method for QDS"
-    assert hasattr(divider, 'power_of_2'), "Should have power_of_2 helper method"
-    print("  ✓ All SRT-4 key methods present (find_leading_one, quotient_select, power_of_2)")
+    print("  ✓ All SRT-4 key methods present (find_leading_one, quotient_select)")
 
     # 测试4: 检查SRT-4寄存器定义
     print("Test 4: SRT-4 register definitions check")
