@@ -2,7 +2,7 @@ from assassyn.frontend import *
 from .control_signals import *
 from .debug_utils import debug_log
 from .multiplier import WallaceTreeMul
-from .divider import SRT4Divider
+from .divider import Radix16Divider
 
 
 class Execution(Module):
@@ -27,7 +27,7 @@ class Execution(Module):
 
         # M-extension functional units
         self.multiplier = WallaceTreeMul()
-        self.divider = SRT4Divider()
+        self.divider = Radix16Divider()
 
     @module.combinational
     def build(

@@ -1,92 +1,13 @@
-"""
-Radix-16 Divider for RV32IM Division Instructions
-
-This module implements a Radix-16 division algorithm that produces 4 bits
-of quotient per iteration, using an optimized Quotient Digit Selection (QDS)
-approach similar to modern CPU designs.
-
-Architecture Overview:
-=====================
-
-The Radix-16 divider uses:
-1. Quotient digit set {0, 1, 2, ..., 15}
-2. QDS (Quotient Digit Selection) with binary search tree structure
-3. 4 bits of quotient per cycle
-4. Full-precision comparisons with optimized selection logic
-
-Key Radix-16 Features with QDS Optimization:
-- 4 bits of quotient per iteration (vs 2 bits for Radix-4, 3 bits for Radix-8)
-- Fixed 8 iterations for 32-bit division
-- Binary search tree selection reduces mux depth from 15 to 4 levels
-- Critical path optimization for synthesized hardware
-
-QDS (Quotient Digit Selection) Approach:
-========================================
-Modern CPU dividers optimize the quotient selection critical path. The key insight
-is that while we need to compare against all divisor multiples for correctness,
-the selection logic can be structured as a binary search tree instead of a
-priority encoder.
-
-Old Approach (Priority Encoder):
-- Compute: ge_15d, ge_14d, ..., ge_1d (15 comparisons)
-- Select: 15-level cascaded mux (deep critical path)
-- q = ge_15d ? 15 : (ge_14d ? 14 : ...)
-
-New Approach (Binary Search Tree):
-- Compute: Same 15 comparisons (in parallel)
-- Select: 4-level binary tree mux structure
-- Each quotient bit computed with shallow mux based on higher bits
-
-The comparisons use full-precision 36-bit arithmetic, while the selection
-logic is optimized for minimal depth.
-
-Timing:
-- 1 cycle: Preprocessing (DIV_PRE)
-- 8 cycles: Iterative calculation (DIV_WORKING) - 4 bits per cycle with QDS
-- 1 cycle: Post-processing (DIV_END)
-- Total: ~10 cycles for normal division
-
-Special cases handled with fast paths:
-- DIV_ERROR: Division by zero (1 cycle)
-- DIV_1: Divisor = 1 (1 cycle)
-"""
-
 from assassyn.frontend import *
 from .debug_utils import debug_log
 
 
 class Radix16Divider:
     """
-    Radix-16 division implementation that produces 4 bits of quotient per iteration,
-    using an optimized QDS (Quotient Digit Selection) approach.
-
     The divider is a multi-cycle functional unit that takes ~10 cycles:
     - 1 cycle: Preprocessing
     - 8 cycles: Iterative calculation (4 bits per cycle with QDS)
     - 1 cycle: Post-processing
-
-    Key Radix-16 features with QDS optimization:
-    - Quotient digit set {0, 1, 2, ..., 15}
-    - Binary search tree selection structure (4 mux levels vs 15)
-    - Full-precision 36-bit comparisons for correctness
-    - Optimized critical path through selection logic
-    - 4 bits of quotient per iteration
-    - Fixed 8 iterations for 32-bit division
-
-    QDS Selection Logic:
-    The quotient digit selection uses a binary search tree structure:
-    - q[3] (MSB) determined by comparing with 8d
-    - q[2] determined by comparing with 4d or 12d based on q[3]
-    - q[1] determined by comparing with 2d/6d/10d/14d based on q[3:2]
-    - q[0] (LSB) determined by comparing with odd multiples based on q[3:1]
-
-    This reduces the mux depth from 15 levels (priority encoder) to 4 levels,
-    significantly improving the critical path in synthesized hardware.
-
-    Pipeline Integration:
-    - When a division instruction enters EX stage, the divider is started
-    - The pipeline stalls (IF/ID/EX) until divider completes
-    - Result is written back to register file through normal WB path
     """
 
     def __init__(self):
@@ -142,13 +63,6 @@ class Radix16Divider:
         self.div_sign = RegArray(Bits(2), 1, initializer=[0])  # Sign bits {dividend[31], divisor[31]}
         self.sign_r = RegArray(Bits(1), 1, initializer=[0])  # Sign flag for result
 
-        # Compatibility registers for tests (preserved for backward compatibility)
-        self.norm_shift = RegArray(Bits(6), 1, initializer=[0])  # Reserved for future normalization
-        self.div_shift = RegArray(Bits(6), 1, initializer=[0])  # Reserved for future optimization
-        self.shift_rem = RegArray(Bits(36), 1, initializer=[0])  # For compatibility
-        self.Q = RegArray(Bits(32), 1, initializer=[0])  # For compatibility
-        self.QM = RegArray(Bits(32), 1, initializer=[0])  # For compatibility
-
         # FSM states
         self.IDLE = Bits(3)(0)
         self.DIV_PRE = Bits(3)(1)
@@ -161,57 +75,14 @@ class Radix16Divider:
         """Check if divider is currently processing"""
         return self.busy[0]
 
-    def find_leading_one(self, value):
-        """
-        Find position of leading 1 bit.
-        Returns the bit position (0-31) of the most significant 1 bit.
-        Returns 32 if value is 0.
-        """
-        result = Bits(6)(32)
-        for i in range(31, -1, -1):
-            bit_set = value[i:i] == Bits(1)(1)
-            result = bit_set.select(Bits(6)(i), result)
-        return result
-
-    def power_of_2(self, shift_amt):
-        """Generate 2^shift_amt (for shifts 0-31)"""
-        result = Bits(32)(1)
-        for i in range(32):
-            is_this_shift = (shift_amt == Bits(6)(i))
-            result = is_this_shift.select(Bits(32)(1 << i), result)
-        return result
-
     def quotient_select(self, shifted_rem, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12, d13, d14, d15):
         """
         QDS (Quotient Digit Selection) for Radix-16 division.
 
-        This implementation uses a binary search tree structure for the selection
-        logic, which reduces the critical path from 15 levels of cascaded muxes
-        (in a priority encoder) to only 4 levels of muxes.
-
-        Hardware Implementation Note:
-        ============================
-        In synthesized hardware, all 15 comparisons are computed in parallel
-        (they are independent operations). The key optimization is in how the
-        results are combined:
-
-        - Old approach: 15-deep cascaded mux chain (priority encoder)
-          - Critical path: 15 mux levels
-          - q = ge_15d ? 15 : (ge_14d ? 14 : (ge_13d ? 13 : ...))
-
-        - New approach: Binary search tree selection
-          - Critical path: 4 mux levels
-          - Each quotient bit computed with 2-level mux based on higher bits
-
-        QDS Binary Search Tree:
-        ======================
         Level 1: Compare with 8d (determines q[3] - MSB)
         Level 2: Compare with 4d or 12d (determines q[2])
         Level 3: Compare with 2d/6d/10d/14d (determines q[1])
         Level 4: Compare with odd multiples (determines q[0] - LSB)
-
-        The comparisons themselves still use full-precision 36-bit values for
-        correctness. The optimization is in the selection logic depth.
 
         Returns quotient digit from {0, 1, 2, ..., 15}.
         """
@@ -312,8 +183,6 @@ class Radix16Divider:
 
     def start_divide(self, dividend, divisor, is_signed, is_rem, rd=Bits(5)(0)):
         """
-        Start a division operation.
-
         Args:
             dividend: 32-bit dividend (rs1)
             divisor: 32-bit divisor (rs2)
@@ -464,10 +333,6 @@ class Radix16Divider:
             self.quotient[0] = Bits(32)(0)
             self.remainder[0] = Bits(36)(0)
 
-            # Initialize Q/QM for compatibility
-            self.Q[0] = Bits(32)(0)
-            self.QM[0] = Bits(32)(0)
-
             # For 32-bit division with 4 bits per iteration: ceil(32/4) = 8 iterations
             self.div_cnt[0] = Bits(5)(8)
 
@@ -561,10 +426,6 @@ class Radix16Divider:
             self.remainder[0] = new_rem
             self.quotient[0] = new_quot
             self.dividend_r[0] = new_dividend
-            self.Q[0] = new_quot  # For compatibility
-
-            # Update shift_rem for compatibility
-            self.shift_rem[0] = shifted_rem
 
             # Decrement counter
             self.div_cnt[0] = (self.div_cnt[0].bitcast(UInt(5)) - UInt(5)(1)).bitcast(Bits(5))
@@ -637,7 +498,3 @@ class Radix16Divider:
     def clear_result(self):
         """Clear result and reset ready flag"""
         self.ready[0] = Bits(1)(0)
-
-
-# Alias for backward compatibility
-SRT4Divider = Radix16Divider

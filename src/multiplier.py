@@ -9,9 +9,6 @@ def sign_zero_extend(op: Bits, signed: Bits) -> Bits:
     Args:
         op: 32-bit operand to extend
         signed: Whether to sign-extend (1) or zero-extend (0)
-
-    Returns:
-        64-bit extended value
     """
     sign_bit = op[31:31]
     sign_ext = sign_bit.select(Bits(32)(0xFFFFFFFF), Bits(32)(0))
@@ -29,14 +26,6 @@ def full_adder_64bit(a: Bits, b: Bits, c: Bits) -> tuple:
     Takes 3 64-bit inputs and produces:
     - sum: 64-bit XOR result (a ⊕ b ⊕ c)
     - carry: 64-bit carry result ((a&b) | (b&c) | (a&c)), shifted left by 1 bit
-
-    In hardware, this is implemented as 64 parallel full adders, one per bit position.
-
-    Args:
-        a, b, c: Three 64-bit input values
-
-    Returns:
-        (sum, carry): Two 64-bit values where carry is already shifted left
     """
     # XOR for sum: sum[i] = a[i] ⊕ b[i] ⊕ c[i]
     sum_result = a ^ b ^ c
@@ -57,20 +46,8 @@ def carry_propagate_adder_64bit(a: Bits, b: Bits) -> Bits:
     """
     64-bit Carry-Propagate Adder (CPA)
 
-    Final stage of Wallace Tree - adds the two remaining rows to produce
-    the final 64-bit product.
-
-    In real hardware, this could be implemented as:
-    - Ripple-Carry Adder (simple, slow)
-    - Carry-Lookahead Adder (faster, more area)
-    - Carry-Select Adder (balanced)
-    - Kogge-Stone Adder (fastest, most area)
-
     Args:
         a, b: Two 64-bit input values (sum row and carry row)
-
-    Returns:
-        64-bit sum result
     """
     # Use standard addition - the underlying hardware synthesis will
     # choose the appropriate adder architecture
@@ -133,24 +110,11 @@ class WallaceTreeMul:
         Check if multiplier has operations in flight that require pipeline stall.
 
         Returns True when any of stages M1, M2, or M3 are active.
-
-        Timing:
-        - Cycle N: MUL instruction starts, m1_valid=1
-        - Cycle N+1: M1 active (PP gen + Levels 1-3), m2_valid=1, m1_valid=0
-        - Cycle N+2: M2 active (Levels 4-6), m3_valid=1, m2_valid=0
-        - Cycle N+3: M3 active (Levels 7-8 + CPA), result ready at end of cycle
-        - Cycle N+4: All stages cleared, next instruction can proceed
-
-        Rationale: MUL instruction should occupy the EX stage for all 3 cycles
-        until the result is ready. The pipeline stalls for the entire duration,
-        preventing IF/ID/EX from accepting new instructions.
         """
         return self.m1_valid[0] | self.m2_valid[0] | self.m3_valid[0]
 
     def start_multiply(self, op1, op2, op1_signed, op2_signed, result_high, rd=Bits(5)(0)):
         """
-        Start a new multiplication operation.
-
         Args:
             op1: First operand (32-bit)
             op2: Second operand (32-bit)
