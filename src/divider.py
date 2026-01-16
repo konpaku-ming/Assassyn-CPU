@@ -340,7 +340,7 @@ class Radix8Divider:
             next_bits = dividend_cur[29:31]  # Top 3 bits of dividend
             shifted_rem = concat(rem_cur[0:31], next_bits)  # (rem << 3) | next_bits
             
-            # Shift dividend left by 3 (remove the bits we just used)
+            # Shift dividend left by 3 (move next bits into position)
             new_dividend = concat(dividend_cur[0:28], Bits(3)(0))
             
             # Quotient digit selection
