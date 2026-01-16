@@ -81,7 +81,7 @@ class Radix16Divider:
         
         # Radix-16 specific registers
         self.quotient = RegArray(Bits(32), 1, initializer=[0])  # Quotient accumulator
-        self.remainder = RegArray(Bits(36), 1, initializer=[0])  # Partial remainder (36 bits for 4-bit shift)
+        self.remainder = RegArray(Bits(36), 1, initializer=[0])  # Partial remainder (36 bits for 4-bit shift + 15*d overflow)
         
         # Divisor multiples (computed in DIV_PRE) - need 36 bits for 15*d overflow
         self.d1 = RegArray(Bits(36), 1, initializer=[0])   # 1*d
