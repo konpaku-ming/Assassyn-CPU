@@ -268,21 +268,21 @@ def test_divider_basic():
     assert hasattr(divider, 'DIV_ERROR'), "Should have DIV_ERROR state"
     print("  ✓ All 6 FSM states defined")
 
-    # 测试3: 检查关键方法
-    print("Test 3: Key methods check")
-    assert hasattr(divider, 'find_leading_one'), "Should have find_leading_one method"
-    assert hasattr(divider, 'quotient_select'), "Should have quotient_select method"
+    # 测试3: 检查SRT-4关键方法
+    print("Test 3: SRT-4 key methods check")
+    assert hasattr(divider, 'find_leading_one'), "Should have find_leading_one method for normalization"
+    assert hasattr(divider, 'quotient_select'), "Should have quotient_select method for QDS"
     assert hasattr(divider, 'power_of_2'), "Should have power_of_2 helper method"
-    print("  ✓ All key methods present (find_1, q_sel implementations)")
+    print("  ✓ All SRT-4 key methods present (find_leading_one, quotient_select, power_of_2)")
 
-    # 测试4: 检查寄存器定义
-    print("Test 4: Register definitions check")
+    # 测试4: 检查SRT-4寄存器定义
+    print("Test 4: SRT-4 register definitions check")
     registers = ['dividend_r', 'divisor_r', 'div_shift', 'shift_rem',
                  'Q', 'QM', 'div_sign', 'sign_r', 'state', 'div_cnt',
                  'busy', 'ready', 'error', 'result']
     for reg in registers:
         assert hasattr(divider, reg), f"Should have register: {reg}"
-    print(f"  ✓ All {len(registers)} required registers defined")
+    print(f"  ✓ All {len(registers)} SRT-4 required registers defined (including Q, QM for on-the-fly conversion)")
 
     print("\n" + "=" * 70)
     print("✅ All basic unit tests passed!")

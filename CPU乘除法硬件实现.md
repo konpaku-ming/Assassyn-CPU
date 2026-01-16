@@ -59,7 +59,7 @@ M 扩展包含 8 条指令：
 | 运算 | 实现方案 | 周期数 |
 |------|----------|--------|
 | 乘法 | 3级流水线 Wallace Tree 乘法器 | 3 周期 |
-| 除法 | Radix-4 恢复除法器 | ~18 周期 |
+| 除法 | SRT-4 (Sweeney-Robertson-Tocher) 除法器 | ~18 周期 |
 | 除法（备选） | 逐位恢复除法器 | ~34 周期 |
 
 ---
@@ -672,44 +672,86 @@ for i = N-1 downto 0:
 验证：42 = 6 × 7 + 0 ✓
 ```
 
-### 3.2 Radix-4 恢复除法算法
+### 3.2 SRT-4 除法算法
 
-#### 3.2.1 为什么需要 Radix-4？
+#### 3.2.1 SRT-4 与 Radix-4 恢复除法的区别
 
-逐位恢复除法需要 32 个时钟周期（对于 32 位除法）。为了提高性能，我们可以每周期处理 2 位商，这就是 Radix-4（基数为 4）除法。
+SRT-4（Sweeney-Robertson-Tocher）除法是一种比传统 Radix-4 恢复除法更高效的算法：
 
-**Radix-4 的商位**：{0, 1, 2, 3}（用 2 位二进制表示）
+| 特性 | Radix-4 恢复除法 | SRT-4 除法 |
+|------|-----------------|-----------|
+| 商位集合 | {0, 1, 2, 3} | {-2, -1, 0, 1, 2}（冗余表示） |
+| 商选择方式 | 与 3D, 2D, D 精确比较 | 基于截断的部分余数查表 |
+| 硬件复杂度 | 需要计算 3D | 使用查找表，无需 3D |
+| 容错性 | 无 | 允许估计误差 |
 
-#### 3.2.2 Radix-4 算法步骤
+**SRT-4 的关键优势**：
+1. **冗余商表示**：允许商位为负数，通过后续迭代修正
+2. **简化的商选择**：只需查看部分余数的高位，无需精确比较
+3. **硬件友好**：避免了计算 3×除数的开销
+
+#### 3.2.2 SRT-4 算法步骤
 
 ```
-for i = 15 downto 0:  # 16 次迭代，每次 2 位
-    1. 左移 [R, Q] 两位
-       R = (R << 2) | Q[31:30]
-       Q = Q << 2
+预处理：
+  1. 将除数 D 归一化（左移使最高位为1）
+  2. 记录移位量 s
+  3. 初始化部分余数 w = 被除数
+  4. 初始化 Q = 0, QM = -1（用于在线转换）
+
+迭代（16次）：
+for i = 15 downto 0:
+    1. 商位选择（QDS）
+       根据 w 的高 6 位查表选择 q ∈ {-2, -1, 0, 1, 2}
     
-    2. 比较 R 与 3D, 2D, D
-       if R >= 3D:
-           R = R - 3D
-           Q[1:0] = 11  # 商位 = 3
-       elif R >= 2D:
-           R = R - 2D
-           Q[1:0] = 10  # 商位 = 2
-       elif R >= D:
-           R = R - D
-           Q[1:0] = 01  # 商位 = 1
+    2. 更新部分余数
+       w = 4 × w - q × D
+    
+    3. 在线商转换
+       if q >= 0:
+           Q_new = 4×Q + q
+           QM_new = 4×Q + q - 1
        else:
-           Q[1:0] = 00  # 商位 = 0
+           Q_new = 4×QM + (4 + q)
+           QM_new = 4×QM + (4 + q) - 1
+
+后处理：
+  1. 根据最终 w 的符号选择 Q 或 QM
+  2. 根据移位量 s 调整商
+  3. 计算余数并进行符号修正
 ```
 
-**关键区别**：
-- 每次处理 2 位商，迭代次数减半
-- 需要预先计算 D, 2D, 3D
-- 需要 4 个比较器并行工作
+#### 3.2.3 商位选择函数（QDS）
+
+SRT-4 的核心是商位选择函数。对于归一化的除数 (1/2 ≤ d < 1)：
+
+| 部分余数范围 | 选择的商位 q |
+|-------------|-------------|
+| w ≥ 6 (估算) | +2 |
+| 2 ≤ w < 6 | +1 |
+| -2 < w < 2 | 0 |
+| -6 < w ≤ -2 | -1 |
+| w ≤ -6 | -2 |
+
+**注意**：这些边界是近似的，SRT-4 的冗余性允许重叠区域。
+
+#### 3.2.4 在线商转换（On-the-fly Conversion）
+
+由于商位可以是负数，我们使用两个寄存器 Q 和 QM 进行在线转换：
+- **Q**：假设后续商位非负时的累积商
+- **QM**：假设后续商位为负时的累积商（Q - 1 在当前位位置）
+
+每次迭代：
+- 若 q ≥ 0：使用 Q 的基础值
+- 若 q < 0：使用 QM 的基础值
+
+最终选择：
+- 若最终部分余数 ≥ 0：使用 Q
+- 若最终部分余数 < 0：使用 QM
 
 ### 3.3 Assassyn 代码实现详解
 
-在 `src/divider.py` 中，我们实现了 Radix-4 恢复除法器。
+在 `src/divider.py` 中，我们实现了 SRT-4 除法器。
 
 #### 3.3.1 状态机设计
 
@@ -774,13 +816,24 @@ def __init__(self):
     self.state = RegArray(Bits(3), 1, initializer=[0])   # FSM 状态
     self.div_cnt = RegArray(Bits(5), 1, initializer=[0]) # 迭代计数器
 
-    # 工作寄存器
+    # SRT-4 工作寄存器
     self.dividend_r = RegArray(Bits(32), 1, initializer=[0])  # 无符号被除数
-    self.divisor_r = RegArray(Bits(32), 1, initializer=[0])   # 无符号除数
-    self.quotient = RegArray(Bits(32), 1, initializer=[0])    # 商累加器
-    self.remainder = RegArray(Bits(34), 1, initializer=[0])   # 余数（34位防溢出）
+    self.divisor_r = RegArray(Bits(32), 1, initializer=[0])   # 归一化后的除数
+    self.div_shift = RegArray(Bits(6), 1, initializer=[0])    # 归一化移位量
+    self.shift_rem = RegArray(Bits(35), 1, initializer=[0])   # 部分余数（35位）
+    
+    # 在线商转换寄存器
+    self.Q = RegArray(Bits(32), 1, initializer=[0])     # 商（假设后续非负）
+    self.QM = RegArray(Bits(32), 1, initializer=[0])    # 商减1（假设后续为负）
+    
     self.div_sign = RegArray(Bits(2), 1, initializer=[0])     # 符号位记录
+    self.sign_r = RegArray(Bits(1), 1, initializer=[0])       # 结果符号标志
 ```
+
+**SRT-4 特有寄存器说明**：
+- `div_shift`：记录除数归一化的移位量，用于最后调整商
+- `shift_rem`：35 位部分余数，额外的位用于处理 4×w 运算
+- `Q` 和 `QM`：在线商转换的两个累积寄存器
 
 #### 3.3.3 启动除法
 
@@ -857,7 +910,7 @@ with Condition(self.state[0] == self.IDLE):
 - `div_sign[1:1]` 保存被除数符号，`div_sign[0:0]` 保存除数符号
 - 符号位用于最后的结果符号修正
 
-#### 3.3.5 DIV_WORKING 状态：Radix-4 迭代
+#### 3.3.5 DIV_WORKING 状态：SRT-4 迭代
 
 ```python
 with Condition(self.state[0] == self.DIV_WORKING):
@@ -865,63 +918,66 @@ with Condition(self.state[0] == self.DIV_WORKING):
     with Condition(self.div_cnt[0] == Bits(5)(1)):
         self.state[0] = self.DIV_END
 
-    # 步骤 1：左移并引入商的高 2 位
-    quotient_msbs = self.quotient[0][30:31]  # 取商的最高 2 位
-    shifted_remainder = concat(self.remainder[0][0:31], quotient_msbs)
-    shifted_quotient = concat(self.quotient[0][0:29], Bits(2)(0))
+    # SRT-4 算法：
+    # 1. 基于截断的部分余数选择商位
+    # 2. 更新部分余数：w = 4×w - q×D
+    # 3. 在线商转换更新 Q 和 QM
 
-    # 步骤 2：计算除数的倍数（34位防溢出）
-    d1 = concat(Bits(2)(0), self.divisor_r[0])        # 1 × D
-    d2 = concat(Bits(1)(0), self.divisor_r[0], Bits(1)(0))  # 2 × D（左移1位）
-    d3 = (d1.bitcast(UInt(34)) + d2.bitcast(UInt(34))).bitcast(Bits(34))  # 3 × D
-
-    # 步骤 3：并行比较
-    ge_3d = shifted_remainder >= d3
-    ge_2d = shifted_remainder >= d2
-    ge_1d = shifted_remainder >= d1
-
-    # 步骤 4：计算各情况下的余数
-    rem_minus_3d = (shifted_remainder.bitcast(UInt(34)) - d3.bitcast(UInt(34))).bitcast(Bits(34))
-    rem_minus_2d = (shifted_remainder.bitcast(UInt(34)) - d2.bitcast(UInt(34))).bitcast(Bits(34))
-    rem_minus_1d = (shifted_remainder.bitcast(UInt(34)) - d1.bitcast(UInt(34))).bitcast(Bits(34))
-
-    # 步骤 5：选择新余数（优先级：3D > 2D > D > 0）
-    new_remainder = ge_3d.select(
-        rem_minus_3d,
-        ge_2d.select(
-            rem_minus_2d,
-            ge_1d.select(
-                rem_minus_1d,
-                shifted_remainder
-            )
-        )
-    )
-
-    # 步骤 6：选择商位
-    q_bits = ge_3d.select(
-        Bits(2)(0b11),
-        ge_2d.select(
-            Bits(2)(0b10),
-            ge_1d.select(
-                Bits(2)(0b01),
-                Bits(2)(0b00)
-            )
-        )
-    )
+    # 步骤 1：商位选择（QDS）
+    # 提取部分余数的高 6 位用于查表
+    w_truncated = self.shift_rem[0][29:34]  # 高 6 位
+    q_digit = self.quotient_select(w_truncated)
+    
+    # 步骤 2：计算新的部分余数
+    # w_new = 4 × w - q × D
+    w_shifted = concat(self.shift_rem[0][0:32], Bits(2)(0))  # 左移 2 位（乘 4）
+    
+    # 计算 q × D（其中 q ∈ {-2, -1, 0, 1, 2}）
+    d_extended = concat(Bits(3)(0), self.divisor_r[0])
+    d_2x = concat(Bits(2)(0), self.divisor_r[0], Bits(1)(0))  # 2×D
+    
+    # 解码商位并选择乘积
+    is_q_pos2 = (q_digit == Bits(3)(0b010))
+    is_q_pos1 = (q_digit == Bits(3)(0b001))
+    is_q_neg1 = (q_digit == Bits(3)(0b111))
+    is_q_neg2 = (q_digit == Bits(3)(0b110))
+    is_q_negative = is_q_neg1 | is_q_neg2
+    
+    # 根据 q 的符号决定加减
+    # q >= 0: w_new = w_shifted - qd_value
+    # q < 0:  w_new = w_shifted + |q|×D
+    new_w = is_q_negative.select(w_plus_qd, w_minus_qd)
+    
+    # 步骤 3：在线商转换
+    # Q_new 和 QM_new 根据 q 的值更新
+    Q_shifted = concat(self.Q[0][0:29], Bits(2)(0))   # Q << 2
+    QM_shifted = concat(self.QM[0][0:29], Bits(2)(0)) # QM << 2
+    
+    # 根据 q 选择基础值和加数
+    # q=+2: Q_new = 4×Q + 2
+    # q=+1: Q_new = 4×Q + 1
+    # q= 0: Q_new = 4×Q + 0
+    # q=-1: Q_new = 4×QM + 3
+    # q=-2: Q_new = 4×QM + 2
+    new_Q = is_q_pos2.select(Q_add_2,
+            is_q_pos1.select(Q_add_1,
+            is_q_neg1.select(QM_add_3, QM_add_2)))
+    
+    new_QM = new_Q - 1
 
     # 更新寄存器
-    self.remainder[0] = new_remainder
-    self.quotient[0] = (shifted_quotient.bitcast(UInt(32)) | 
-                        q_bits.bitcast(UInt(32))).bitcast(Bits(32))
+    self.shift_rem[0] = new_w
+    self.Q[0] = new_Q
+    self.QM[0] = new_QM
 
     # 递减计数器
-    self.div_cnt[0] = (self.div_cnt[0].bitcast(UInt(5)) - Bits(5)(1)).bitcast(Bits(5))
+    self.div_cnt[0] = self.div_cnt[0] - 1
 ```
 
-**硬件含义说明**：
-- `concat(Bits(1)(0), divisor, Bits(1)(0))` 通过左移1位实现乘2
-- `ge_3d`, `ge_2d`, `ge_1d` 是三个并行比较器
-- 嵌套的 `select` 实现了优先级编码器
+**SRT-4 关键操作说明**：
+- `quotient_select()`：基于部分余数高位的商位选择函数
+- 商位编码：`010=+2, 001=+1, 000=0, 111=-1, 110=-2`
+- 在线转换保证最终可以直接获得二进制商
 
 #### 3.3.6 DIV_END 状态：符号修正
 
@@ -994,43 +1050,28 @@ N+18        DIV_END          符号修正，结果就绪
 | 除数 = 1 | 2 周期 (IDLE → DIV_1) |
 | 正常除法 | ~18 周期 |
 
-### 3.5 示例：14 ÷ 3（DIVU，无符号，Radix-4）逐周期变化
+### 3.5 SRT-4 与 Radix-4 的性能比较
 
-Radix-4 每轮处理 2 位商（共 16 轮）。下表严格对应 `src/divider.py` 的算法：先取 `Q[31:30]` 填入 `R=(R<<2)|Q[31:30]`，再把 `Q` 左移 2 位，随后与 `3d/2d/d` 比较决定 `q_bits` 与新余数 `R`。
+SRT-4 相比 Radix-4 恢复除法的主要优势：
 
-> 说明：`R` 为 34 位，这里只展示低 10 位（高位本例始终为 0）。`Q` 展示 32 位二进制。
-
-| 轮次 | 取出的 Q[31:30] | 移位后 R (低10位) | 比较/选择 q_bits | 更新后 R (低10位) | 更新后 Q (32b) |
-|------|-----------------|-------------------|------------------|------------------|----------------|
-| 1 | 00 | 0000000000 | < d (0) | 0000000000 | 00000000000000000000000000111000 |
-| 2 | 00 | 0000000000 | < d (0) | 0000000000 | 00000000000000000000000011100000 |
-| 3 | 00 | 0000000000 | < d (0) | 0000000000 | 00000000000000000000001110000000 |
-| 4 | 00 | 0000000000 | < d (0) | 0000000000 | 00000000000000000000111000000000 |
-| 5 | 00 | 0000000000 | < d (0) | 0000000000 | 00000000000000000011100000000000 |
-| 6 | 00 | 0000000000 | < d (0) | 0000000000 | 00000000000000001110000000000000 |
-| 7 | 00 | 0000000000 | < d (0) | 0000000000 | 00000000000000111000000000000000 |
-| 8 | 00 | 0000000000 | < d (0) | 0000000000 | 00000000000011100000000000000000 |
-| 9 | 00 | 0000000000 | < d (0) | 0000000000 | 00000000001110000000000000000000 |
-| 10 | 00 | 0000000000 | < d (0) | 0000000000 | 00000000111000000000000000000000 |
-| 11 | 00 | 0000000000 | < d (0) | 0000000000 | 00000011100000000000000000000000 |
-| 12 | 00 | 0000000000 | < d (0) | 0000000000 | 00001110000000000000000000000000 |
-| 13 | 00 | 0000000000 | < d (0) | 0000000000 | 00111000000000000000000000000000 |
-| 14 | 00 | 0000000000 | < d (0) | 0000000000 | 11100000000000000000000000000000 |
-| 15 | 11 | 0000000011 | ≥ d → q_bits=01 | 0000000000 | 10000000000000000000000000000001 |
-| 16 | 10 | 0000000010 | < d (0) | 0000000010 | 00000000000000000000000000000100 |
-
-最终（进入 DIV_END）得到商 `Q=0x4`（0100），余数 `R=0x2`，与仿真/代码结果一致。
+| 特性 | SRT-4 除法器 | Radix-4 恢复除法 |
+|------|-------------|-----------------|
+| 商位选择 | 查表（QDS），简单阈值比较 | 与 3D, 2D, D 精确比较 |
+| 是否需要 3×D | 否 | 是（增加硬件） |
+| 容错性 | 有（冗余表示允许误差） | 无 |
+| 关键路径 | 较短（简化的比较逻辑） | 较长（需要计算 3D） |
 
 ### 3.6 逐位恢复除法（NaiveDivider）
 
 `src/naive_divider.py` 实现了更简单的逐位恢复除法，主要区别：
 
-| 特性 | Radix-4 (SRT4Divider) | 逐位 (NaiveDivider) |
+| 特性 | SRT-4 (SRT4Divider) | 逐位 (NaiveDivider) |
 |------|------------------------|---------------------|
 | 每周期处理位数 | 2 位 | 1 位 |
 | 迭代次数 | 16 次 | 32 次 |
 | 总周期数 | ~18 | ~34 |
-| 硬件复杂度 | 较高（需要 3 个比较器） | 较低（需要 1 个比较器） |
+| 算法类型 | SRT（冗余商表示） | 恢复除法 |
+| 硬件复杂度 | 中等（QDS + 在线转换） | 较低（单比较器） |
 
 ---
 
