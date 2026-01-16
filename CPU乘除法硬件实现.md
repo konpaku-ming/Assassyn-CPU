@@ -130,23 +130,6 @@ carry = (a·b) | (b·c) | (a·c)  （多数表决）
 ```
 
 这个电路的关键特性：将 3 个数压缩成 2 个数（sum + carry），且 carry 需要左移 1 位。
-
-**2:2 压缩器（半加器）**
-
-```
-输入：a, b （两个1位数）
-输出：sum, carry
-
-sum   = a ⊕ b
-carry = a · b
-```
-
-**为什么需要 2:2 压缩器？**
-
-- 在 Wallace Tree 的某些列里，压缩到较高层时只剩下 2 个比特（例如 Level 5 的末尾列只剩一行 sum 和一行 carry），这时强行用 3:2 压缩器需要人为补 0，不仅浪费门级，还增加无意义的布线和延迟。
-- 使用 2:2 压缩器可以在不引入额外进位链的情况下把列高从 2 行变成 “sum+carry” 两行（其中 carry 左移 1 位），为下一层保持统一的行数，避免最终 CPA 需要处理 5 行甚至更多的结果。
-- 在本 CPU 的 3 级流水线实现里，Level 5 需要 1 个 3:2 压缩器 + 1 个 2:2 压缩器才能把 5 行压成 4 行，如果没有 2:2 压缩器，就必须多插一层 3:2 压缩（增加一级延迟或更长的组合路径），会破坏当前每周期一层压缩的节奏。
-
 #### 2.1.5 Wallace Tree 压缩过程
 
 对于 32 个部分积，Wallace Tree 逐层压缩：
@@ -163,7 +146,7 @@ carry = a · b
 级别 4: 7 行
         ↓ 用 2 个 3:2 压缩器
 级别 5: 5 行
-        ↓ 用 1 个 3:2 压缩器 + 1 个 2:2 压缩器
+        ↓ 用 2 个 3:2 压缩器
 级别 6: 4 行
         ↓ 用 1 个 3:2 压缩器
 级别 7: 3 行
@@ -197,9 +180,9 @@ class WallaceTreeMul:
     """
 ```
 
-#### 2.2.2 3:2 和 2:2 压缩器的硬件实现
+#### 2.2.2 3:2 压缩器的硬件实现
 
-Wallace Tree 的核心组件是压缩器。在 `src/multiplier.py` 中定义了两种压缩器：
+Wallace Tree 的核心组件是 3:2 压缩器（全加器）。在 `src/multiplier.py` 中定义：
 
 **3:2 压缩器（全加器）**：
 
@@ -221,19 +204,6 @@ def full_adder_64bit(a: Bits, b: Bits, c: Bits) -> tuple:
     # Carry is shifted left by 1 bit (carry[i+1] in hardware)
     carry_shifted = concat(carry_unshifted[0:62], Bits(1)(0))
 
-    return (sum_result, carry_shifted)
-```
-
-**2:2 压缩器（半加器）**：
-
-```python
-def half_adder_64bit(a: Bits, b: Bits) -> tuple:
-    """
-    64-bit 2:2 compressor (Half Adder)
-    """
-    sum_result = a ^ b              # XOR for sum
-    carry_unshifted = a & b         # AND for carry
-    carry_shifted = concat(carry_unshifted[0:62], Bits(1)(0))
     return (sum_result, carry_shifted)
 ```
 
@@ -710,7 +680,12 @@ for i = 7 downto 0:  # 8 次迭代，每次 4 位
 
 ### 3.3 Assassyn 代码实现详解
 
-在 `src/divider.py` 中，我们实现了 Radix-16 恢复除法器。
+在 `src/divider.py` 中，我们实现了带有 QDS（Quotient Digit Selection）优化的 Radix-16 恢复除法器。该实现的主要特点包括：
+
+- **Radix-16 基数**：每周期产生 4 位商，总共需要 8 次迭代
+- **QDS 二分搜索树优化**：将商位选择的关键路径从 15 级 mux 减少到 4 级 mux
+- **全精度比较**：使用 36 位宽度进行比较，确保正确性
+- **状态机设计**：支持快速路径（除数为 0 或 1）和正常除法路径
 
 #### 3.3.1 状态机设计
 
@@ -971,39 +946,57 @@ with Condition(self.state[0] == self.DIV_WORKING):
         self.state[0] = self.DIV_END
 ```
 
-**商位选择函数**：
+**商位选择函数（QDS 二分搜索树优化）**：
+
+本实现使用 QDS（Quotient Digit Selection）二分搜索树结构来优化商位选择的关键路径。传统的优先级编码器方法需要 15 级嵌套的多路复用器，而二分搜索树方法只需要 4 级多路复用器，显著提升了硬件时序性能。
 
 ```python
-def quotient_select(self, shifted_rem, d1, d2, ..., d15):
+def quotient_select(self, shifted_rem, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12, d13, d14, d15):
     """
-    Radix-16 商位选择
-    比较移位后的余数与除数倍数
-    返回商位 {0, 1, 2, ..., 15}
+    QDS (Quotient Digit Selection) for Radix-16 division.
+    使用二分搜索树结构，将关键路径从 15 级 mux 减少到 4 级。
+    
+    QDS 二分搜索树：
+    - Level 1: 比较 8d（决定 q[3] - MSB）
+    - Level 2: 比较 4d 或 12d（决定 q[2]）
+    - Level 3: 比较 2d/6d/10d/14d（决定 q[1]）
+    - Level 4: 比较奇数倍数（决定 q[0] - LSB）
     """
-    # 并行比较 shifted_rem >= 15d, 14d, ..., d
-    ge_15d = (shifted_rem.bitcast(UInt(36)) >= d15.bitcast(UInt(36)))
+    # 所有比较在硬件中并行执行
+    # Level 1: MSB 选择 - 与 8d 比较
+    ge_8d = (shifted_rem.bitcast(UInt(36)) >= d8.bitcast(UInt(36)))
+
+    # Level 2: 第二位选择
+    ge_12d = (shifted_rem.bitcast(UInt(36)) >= d12.bitcast(UInt(36)))
+    ge_4d = (shifted_rem.bitcast(UInt(36)) >= d4.bitcast(UInt(36)))
+
+    # Level 3: 第三位选择
     ge_14d = (shifted_rem.bitcast(UInt(36)) >= d14.bitcast(UInt(36)))
+    ge_10d = (shifted_rem.bitcast(UInt(36)) >= d10.bitcast(UInt(36)))
+    ge_6d = (shifted_rem.bitcast(UInt(36)) >= d6.bitcast(UInt(36)))
+    ge_2d = (shifted_rem.bitcast(UInt(36)) >= d2.bitcast(UInt(36)))
+
+    # Level 4: LSB 选择
+    ge_15d = (shifted_rem.bitcast(UInt(36)) >= d15.bitcast(UInt(36)))
     # ... (ge_13d 到 ge_1d)
 
-    # 优先级选择（优先级：15 > 14 > ... > 1 > 0）
-    q = ge_15d.select(
-        Bits(4)(15),
-        ge_14d.select(
-            Bits(4)(14),
-            ...
-            ge_1d.select(
-                Bits(4)(1),
-                Bits(4)(0)
-            )
-        )
-    )
+    # 使用二分搜索树结构构建商位
+    q3 = ge_8d
+    q2 = ge_8d.select(ge_12d, ge_4d)
+    q1_high = ge_12d.select(ge_14d, ge_10d)
+    q1_low = ge_4d.select(ge_6d, ge_2d)
+    q1 = ge_8d.select(q1_high, q1_low)
+    # q0 使用类似的层次选择逻辑
+
+    # 组合成 4 位商位
+    q = concat(concat(concat(q3, q2), q1), q0)
     return q
 ```
 
 **硬件含义说明**：
-- 每周期处理 4 位商，需要 15 个并行比较器
-- 优先级编码器选择最大可减倍数
-- 嵌套的 `select` 实现了硬件优先级编码器
+- 每周期处理 4 位商，需要 15 个并行比较器（比较在硬件中并行执行）
+- 使用 QDS 二分搜索树结构，将选择逻辑从 15 级 mux 优化到 4 级 mux
+- 关键路径优化显著提高了硬件时序性能，适合高频率综合
 
 #### 3.3.7 DIV_END 状态：符号修正
 
