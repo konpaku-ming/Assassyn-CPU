@@ -10,35 +10,38 @@ Architecture Overview:
 
 The Radix-16 divider uses:
 1. Quotient digit set {0, 1, 2, ..., 15}
-2. QDS (Quotient Digit Selection) table-based approach for fast quotient selection
+2. QDS (Quotient Digit Selection) with binary search tree structure
 3. 4 bits of quotient per cycle
-4. Divisor normalization for efficient QDS lookup
+4. Full-precision comparisons with optimized selection logic
 
 Key Radix-16 Features with QDS Optimization:
 - 4 bits of quotient per iteration (vs 2 bits for Radix-4, 3 bits for Radix-8)
 - Fixed 8 iterations for 32-bit division
-- QDS table uses truncated remainder bits for O(1) quotient selection
-- Only 3-4 comparisons needed per iteration instead of 15
+- Binary search tree selection reduces mux depth from 15 to 4 levels
+- Critical path optimization for synthesized hardware
 
 QDS (Quotient Digit Selection) Approach:
 ========================================
-Modern CPU dividers use QDS tables to avoid comparing the full remainder
-against all multiples of the divisor. The approach:
+Modern CPU dividers optimize the quotient selection critical path. The key insight
+is that while we need to compare against all divisor multiples for correctness,
+the selection logic can be structured as a binary search tree instead of a
+priority encoder.
 
-1. Divisor Normalization: Shift divisor so leading 1 is at bit 31
-   - Allows fixed comparison thresholds
-   - Normalized divisor d' is in range [0.5, 1) in fixed-point
+Old Approach (Priority Encoder):
+- Compute: ge_15d, ge_14d, ..., ge_1d (15 comparisons)
+- Select: 15-level cascaded mux (deep critical path)
+- q = ge_15d ? 15 : (ge_14d ? 14 : ...)
 
-2. Truncated Comparison: Use only top 8 bits of shifted remainder
-   - Compare against precomputed thresholds instead of full multiples
-   - Thresholds are derived from: q = floor(R_truncated / d_normalized)
+New Approach (Binary Search Tree):
+- Compute: Same 15 comparisons (in parallel)
+- Select: 4-level binary tree mux structure
+- Each quotient bit computed with shallow mux based on higher bits
 
-3. Selection Logic: Binary search or parallel comparators
-   - For radix-16: compare against 8d, 4d, 2d, d thresholds
-   - Combine results to get 4-bit quotient digit
+The comparisons use full-precision 36-bit arithmetic, while the selection
+logic is optimized for minimal depth.
 
 Timing:
-- 1 cycle: Preprocessing (DIV_PRE) - includes normalization
+- 1 cycle: Preprocessing (DIV_PRE)
 - 8 cycles: Iterative calculation (DIV_WORKING) - 4 bits per cycle with QDS
 - 1 cycle: Post-processing (DIV_END)
 - Total: ~10 cycles for normal division
@@ -58,23 +61,27 @@ class Radix16Divider:
     using an optimized QDS (Quotient Digit Selection) approach.
 
     The divider is a multi-cycle functional unit that takes ~10 cycles:
-    - 1 cycle: Preprocessing (including divisor normalization)
+    - 1 cycle: Preprocessing
     - 8 cycles: Iterative calculation (4 bits per cycle with QDS)
     - 1 cycle: Post-processing
 
     Key Radix-16 features with QDS optimization:
     - Quotient digit set {0, 1, 2, ..., 15}
-    - QDS table-based selection using only truncated remainder bits
-    - Binary search through 4 threshold comparisons instead of 15 full comparisons
-    - Divisor normalization allows fixed comparison thresholds
+    - Binary search tree selection structure (4 mux levels vs 15)
+    - Full-precision 36-bit comparisons for correctness
+    - Optimized critical path through selection logic
     - 4 bits of quotient per iteration
     - Fixed 8 iterations for 32-bit division
 
     QDS Selection Logic:
-    - Normalize divisor: shift so MSB is at bit 31 (d' in [0.5, 1))
-    - For each iteration, extract top 8 bits of shifted remainder
-    - Use hierarchical comparison: q[3] = (R >= 8d'), q[2] based on R mod 8d', etc.
-    - Combine to form 4-bit quotient digit
+    The quotient digit selection uses a binary search tree structure:
+    - q[3] (MSB) determined by comparing with 8d
+    - q[2] determined by comparing with 4d or 12d based on q[3]
+    - q[1] determined by comparing with 2d/6d/10d/14d based on q[3:2]
+    - q[0] (LSB) determined by comparing with odd multiples based on q[3:1]
+
+    This reduces the mux depth from 15 levels (priority encoder) to 4 levels,
+    significantly improving the critical path in synthesized hardware.
 
     Pipeline Integration:
     - When a division instruction enters EX stage, the divider is started
@@ -123,24 +130,21 @@ class Radix16Divider:
         self.d6 = RegArray(Bits(36), 1, initializer=[0])  # 6*d (for QDS refinement)
         self.d7 = RegArray(Bits(36), 1, initializer=[0])  # 7*d (for QDS refinement)
         self.d8 = RegArray(Bits(36), 1, initializer=[0])  # 8*d (normalized)
-        self.d9 = RegArray(Bits(36), 1, initializer=[0])  # 9*d (for QDS refinement)
-        self.d10 = RegArray(Bits(36), 1, initializer=[0])  # 10*d (for QDS refinement)
-        self.d11 = RegArray(Bits(36), 1, initializer=[0])  # 11*d (for QDS refinement)
-        self.d12 = RegArray(Bits(36), 1, initializer=[0])  # 12*d (for QDS refinement)
-        self.d13 = RegArray(Bits(36), 1, initializer=[0])  # 13*d (for QDS refinement)
-        self.d14 = RegArray(Bits(36), 1, initializer=[0])  # 14*d (for QDS refinement)
-        self.d15 = RegArray(Bits(36), 1, initializer=[0])  # 15*d (for QDS refinement)
-
-        # QDS-specific: Normalization shift amount for divisor
-        # This allows us to use fixed thresholds in QDS table lookup
-        self.norm_shift = RegArray(Bits(6), 1, initializer=[0])  # Divisor normalization shift
+        self.d9 = RegArray(Bits(36), 1, initializer=[0])  # 9*d (for QDS level 4)
+        self.d10 = RegArray(Bits(36), 1, initializer=[0])  # 10*d (for QDS level 3)
+        self.d11 = RegArray(Bits(36), 1, initializer=[0])  # 11*d (for QDS level 4)
+        self.d12 = RegArray(Bits(36), 1, initializer=[0])  # 12*d (for QDS level 2)
+        self.d13 = RegArray(Bits(36), 1, initializer=[0])  # 13*d (for QDS level 4)
+        self.d14 = RegArray(Bits(36), 1, initializer=[0])  # 14*d (for QDS level 3)
+        self.d15 = RegArray(Bits(36), 1, initializer=[0])  # 15*d (for QDS level 4)
 
         # Sign tracking for final correction
         self.div_sign = RegArray(Bits(2), 1, initializer=[0])  # Sign bits {dividend[31], divisor[31]}
         self.sign_r = RegArray(Bits(1), 1, initializer=[0])  # Sign flag for result
 
-        # Compatibility registers for tests
-        self.div_shift = RegArray(Bits(6), 1, initializer=[0])  # Normalization shift (used in QDS)
+        # Compatibility registers for tests (preserved for backward compatibility)
+        self.norm_shift = RegArray(Bits(6), 1, initializer=[0])  # Reserved for future normalization
+        self.div_shift = RegArray(Bits(6), 1, initializer=[0])  # Reserved for future optimization
         self.shift_rem = RegArray(Bits(36), 1, initializer=[0])  # For compatibility
         self.Q = RegArray(Bits(32), 1, initializer=[0])  # For compatibility
         self.QM = RegArray(Bits(32), 1, initializer=[0])  # For compatibility
@@ -181,34 +185,37 @@ class Radix16Divider:
         """
         QDS (Quotient Digit Selection) for Radix-16 division.
 
-        This implementation uses a binary search approach through the divisor multiples,
-        requiring only 4 primary comparisons plus 3 secondary comparisons (total 7)
-        instead of the naive 15 comparisons. This matches modern CPU designs where
-        QDS is optimized for critical path timing.
+        This implementation uses a binary search tree structure for the selection
+        logic, which reduces the critical path from 15 levels of cascaded muxes
+        (in a priority encoder) to only 4 levels of muxes.
 
-        QDS Binary Search Strategy:
-        ===========================
-        Instead of comparing against all 15 multiples sequentially, we use a
-        binary search tree structure:
+        Hardware Implementation Note:
+        ============================
+        In synthesized hardware, all 15 comparisons are computed in parallel
+        (they are independent operations). The key optimization is in how the
+        results are combined:
 
+        - Old approach: 15-deep cascaded mux chain (priority encoder)
+          - Critical path: 15 mux levels
+          - q = ge_15d ? 15 : (ge_14d ? 14 : (ge_13d ? 13 : ...))
+
+        - New approach: Binary search tree selection
+          - Critical path: 4 mux levels
+          - Each quotient bit computed with 2-level mux based on higher bits
+
+        QDS Binary Search Tree:
+        ======================
         Level 1: Compare with 8d (determines q[3] - MSB)
-                 q >= 8 or q < 8
-
         Level 2: Compare with 4d or 12d (determines q[2])
-                 - If q >= 8: compare with 12d (8+4)
-                 - If q < 8: compare with 4d
+        Level 3: Compare with 2d/6d/10d/14d (determines q[1])
+        Level 4: Compare with odd multiples (determines q[0] - LSB)
 
-        Level 3: Compare with 2d, 6d, 10d, or 14d (determines q[1])
-                 Based on range from level 2
-
-        Level 4: Compare with 1d, 3d, 5d, 7d, 9d, 11d, 13d, or 15d (determines q[0])
-                 Based on range from level 3
-
-        This reduces comparisons from 15 to 4 levels (worst case 4-7 comparisons),
-        with better critical path than priority encoder approach.
+        The comparisons themselves still use full-precision 36-bit values for
+        correctness. The optimization is in the selection logic depth.
 
         Returns quotient digit from {0, 1, 2, ..., 15}.
         """
+        # All comparisons computed in parallel (in hardware)
         # Level 1: MSB selection - compare with 8d
         ge_8d = (shifted_rem.bitcast(UInt(36)) >= d8.bitcast(UInt(36)))
 
