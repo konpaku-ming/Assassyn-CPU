@@ -183,6 +183,18 @@ class SRT4Divider:
                 - 01: q = ±1
                 - 10: q = ±2
             The sign is determined by dividend_index[6] (sign bit)
+        
+        Note on 7-bit two's complement encoding for negative thresholds:
+            -4  = 0b1111100 = 124
+            -6  = 0b1111010 = 122
+            -8  = 0b1111000 = 120
+            -13 = 0b1110011 = 115
+            -15 = 0b1110001 = 113
+            -16 = 0b1110000 = 112
+            -18 = 0b1101110 = 110
+            -20 = 0b1101100 = 108
+            -22 = 0b1101010 = 106
+            -24 = 0b1101000 = 104
         """
         # Compare thresholds for each divisor index value
         # divisor_index is always 1xxx (8-15) after normalization
@@ -392,16 +404,22 @@ class SRT4Divider:
         # recovery = 32 - shift_amt
         
         # Simplified approach: use shift_amt to compute parameters
+        # iterations = ceil(shift_amt / 2) + 1 for SRT-4 (2 bits per iteration)
         iter_from_shift = ((shift_amt.bitcast(UInt(6)) + Bits(6)(3)) >> 1).bitcast(Bits(6))
         
-        # Normalize divisor by shifting left
+        # Normalize divisor by shifting left by shift_amt bits
+        # We pre-compute all 32 possible shift values
         divisor_shifted = Bits(35)(0)
         for s in range(32):
             is_shift = (shift_amt == Bits(6)(s))
             if s == 0:
                 shifted_val = concat(Bits(3)(0), divisor)
+            elif s <= 30:
+                # For s in [1, 30], slice [0:31-s] gives (32-s) bits, then pad with s zeros
+                shifted_val = concat(Bits(3)(0), divisor[0:31-s], Bits(s)(0))
             else:
-                shifted_val = concat(Bits(3)(0), divisor[0:31-s], Bits(s)(0)) if s < 32 else Bits(35)(0)
+                # For s=31, we need special handling: divisor[0:0] is 1 bit
+                shifted_val = concat(Bits(3)(0), divisor[0:0], Bits(31)(0))
             divisor_shifted = is_shift.select(shifted_val, divisor_shifted)
         
         # For dividend: alternate between padding with 0 and with dividend<<1
@@ -730,7 +748,7 @@ class SRT4Divider:
             
             # w_reg_fix is in 36-bit format with extra precision
             # The actual remainder value is in the upper portion
-            # Based on Verilog: reminder = (w_reg_fix << recovery_reg) >> 33
+            # Based on Verilog: remainder = (w_reg_fix << recovery_reg) >> 33
             
             # For simplicity, we compute remainder as w_reg_fix shifted appropriately
             # The shift amount depends on recovery value
@@ -740,9 +758,12 @@ class SRT4Divider:
                 # Shift w_reg_fix left by r, then take bits [35:4] as remainder candidate
                 if r == 0:
                     shifted = w_reg_fix
+                elif r <= 34:
+                    # Left shift by r bits: take [0:35-r] and append r zeros
+                    shifted = concat(w_reg_fix[0:35-r], Bits(r)(0))
                 else:
-                    # Left shift by r bits
-                    shifted = concat(w_reg_fix[0:35-r], Bits(r)(0)) if r < 36 else Bits(36)(0)
+                    # r=35 or r=36: essentially all zeros
+                    shifted = Bits(36)(0)
                 # Take the high 32 bits after shifting
                 rem_candidate = shifted[4:35]  # bits [35:4] gives us 32 bits
                 rem_raw = is_this_recovery.select(rem_candidate, rem_raw)
