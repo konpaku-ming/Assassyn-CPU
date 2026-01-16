@@ -317,14 +317,12 @@ class SRT4Divider:
         q_n2 = d_1000_qn2 | d_1001_qn2 | d_1010_qn2 | d_1011_qn2 | d_1100_qn2 | d_1101_qn2 | d_1110_qn2 | d_1111_qn2
         
         # Output: 2-bit magnitude (matches Verilog exactly)
+        # q_table is 2'b10 for |q|=2, 2'b01 for |q|=1, 2'b00 for q=0
         q_table = (q_2 | q_n2).select(
             Bits(2)(0b10),
             (q_1 | q_n1).select(
                 Bits(2)(0b01),
-                q_0.select(
-                    Bits(2)(0b00),
-                    Bits(2)(0b00)  # Default
-                )
+                Bits(2)(0b00)  # q=0 or default
             )
         )
         
