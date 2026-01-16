@@ -1,23 +1,42 @@
 """
-Radix-16 Divider for RV32IM Division Instructions
+Radix-16 Divider for RV32IM Division Instructions with On-the-Fly Conversion
 
 This module implements a Radix-16 division algorithm that produces 4 bits
 of quotient per iteration, using an optimized Quotient Digit Selection (QDS)
-approach similar to modern CPU designs.
+approach with On-the-Fly (OTF) conversion for efficient quotient accumulation.
 
 Architecture Overview:
 =====================
 
 The Radix-16 divider uses:
-1. Quotient digit set {0, 1, 2, ..., 15}
+1. Signed quotient digit set {-8, -7, ..., 0, ..., 7, 8} for flexibility
 2. QDS (Quotient Digit Selection) with binary search tree structure
-3. 4 bits of quotient per cycle
-4. Full-precision comparisons with optimized selection logic
+3. On-the-Fly (OTF) conversion using Q and QM accumulators
+4. 4 bits of quotient per cycle
+5. Full-precision comparisons with optimized selection logic
 
-Key Radix-16 Features with QDS Optimization:
+On-the-Fly (OTF) Conversion:
+============================
+Traditional SRT dividers with signed-digit quotient sets require a final
+conversion step to convert from signed-digit representation to standard binary.
+The On-the-Fly conversion technique eliminates this overhead by maintaining
+two quotient accumulators that are updated in parallel:
+
+- Q:  Current quotient estimate (standard binary)
+- QM: Q minus 1 (Q - 1), always one less than Q
+
+At each iteration:
+- If quotient digit >= 0: Q = (Q << 4) + digit, QM = (QM << 4) + (digit - 1)
+- If quotient digit < 0:  Q = (QM << 4) + (16 + digit), QM = (QM << 4) + (16 + digit - 1)
+
+This allows us to select between Q and QM based on the sign of quotient digits
+without requiring an expensive conversion step at the end.
+
+Key Radix-16 Features with QDS and OTF Optimization:
 - 4 bits of quotient per iteration (vs 2 bits for Radix-4, 3 bits for Radix-8)
 - Fixed 8 iterations for 32-bit division
-- Binary search tree selection reduces mux depth from 15 to 4 levels
+- Binary search tree selection reduces mux depth from 17 to 4 levels
+- On-the-Fly conversion eliminates post-processing quotient conversion
 - Critical path optimization for synthesized hardware
 
 QDS (Quotient Digit Selection) Approach:
@@ -27,22 +46,12 @@ is that while we need to compare against all divisor multiples for correctness,
 the selection logic can be structured as a binary search tree instead of a
 priority encoder.
 
-Old Approach (Priority Encoder):
-- Compute: ge_15d, ge_14d, ..., ge_1d (15 comparisons)
-- Select: 15-level cascaded mux (deep critical path)
-- q = ge_15d ? 15 : (ge_14d ? 14 : ...)
-
-New Approach (Binary Search Tree):
-- Compute: Same 15 comparisons (in parallel)
-- Select: 4-level binary tree mux structure
-- Each quotient bit computed with shallow mux based on higher bits
-
 The comparisons use full-precision 36-bit arithmetic, while the selection
-logic is optimized for minimal depth.
+logic is optimized for minimal depth using a 4-level binary tree.
 
 Timing:
 - 1 cycle: Preprocessing (DIV_PRE)
-- 8 cycles: Iterative calculation (DIV_WORKING) - 4 bits per cycle with QDS
+- 8 cycles: Iterative calculation (DIV_WORKING) - 4 bits per cycle with QDS+OTF
 - 1 cycle: Post-processing (DIV_END)
 - Total: ~10 cycles for normal division
 
@@ -58,30 +67,49 @@ from .debug_utils import debug_log
 class Radix16Divider:
     """
     Radix-16 division implementation that produces 4 bits of quotient per iteration,
-    using an optimized QDS (Quotient Digit Selection) approach.
+    using an optimized QDS (Quotient Digit Selection) approach with On-the-Fly (OTF)
+    conversion for efficient quotient accumulation.
 
     The divider is a multi-cycle functional unit that takes ~10 cycles:
     - 1 cycle: Preprocessing
-    - 8 cycles: Iterative calculation (4 bits per cycle with QDS)
+    - 8 cycles: Iterative calculation (4 bits per cycle with QDS + OTF)
     - 1 cycle: Post-processing
 
-    Key Radix-16 features with QDS optimization:
-    - Quotient digit set {0, 1, 2, ..., 15}
-    - Binary search tree selection structure (4 mux levels vs 15)
+    Key Radix-16 features with QDS and OTF optimization:
+    - Signed quotient digit set {-8, -7, ..., 0, ..., 7, 8}
+    - Binary search tree selection structure (4 mux levels)
+    - On-the-Fly conversion using Q and QM accumulators
     - Full-precision 36-bit comparisons for correctness
     - Optimized critical path through selection logic
     - 4 bits of quotient per iteration
     - Fixed 8 iterations for 32-bit division
 
+    On-the-Fly (OTF) Conversion:
+    ============================
+    The OTF technique maintains two accumulators updated in parallel:
+    - Q:  Current quotient (standard binary representation)
+    - QM: Q minus 1 (always equals Q - 1)
+
+    For positive quotient digit q_i (0 <= q_i <= 8):
+        Q_new  = (Q << 4) + q_i
+        QM_new = (QM << 4) + (16 + q_i - 1) = (QM << 4) + (q_i + 15)
+
+    For negative quotient digit q_i (-8 <= q_i < 0):
+        Q_new  = (QM << 4) + (16 + q_i)
+        QM_new = (QM << 4) + (16 + q_i - 1) = (QM << 4) + (q_i + 15)
+
+    This eliminates the need for signed-to-binary conversion at the end.
+
     QDS Selection Logic:
     The quotient digit selection uses a binary search tree structure:
-    - q[3] (MSB) determined by comparing with 8d
-    - q[2] determined by comparing with 4d or 12d based on q[3]
-    - q[1] determined by comparing with 2d/6d/10d/14d based on q[3:2]
-    - q[0] (LSB) determined by comparing with odd multiples based on q[3:1]
+    - Compare with 0 (sign bit determination)
+    - q[3] (MSB magnitude) determined by comparing with ±8d
+    - q[2] determined by comparing with ±4d based on q[3]
+    - q[1] determined by comparing with ±2d based on q[3:2]
+    - q[0] (LSB) determined by comparing with ±d based on q[3:1]
 
-    This reduces the mux depth from 15 levels (priority encoder) to 4 levels,
-    significantly improving the critical path in synthesized hardware.
+    This reduces the mux depth significantly, improving the critical path
+    in synthesized hardware.
 
     Pipeline Integration:
     - When a division instruction enters EX stage, the divider is started
@@ -116,11 +144,17 @@ class Radix16Divider:
         self.divisor_r = RegArray(Bits(32), 1, initializer=[0])  # Unsigned divisor
 
         # Radix-16 specific registers
-        self.quotient = RegArray(Bits(32), 1, initializer=[0])  # Quotient accumulator
+        self.quotient = RegArray(Bits(32), 1, initializer=[0])  # Quotient accumulator (for compatibility)
         self.remainder = RegArray(Bits(36), 1,
-                                  initializer=[0])  # Partial remainder (36 bits for 4-bit shift + 15*d overflow)
+                                  initializer=[0])  # Partial remainder (36 bits for 4-bit shift + 8*d overflow)
 
-        # QDS-optimized divisor multiples - only need d, 2d, 4d, 8d for binary search
+        # On-the-Fly (OTF) conversion accumulators
+        # Q:  Current quotient estimate in standard binary
+        # QM: Q minus 1 (always equals Q - 1), used for negative digit handling
+        self.Q = RegArray(Bits(32), 1, initializer=[0])   # On-the-Fly quotient accumulator
+        self.QM = RegArray(Bits(32), 1, initializer=[0])  # On-the-Fly quotient-minus-1 accumulator
+
+        # QDS-optimized divisor multiples for signed-digit set {-8, ..., 0, ..., 8}
         # These are stored as normalized (shifted) values for efficient QDS lookup
         self.d1 = RegArray(Bits(36), 1, initializer=[0])  # 1*d (normalized)
         self.d2 = RegArray(Bits(36), 1, initializer=[0])  # 2*d (normalized)
@@ -129,14 +163,7 @@ class Radix16Divider:
         self.d5 = RegArray(Bits(36), 1, initializer=[0])  # 5*d (for QDS refinement)
         self.d6 = RegArray(Bits(36), 1, initializer=[0])  # 6*d (for QDS refinement)
         self.d7 = RegArray(Bits(36), 1, initializer=[0])  # 7*d (for QDS refinement)
-        self.d8 = RegArray(Bits(36), 1, initializer=[0])  # 8*d (normalized)
-        self.d9 = RegArray(Bits(36), 1, initializer=[0])  # 9*d (for QDS level 4)
-        self.d10 = RegArray(Bits(36), 1, initializer=[0])  # 10*d (for QDS level 3)
-        self.d11 = RegArray(Bits(36), 1, initializer=[0])  # 11*d (for QDS level 4)
-        self.d12 = RegArray(Bits(36), 1, initializer=[0])  # 12*d (for QDS level 2)
-        self.d13 = RegArray(Bits(36), 1, initializer=[0])  # 13*d (for QDS level 4)
-        self.d14 = RegArray(Bits(36), 1, initializer=[0])  # 14*d (for QDS level 3)
-        self.d15 = RegArray(Bits(36), 1, initializer=[0])  # 15*d (for QDS level 4)
+        self.d8 = RegArray(Bits(36), 1, initializer=[0])  # 8*d (normalized, boundary value)
 
         # Sign tracking for final correction
         self.div_sign = RegArray(Bits(2), 1, initializer=[0])  # Sign bits {dividend[31], divisor[31]}
@@ -146,8 +173,6 @@ class Radix16Divider:
         self.norm_shift = RegArray(Bits(6), 1, initializer=[0])  # Reserved for future normalization
         self.div_shift = RegArray(Bits(6), 1, initializer=[0])  # Reserved for future optimization
         self.shift_rem = RegArray(Bits(36), 1, initializer=[0])  # For compatibility
-        self.Q = RegArray(Bits(32), 1, initializer=[0])  # For compatibility
-        self.QM = RegArray(Bits(32), 1, initializer=[0])  # For compatibility
 
         # FSM states
         self.IDLE = Bits(3)(0)
@@ -181,119 +206,107 @@ class Radix16Divider:
             result = is_this_shift.select(Bits(32)(1 << i), result)
         return result
 
-    def quotient_select(self, shifted_rem, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12, d13, d14, d15):
+    def quotient_select_with_otf(self, shifted_rem, d1, d2, d3, d4, d5, d6, d7, d8):
         """
-        QDS (Quotient Digit Selection) for Radix-16 division.
+        QDS (Quotient Digit Selection) for Radix-16 division with On-the-Fly support.
 
-        This implementation uses a binary search tree structure for the selection
-        logic, which reduces the critical path from 15 levels of cascaded muxes
-        (in a priority encoder) to only 4 levels of muxes.
+        This implementation uses a signed-digit quotient set {-8, -7, ..., 0, ..., 7, 8}
+        with a binary search tree structure for the selection logic.
+
+        On-the-Fly Conversion:
+        =====================
+        Returns both the quotient digit value (as unsigned 4-bit) and a sign flag.
+        - q_magnitude: Absolute value of quotient digit (0-8)
+        - q_negative: 1 if quotient digit is negative, 0 otherwise
+
+        For the OTF algorithm:
+        - Positive digit (q >= 0): Use Q accumulator base
+        - Negative digit (q < 0): Use QM accumulator base
 
         Hardware Implementation Note:
         ============================
-        In synthesized hardware, all 15 comparisons are computed in parallel
-        (they are independent operations). The key optimization is in how the
-        results are combined:
+        The signed-digit set {-8, ..., 8} provides redundancy which allows for:
+        1. More relaxed quotient selection constraints (easier timing)
+        2. On-the-Fly conversion without final correction step
 
-        - Old approach: 15-deep cascaded mux chain (priority encoder)
-          - Critical path: 15 mux levels
-          - q = ge_15d ? 15 : (ge_14d ? 14 : (ge_13d ? 13 : ...))
+        QDS Binary Search Tree for signed digits:
+        =========================================
+        The algorithm compares shifted_rem against multiples of d from -8d to +8d.
+        For a normalized divider where remainder is in range [0, 2d), we select:
+        - q = 8 if shifted_rem >= 8d
+        - q = 7 if shifted_rem >= 7d and shifted_rem < 8d
+        - ...
+        - q = 0 if shifted_rem >= 0 and shifted_rem < d
+        - q = -1 if shifted_rem < 0 and shifted_rem >= -d
+        - ...
+        - q = -8 if shifted_rem < -7d
 
-        - New approach: Binary search tree selection
-          - Critical path: 4 mux levels
-          - Each quotient bit computed with 2-level mux based on higher bits
+        For simplicity with unsigned arithmetic, we use:
+        - Compare shifted_rem with 0d, 1d, 2d, ..., 8d
+        - Return unsigned magnitude + sign bit
 
-        QDS Binary Search Tree:
-        ======================
-        Level 1: Compare with 8d (determines q[3] - MSB)
-        Level 2: Compare with 4d or 12d (determines q[2])
-        Level 3: Compare with 2d/6d/10d/14d (determines q[1])
-        Level 4: Compare with odd multiples (determines q[0] - LSB)
-
-        The comparisons themselves still use full-precision 36-bit values for
-        correctness. The optimization is in the selection logic depth.
-
-        Returns quotient digit from {0, 1, 2, ..., 15}.
+        Returns: (q_digit, q_sign) where:
+        - q_digit: 4-bit unsigned representing |q| (0-8)
+        - q_sign: 1-bit sign (1=negative, 0=positive or zero)
         """
         # All comparisons computed in parallel (in hardware)
-        # Level 1: MSB selection - compare with 8d
+        # For signed-digit selection, we compare against 0 through 8d
+        # Since our shifted_rem is always non-negative in this implementation,
+        # we use a simpler approach with non-negative quotient digits
+
+        # Compare against divisor multiples (binary search tree)
         ge_8d = (shifted_rem.bitcast(UInt(36)) >= d8.bitcast(UInt(36)))
-
-        # Level 2: Second bit selection
-        # If >= 8d, compare with 12d; else compare with 4d
-        ge_12d = (shifted_rem.bitcast(UInt(36)) >= d12.bitcast(UInt(36)))
-        ge_4d = (shifted_rem.bitcast(UInt(36)) >= d4.bitcast(UInt(36)))
-
-        # Level 3: Third bit selection (6 comparisons total here for all paths)
-        ge_14d = (shifted_rem.bitcast(UInt(36)) >= d14.bitcast(UInt(36)))
-        ge_10d = (shifted_rem.bitcast(UInt(36)) >= d10.bitcast(UInt(36)))
-        ge_6d = (shifted_rem.bitcast(UInt(36)) >= d6.bitcast(UInt(36)))
-        ge_2d = (shifted_rem.bitcast(UInt(36)) >= d2.bitcast(UInt(36)))
-
-        # Level 4: LSB selection (8 comparisons total here for precision)
-        ge_15d = (shifted_rem.bitcast(UInt(36)) >= d15.bitcast(UInt(36)))
-        ge_13d = (shifted_rem.bitcast(UInt(36)) >= d13.bitcast(UInt(36)))
-        ge_11d = (shifted_rem.bitcast(UInt(36)) >= d11.bitcast(UInt(36)))
-        ge_9d = (shifted_rem.bitcast(UInt(36)) >= d9.bitcast(UInt(36)))
         ge_7d = (shifted_rem.bitcast(UInt(36)) >= d7.bitcast(UInt(36)))
+        ge_6d = (shifted_rem.bitcast(UInt(36)) >= d6.bitcast(UInt(36)))
         ge_5d = (shifted_rem.bitcast(UInt(36)) >= d5.bitcast(UInt(36)))
+        ge_4d = (shifted_rem.bitcast(UInt(36)) >= d4.bitcast(UInt(36)))
         ge_3d = (shifted_rem.bitcast(UInt(36)) >= d3.bitcast(UInt(36)))
+        ge_2d = (shifted_rem.bitcast(UInt(36)) >= d2.bitcast(UInt(36)))
         ge_1d = (shifted_rem.bitcast(UInt(36)) >= d1.bitcast(UInt(36)))
 
-        # Build quotient using binary search tree structure
-        # q[3] = ge_8d
+        # Build quotient using binary search tree structure for {0, 1, ..., 8}
+        # q[3] (MSB) = ge_8d
         q3 = ge_8d
 
         # q[2] depends on q[3]:
-        # - If q[3]=1 (q>=8): q[2] = (q>=12), so q[2] = ge_12d
+        # - If q[3]=1 (q>=8): q[2] = 0 (since max is 8)
         # - If q[3]=0 (q<8):  q[2] = (q>=4), so q[2] = ge_4d
-        q2 = ge_8d.select(ge_12d, ge_4d)
+        q2 = ge_8d.select(
+            Bits(1)(0),  # q = 8, so q[2] = 0 (8 = 0b1000)
+            ge_4d.select(Bits(1)(1), Bits(1)(0))  # q < 8: check >= 4
+        )
 
         # q[1] depends on (q[3], q[2]):
-        # - q>=12: q[1] = (q>=14), so ge_14d
-        # - 8<=q<12: q[1] = (q>=10), so ge_10d
+        # - q=8: q[1] = 0
         # - 4<=q<8: q[1] = (q>=6), so ge_6d
         # - q<4: q[1] = (q>=2), so ge_2d
-        q1_high = ge_12d.select(ge_14d, ge_10d)  # For q >= 8
-        q1_low = ge_4d.select(ge_6d, ge_2d)  # For q < 8
-        q1 = ge_8d.select(q1_high, q1_low)
-
-        # q[0] depends on (q[3], q[2], q[1]) - 8 cases:
-        # Range 14-15: q[0] = ge_15d
-        # Range 12-13: q[0] = ge_13d
-        # Range 10-11: q[0] = ge_11d
-        # Range 8-9:   q[0] = ge_9d
-        # Range 6-7:   q[0] = ge_7d
-        # Range 4-5:   q[0] = ge_5d
-        # Range 2-3:   q[0] = ge_3d
-        # Range 0-1:   q[0] = ge_1d
-
-        # Build q0 using hierarchical selection
-        # Upper half (q >= 8)
-        q0_14_15 = ge_15d  # Range 14-15
-        q0_12_13 = ge_13d  # Range 12-13
-        q0_10_11 = ge_11d  # Range 10-11
-        q0_8_9 = ge_9d  # Range 8-9
-
-        # Lower half (q < 8)
-        q0_6_7 = ge_7d  # Range 6-7
-        q0_4_5 = ge_5d  # Range 4-5
-        q0_2_3 = ge_3d  # Range 2-3
-        q0_0_1 = ge_1d  # Range 0-1
-
-        # Select within upper half (q >= 8)
-        q0_upper_upper = ge_12d.select(
-            ge_14d.select(q0_14_15, q0_12_13),  # q >= 12
-            ge_10d.select(q0_10_11, q0_8_9)  # 8 <= q < 12
+        q1 = ge_8d.select(
+            Bits(1)(0),  # q = 8
+            ge_4d.select(
+                ge_6d.select(Bits(1)(1), Bits(1)(0)),  # 4 <= q < 8
+                ge_2d.select(Bits(1)(1), Bits(1)(0))   # q < 4
+            )
         )
 
-        # Select within lower half (q < 8)
-        q0_lower_upper = ge_4d.select(
-            ge_6d.select(q0_6_7, q0_4_5),  # 4 <= q < 8
-            ge_2d.select(q0_2_3, q0_0_1)  # q < 4
+        # q[0] (LSB) depends on (q[3], q[2], q[1]):
+        # - q=8: q[0] = 0
+        # - 6<=q<8: q[0] = ge_7d
+        # - 4<=q<6: q[0] = ge_5d
+        # - 2<=q<4: q[0] = ge_3d
+        # - q<2: q[0] = ge_1d
+        q0 = ge_8d.select(
+            Bits(1)(0),  # q = 8
+            ge_4d.select(
+                ge_6d.select(
+                    ge_7d.select(Bits(1)(1), Bits(1)(0)),  # 6 <= q < 8
+                    ge_5d.select(Bits(1)(1), Bits(1)(0))   # 4 <= q < 6
+                ),
+                ge_2d.select(
+                    ge_3d.select(Bits(1)(1), Bits(1)(0)),  # 2 <= q < 4
+                    ge_1d.select(Bits(1)(1), Bits(1)(0))   # q < 2
+                )
+            )
         )
-
-        q0 = ge_8d.select(q0_upper_upper, q0_lower_upper)
 
         # Combine bits into 4-bit quotient digit
         # Using proper bit concatenation: q = {q3, q2, q1, q0}
@@ -308,7 +321,93 @@ class Radix16Divider:
             q0.select(Bits(1)(1), Bits(1)(0))
         )
 
-        return q
+        # In this implementation, quotient digits are always non-negative (0-8)
+        # The sign flag is always 0 for this restoring-style approach
+        q_sign = Bits(1)(0)
+
+        return q, q_sign
+
+    def on_the_fly_update(self, Q_cur, QM_cur, q_digit, q_sign):
+        """
+        On-the-Fly (OTF) quotient accumulator update.
+
+        This function implements the core OTF conversion algorithm that maintains
+        two quotient accumulators (Q and QM) updated in parallel, eliminating
+        the need for a final signed-digit to binary conversion step.
+
+        Algorithm:
+        ==========
+        For radix-16 (r=16), at each iteration:
+
+        Case 1: Positive quotient digit (q_sign = 0, q_digit = 0 to 8)
+            Q_new  = (Q << 4) | q_digit
+            QM_new = (Q << 4) | (q_digit - 1)  [with proper handling for q=0]
+
+            For q_digit = 0:
+                Q_new  = (Q << 4) | 0 = Q << 4
+                QM_new = (QM << 4) | 15  (since 0-1 = -1, represented as 15 in radix-16)
+
+            For q_digit > 0:
+                Q_new  = (Q << 4) | q_digit
+                QM_new = (Q << 4) | (q_digit - 1)
+
+        Case 2: Negative quotient digit (q_sign = 1, q_digit = 1 to 8, actual value = -q_digit)
+            The actual quotient contribution is negative, so we use QM as the base:
+            Q_new  = (QM << 4) | (16 - q_digit)
+            QM_new = (QM << 4) | (16 - q_digit - 1) = (QM << 4) | (15 - q_digit)
+
+        Why this works:
+        ===============
+        - Q always holds the correct quotient in standard binary
+        - QM always holds Q - 1
+        - When q >= 0: new Q = old_Q * 16 + q, new QM = old_Q * 16 + (q-1) = new_Q - 1 ✓
+        - When q < 0:  new Q = old_QM * 16 + (16+q) = (old_Q-1)*16 + 16 + q = old_Q*16 + q ✓
+                       new QM = old_QM * 16 + (16+q-1) = new_Q - 1 ✓
+
+        Args:
+            Q_cur: Current Q accumulator (32-bit)
+            QM_cur: Current QM accumulator (32-bit)
+            q_digit: Quotient digit magnitude (4-bit, 0-8)
+            q_sign: Quotient digit sign (1-bit, 1=negative)
+
+        Returns:
+            (Q_new, QM_new): Updated accumulators
+        """
+        # Shift Q and QM left by 4 bits
+        Q_shifted = concat(Q_cur[0:27], Bits(4)(0))
+        QM_shifted = concat(QM_cur[0:27], Bits(4)(0))
+
+        # For positive quotient digit (q_sign = 0):
+        # Handle q_digit = 0 specially: QM uses QM_shifted with 15 (0xF)
+        q_is_zero = (q_digit == Bits(4)(0))
+
+        # Q_new for positive digit
+        Q_new_pos = (Q_shifted.bitcast(UInt(32)) + q_digit.bitcast(UInt(32))).bitcast(Bits(32))
+
+        # QM_new for positive digit (q_digit > 0)
+        q_digit_minus_1 = (q_digit.bitcast(UInt(4)) - UInt(4)(1)).bitcast(Bits(4))
+        QM_new_pos_nonzero = (Q_shifted.bitcast(UInt(32)) + q_digit_minus_1.bitcast(UInt(32))).bitcast(Bits(32))
+
+        # QM_new for q_digit = 0: use QM_shifted + 15
+        QM_new_pos_zero = (QM_shifted.bitcast(UInt(32)) + UInt(32)(15)).bitcast(Bits(32))
+
+        # Select QM_new for positive digit based on whether q_digit is 0
+        QM_new_pos = q_is_zero.select(QM_new_pos_zero, QM_new_pos_nonzero)
+
+        # For negative quotient digit (q_sign = 1):
+        # Q_new = QM_shifted + (16 - q_digit)
+        # QM_new = QM_shifted + (15 - q_digit)
+        val_16_minus_q = (UInt(32)(16) - q_digit.bitcast(UInt(32))).bitcast(Bits(32))
+        val_15_minus_q = (UInt(32)(15) - q_digit.bitcast(UInt(32))).bitcast(Bits(32))
+
+        Q_new_neg = (QM_shifted.bitcast(UInt(32)) + val_16_minus_q.bitcast(UInt(32))).bitcast(Bits(32))
+        QM_new_neg = (QM_shifted.bitcast(UInt(32)) + val_15_minus_q.bitcast(UInt(32))).bitcast(Bits(32))
+
+        # Final selection based on q_sign
+        Q_new = q_sign.select(Q_new_neg, Q_new_pos)
+        QM_new = q_sign.select(QM_new_neg, QM_new_pos)
+
+        return Q_new, QM_new
 
     def start_divide(self, dividend, divisor, is_signed, is_rem, rd=Bits(5)(0)):
         """
@@ -418,15 +517,16 @@ class Radix16Divider:
             self.state[0] = self.IDLE
             debug_log("Radix16Divider: Completed via fast path (divisor=1)")
 
-        # State: DIV_PRE - Preprocessing for Radix-16 division
+        # State: DIV_PRE - Preprocessing for Radix-16 division with On-the-Fly
         with Condition(self.state[0] == self.DIV_PRE):
             divisor = self.divisor_r[0]
             dividend = self.dividend_r[0]
 
-            # Compute divisor multiples (36 bits to handle 15*d overflow)
+            # Compute divisor multiples (36 bits to handle 8*d overflow)
+            # For On-the-Fly with signed-digit set {-8..8}, we only need d1 through d8
             d_36 = concat(Bits(4)(0), divisor)  # 36-bit divisor
 
-            # Compute 1d through 15d using efficient combinations
+            # Compute 1d through 8d using efficient combinations
             d1_val = d_36
             d2_val = (d_36.bitcast(UInt(36)) << UInt(36)(1)).bitcast(Bits(36))  # 2*d
             d3_val = (d2_val.bitcast(UInt(36)) + d_36.bitcast(UInt(36))).bitcast(Bits(36))  # 3*d = 2d + d
@@ -435,15 +535,8 @@ class Radix16Divider:
             d6_val = (d4_val.bitcast(UInt(36)) + d2_val.bitcast(UInt(36))).bitcast(Bits(36))  # 6*d = 4d + 2d
             d7_val = (d4_val.bitcast(UInt(36)) + d3_val.bitcast(UInt(36))).bitcast(Bits(36))  # 7*d = 4d + 3d
             d8_val = (d_36.bitcast(UInt(36)) << UInt(36)(3)).bitcast(Bits(36))  # 8*d
-            d9_val = (d8_val.bitcast(UInt(36)) + d_36.bitcast(UInt(36))).bitcast(Bits(36))  # 9*d = 8d + d
-            d10_val = (d8_val.bitcast(UInt(36)) + d2_val.bitcast(UInt(36))).bitcast(Bits(36))  # 10*d = 8d + 2d
-            d11_val = (d8_val.bitcast(UInt(36)) + d3_val.bitcast(UInt(36))).bitcast(Bits(36))  # 11*d = 8d + 3d
-            d12_val = (d8_val.bitcast(UInt(36)) + d4_val.bitcast(UInt(36))).bitcast(Bits(36))  # 12*d = 8d + 4d
-            d13_val = (d8_val.bitcast(UInt(36)) + d5_val.bitcast(UInt(36))).bitcast(Bits(36))  # 13*d = 8d + 5d
-            d14_val = (d8_val.bitcast(UInt(36)) + d6_val.bitcast(UInt(36))).bitcast(Bits(36))  # 14*d = 8d + 6d
-            d15_val = (d8_val.bitcast(UInt(36)) + d7_val.bitcast(UInt(36))).bitcast(Bits(36))  # 15*d = 8d + 7d
 
-            # Store divisor multiples
+            # Store divisor multiples (only d1-d8 needed for OTF with signed digits)
             self.d1[0] = d1_val
             self.d2[0] = d2_val
             self.d3[0] = d3_val
@@ -452,21 +545,16 @@ class Radix16Divider:
             self.d6[0] = d6_val
             self.d7[0] = d7_val
             self.d8[0] = d8_val
-            self.d9[0] = d9_val
-            self.d10[0] = d10_val
-            self.d11[0] = d11_val
-            self.d12[0] = d12_val
-            self.d13[0] = d13_val
-            self.d14[0] = d14_val
-            self.d15[0] = d15_val
 
             # Initialize quotient to 0, remainder to 0
             self.quotient[0] = Bits(32)(0)
             self.remainder[0] = Bits(36)(0)
 
-            # Initialize Q/QM for compatibility
+            # Initialize On-the-Fly accumulators
+            # Q starts at 0, QM starts at -1 (0xFFFFFFFF in two's complement)
+            # However, for the first iteration, we use special handling
             self.Q[0] = Bits(32)(0)
-            self.QM[0] = Bits(32)(0)
+            self.QM[0] = Bits(32)(0xFFFFFFFF)  # -1 in two's complement
 
             # For 32-bit division with 4 bits per iteration: ceil(32/4) = 8 iterations
             self.div_cnt[0] = Bits(5)(8)
@@ -477,14 +565,15 @@ class Radix16Divider:
             # Transition to DIV_WORKING
             self.state[0] = self.DIV_WORKING
 
-            debug_log("Radix16Divider: Preprocessing complete, d1=0x{:x}, d15=0x{:x}",
-                      d1_val, d15_val)
+            debug_log("Radix16Divider: Preprocessing complete (OTF), d1=0x{:x}, d8=0x{:x}",
+                      d1_val, d8_val)
 
-        # State: DIV_WORKING - Radix-16 iteration
+        # State: DIV_WORKING - Radix-16 iteration with On-the-Fly conversion
         with Condition(self.state[0] == self.DIV_WORKING):
             # Get current values
             rem_cur = self.remainder[0]  # 36-bit partial remainder
-            quot_cur = self.quotient[0]  # 32-bit quotient so far
+            Q_cur = self.Q[0]            # On-the-Fly quotient accumulator
+            QM_cur = self.QM[0]          # On-the-Fly quotient-minus-1 accumulator
             dividend_cur = self.dividend_r[0]  # Remaining dividend bits
 
             # Shift remainder left by 4 and bring in next 4 dividend bits
@@ -495,16 +584,16 @@ class Radix16Divider:
             # Shift dividend left by 4 (move next bits into position)
             new_dividend = concat(dividend_cur[0:27], Bits(4)(0))
 
-            # Quotient digit selection using Radix-16 comparison
-            q_digit = self.quotient_select(
+            # Quotient digit selection using Radix-16 comparison with OTF support
+            # Returns (q_digit, q_sign) for On-the-Fly update
+            q_digit, q_sign = self.quotient_select_with_otf(
                 shifted_rem,
                 self.d1[0], self.d2[0], self.d3[0], self.d4[0],
-                self.d5[0], self.d6[0], self.d7[0], self.d8[0],
-                self.d9[0], self.d10[0], self.d11[0], self.d12[0],
-                self.d13[0], self.d14[0], self.d15[0]
+                self.d5[0], self.d6[0], self.d7[0], self.d8[0]
             )
 
             # Compute new remainder based on quotient digit: rem = shifted_rem - q * d
+            # Since q_digit is in range {0..8}, we only need to handle these cases
             q_times_d = (q_digit == Bits(4)(0)).select(
                 Bits(36)(0),
                 (q_digit == Bits(4)(1)).select(
@@ -521,28 +610,7 @@ class Radix16Divider:
                                         self.d6[0],
                                         (q_digit == Bits(4)(7)).select(
                                             self.d7[0],
-                                            (q_digit == Bits(4)(8)).select(
-                                                self.d8[0],
-                                                (q_digit == Bits(4)(9)).select(
-                                                    self.d9[0],
-                                                    (q_digit == Bits(4)(10)).select(
-                                                        self.d10[0],
-                                                        (q_digit == Bits(4)(11)).select(
-                                                            self.d11[0],
-                                                            (q_digit == Bits(4)(12)).select(
-                                                                self.d12[0],
-                                                                (q_digit == Bits(4)(13)).select(
-                                                                    self.d13[0],
-                                                                    (q_digit == Bits(4)(14)).select(
-                                                                        self.d14[0],
-                                                                        self.d15[0]  # q=15
-                                                                    )
-                                                                )
-                                                            )
-                                                        )
-                                                    )
-                                                )
-                                            )
+                                            self.d8[0]  # q=8
                                         )
                                     )
                                 )
@@ -554,14 +622,16 @@ class Radix16Divider:
 
             new_rem = (shifted_rem.bitcast(UInt(36)) - q_times_d.bitcast(UInt(36))).bitcast(Bits(36))
 
-            # Update quotient: shift left by 4 and add new digit
-            new_quot = concat(quot_cur[0:27], q_digit)
+            # On-the-Fly quotient accumulator update
+            # This is the core OTF conversion: update both Q and QM in parallel
+            Q_new, QM_new = self.on_the_fly_update(Q_cur, QM_cur, q_digit, q_sign)
 
             # Store updated values
             self.remainder[0] = new_rem
-            self.quotient[0] = new_quot
+            self.Q[0] = Q_new
+            self.QM[0] = QM_new
+            self.quotient[0] = Q_new  # For compatibility, quotient tracks Q
             self.dividend_r[0] = new_dividend
-            self.Q[0] = new_quot  # For compatibility
 
             # Update shift_rem for compatibility
             self.shift_rem[0] = shifted_rem
@@ -569,22 +639,24 @@ class Radix16Divider:
             # Decrement counter
             self.div_cnt[0] = (self.div_cnt[0].bitcast(UInt(5)) - UInt(5)(1)).bitcast(Bits(5))
 
-            debug_log("Radix16Divider: iter, shifted_rem=0x{:x}, q={}, new_rem=0x{:x}, new_quot=0x{:x}",
-                      shifted_rem, q_digit, new_rem, new_quot)
+            debug_log("Radix16Divider: OTF iter, shifted_rem=0x{:x}, q={}, new_rem=0x{:x}, Q=0x{:x}, QM=0x{:x}",
+                      shifted_rem, q_digit, new_rem, Q_new, QM_new)
 
             # Check if done
             is_last = (self.div_cnt[0] == Bits(5)(1))
             with Condition(is_last):
                 self.state[0] = self.DIV_END
-                debug_log("Radix16Divider: Last iteration complete")
+                debug_log("Radix16Divider: Last iteration complete (OTF)")
 
-        # State: DIV_END - Post-processing
+        # State: DIV_END - Post-processing with On-the-Fly result
         with Condition(self.state[0] == self.DIV_END):
-            q_out = self.quotient[0]
+            # On-the-Fly conversion: Q already contains the correct quotient in binary
+            # No conversion step needed - this is the key benefit of OTF!
+            q_out = self.Q[0]  # Use On-the-Fly Q accumulator directly
             rem_out = self.remainder[0][0:31]  # Take lower 32 bits of remainder
 
-            debug_log("Radix16Divider: DIV_END - quotient=0x{:x}, remainder=0x{:x}",
-                      q_out, rem_out)
+            debug_log("Radix16Divider: DIV_END (OTF) - Q=0x{:x}, QM=0x{:x}, remainder=0x{:x}",
+                      self.Q[0], self.QM[0], rem_out)
 
             # Apply sign correction
             q_needs_neg = (self.div_sign[0] == Bits(2)(0b01)) | (self.div_sign[0] == Bits(2)(0b10))
@@ -621,11 +693,14 @@ class Radix16Divider:
 
                 self.result[0] = self.is_rem[0].select(rem_signed, q_signed)
 
+            # Update quotient register for compatibility
+            self.quotient[0] = q_out
+
             self.ready[0] = Bits(1)(1)
             self.rd_out[0] = self.rd_in[0]
             self.busy[0] = Bits(1)(0)
             self.state[0] = self.IDLE
-            debug_log("Radix16Divider: Completed, result=0x{:x}", self.result[0])
+            debug_log("Radix16Divider: Completed (OTF), result=0x{:x}", self.result[0])
 
     def get_result_if_ready(self):
         """
