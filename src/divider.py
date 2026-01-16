@@ -9,7 +9,7 @@ Architecture Overview:
 =====================
 
 The Radix-16 divider uses:
-1. Signed quotient digit set {-8, -7, ..., 0, ..., 7, 8} for flexibility
+1. Non-negative quotient digit set {0, 1, 2, ..., 8} with OTF conversion
 2. QDS (Quotient Digit Selection) with binary search tree structure
 3. On-the-Fly (OTF) conversion using Q and QM accumulators
 4. 4 bits of quotient per cycle
@@ -17,27 +17,26 @@ The Radix-16 divider uses:
 
 On-the-Fly (OTF) Conversion:
 ============================
-Traditional SRT dividers with signed-digit quotient sets require a final
-conversion step to convert from signed-digit representation to standard binary.
-The On-the-Fly conversion technique eliminates this overhead by maintaining
-two quotient accumulators that are updated in parallel:
+Traditional shift-and-accumulate dividers require careful handling of quotient
+overflow. The On-the-Fly conversion technique eliminates this overhead by
+maintaining two quotient accumulators that are updated in parallel:
 
 - Q:  Current quotient estimate (standard binary)
 - QM: Q minus 1 (Q - 1), always one less than Q
 
-At each iteration:
-- If quotient digit >= 0: Q = (Q << 4) + digit, QM = (QM << 4) + (digit - 1)
-- If quotient digit < 0:  Q = (QM << 4) + (16 + digit), QM = (QM << 4) + (16 + digit - 1)
+At each iteration for non-negative quotient digit q (0 ≤ q ≤ 8):
+- If q > 0: Q = (Q << 4) + q, QM = (Q << 4) + (q - 1)
+- If q = 0: Q = (Q << 4), QM = (QM << 4) + 15
 
-This allows us to select between Q and QM based on the sign of quotient digits
-without requiring an expensive conversion step at the end.
+This maintains the invariant QM = Q - 1 throughout the computation,
+and Q directly contains the correct quotient at the end.
 
 Key Radix-16 Features with QDS and OTF Optimization:
 - 4 bits of quotient per iteration (vs 2 bits for Radix-4, 3 bits for Radix-8)
 - Fixed 8 iterations for 32-bit division
-- Binary search tree selection reduces mux depth from 17 to 4 levels
-- On-the-Fly conversion eliminates post-processing quotient conversion
-- Critical path optimization for synthesized hardware
+- Binary search tree selection reduces mux depth
+- On-the-Fly conversion maintains Q/QM accumulators in parallel
+- Only 8 divisor multiples (d1-d8) needed instead of 15
 
 QDS (Quotient Digit Selection) Approach:
 ========================================
@@ -76,7 +75,7 @@ class Radix16Divider:
     - 1 cycle: Post-processing
 
     Key Radix-16 features with QDS and OTF optimization:
-    - Signed quotient digit set {-8, -7, ..., 0, ..., 7, 8}
+    - Non-negative quotient digit set {0, 1, 2, ..., 8}
     - Binary search tree selection structure (4 mux levels)
     - On-the-Fly conversion using Q and QM accumulators
     - Full-precision 36-bit comparisons for correctness
@@ -90,26 +89,19 @@ class Radix16Divider:
     - Q:  Current quotient (standard binary representation)
     - QM: Q minus 1 (always equals Q - 1)
 
-    For positive quotient digit q_i (0 <= q_i <= 8):
-        Q_new  = (Q << 4) + q_i
-        QM_new = (QM << 4) + (16 + q_i - 1) = (QM << 4) + (q_i + 15)
+    For non-negative quotient digit q (0 ≤ q ≤ 8):
+        If q > 0: Q_new = (Q << 4) + q, QM_new = (Q << 4) + (q - 1)
+        If q = 0: Q_new = (Q << 4), QM_new = (QM << 4) + 15
 
-    For negative quotient digit q_i (-8 <= q_i < 0):
-        Q_new  = (QM << 4) + (16 + q_i)
-        QM_new = (QM << 4) + (16 + q_i - 1) = (QM << 4) + (q_i + 15)
-
-    This eliminates the need for signed-to-binary conversion at the end.
+    This maintains the invariant QM = Q - 1, and Q directly contains
+    the correct quotient at the end without any conversion needed.
 
     QDS Selection Logic:
     The quotient digit selection uses a binary search tree structure:
-    - Compare with 0 (sign bit determination)
-    - q[3] (MSB magnitude) determined by comparing with ±8d
-    - q[2] determined by comparing with ±4d based on q[3]
-    - q[1] determined by comparing with ±2d based on q[3:2]
-    - q[0] (LSB) determined by comparing with ±d based on q[3:1]
-
-    This reduces the mux depth significantly, improving the critical path
-    in synthesized hardware.
+    - q[3] (MSB magnitude) determined by comparing with 8d
+    - q[2] determined by comparing with 4d based on q[3]
+    - q[1] determined by comparing with 2d/6d based on q[3:2]
+    - q[0] (LSB) determined by comparing with odd multiples
 
     Pipeline Integration:
     - When a division instruction enters EX stage, the divider is started
@@ -210,44 +202,35 @@ class Radix16Divider:
         """
         QDS (Quotient Digit Selection) for Radix-16 division with On-the-Fly support.
 
-        This implementation uses a signed-digit quotient set {-8, -7, ..., 0, ..., 7, 8}
+        This implementation uses a non-negative quotient digit set {0, 1, 2, ..., 8}
         with a binary search tree structure for the selection logic.
 
-        On-the-Fly Conversion:
-        =====================
+        On-the-Fly Conversion Support:
+        ==============================
         Returns both the quotient digit value (as unsigned 4-bit) and a sign flag.
-        - q_magnitude: Absolute value of quotient digit (0-8)
-        - q_negative: 1 if quotient digit is negative, 0 otherwise
+        - q_digit: Quotient digit value (0-8)
+        - q_sign: Sign flag (always 0 for non-negative digits)
 
-        For the OTF algorithm:
-        - Positive digit (q >= 0): Use Q accumulator base
-        - Negative digit (q < 0): Use QM accumulator base
+        The sign flag is included for future extensibility to signed-digit sets,
+        but in this implementation all quotient digits are non-negative.
 
         Hardware Implementation Note:
         ============================
-        The signed-digit set {-8, ..., 8} provides redundancy which allows for:
-        1. More relaxed quotient selection constraints (easier timing)
-        2. On-the-Fly conversion without final correction step
+        The quotient digit set {0, 1, ..., 8} is sufficient because:
+        1. The partial remainder is always kept positive after each iteration
+        2. We subtract q*d from shifted_rem, where 0 ≤ q ≤ 8
+        3. The next shifted_rem will be in range [0, 16*d) after left shift
 
-        QDS Binary Search Tree for signed digits:
-        =========================================
-        The algorithm compares shifted_rem against multiples of d from -8d to +8d.
-        For a normalized divider where remainder is in range [0, 2d), we select:
-        - q = 8 if shifted_rem >= 8d
-        - q = 7 if shifted_rem >= 7d and shifted_rem < 8d
-        - ...
-        - q = 0 if shifted_rem >= 0 and shifted_rem < d
-        - q = -1 if shifted_rem < 0 and shifted_rem >= -d
-        - ...
-        - q = -8 if shifted_rem < -7d
-
-        For simplicity with unsigned arithmetic, we use:
-        - Compare shifted_rem with 0d, 1d, 2d, ..., 8d
-        - Return unsigned magnitude + sign bit
+        QDS Binary Search Tree for {0, 1, ..., 8}:
+        ==========================================
+        - Compare with 8d: if >= 8d, q[3] = 1 (q = 8)
+        - Compare with 4d: if >= 4d and < 8d, q[2] = 1
+        - Compare with 2d/6d: determines q[1]
+        - Compare with odd multiples: determines q[0]
 
         Returns: (q_digit, q_sign) where:
-        - q_digit: 4-bit unsigned representing |q| (0-8)
-        - q_sign: 1-bit sign (1=negative, 0=positive or zero)
+        - q_digit: 4-bit unsigned (0-8)
+        - q_sign: 1-bit sign (always 0)
         """
         # All comparisons computed in parallel (in hardware)
         # For signed-digit selection, we compare against 0 through 8d
@@ -332,43 +315,38 @@ class Radix16Divider:
         On-the-Fly (OTF) quotient accumulator update.
 
         This function implements the core OTF conversion algorithm that maintains
-        two quotient accumulators (Q and QM) updated in parallel, eliminating
-        the need for a final signed-digit to binary conversion step.
+        two quotient accumulators (Q and QM) updated in parallel.
 
-        Algorithm:
-        ==========
-        For radix-16 (r=16), at each iteration:
+        Algorithm for Non-Negative Quotient Digits:
+        ===========================================
+        In this implementation, q_sign is always 0 and q_digit is in {0, 1, ..., 8}.
 
-        Case 1: Positive quotient digit (q_sign = 0, q_digit = 0 to 8)
-            Q_new  = (Q << 4) | q_digit
-            QM_new = (Q << 4) | (q_digit - 1)  [with proper handling for q=0]
+        For q_digit > 0:
+            Q_new  = (Q << 4) + q_digit
+            QM_new = (Q << 4) + (q_digit - 1)
 
-            For q_digit = 0:
-                Q_new  = (Q << 4) | 0 = Q << 4
-                QM_new = (QM << 4) | 15  (since 0-1 = -1, represented as 15 in radix-16)
+        For q_digit = 0:
+            Q_new  = (Q << 4)
+            QM_new = (QM << 4) + 15
 
-            For q_digit > 0:
-                Q_new  = (Q << 4) | q_digit
-                QM_new = (Q << 4) | (q_digit - 1)
+        The special case for q_digit = 0 is necessary because:
+        - Q_new should be Q * 16 + 0 = Q * 16
+        - QM_new should be Q_new - 1 = Q * 16 - 1 = (Q - 1) * 16 + 15 = QM * 16 + 15
 
-        Case 2: Negative quotient digit (q_sign = 1, q_digit = 1 to 8, actual value = -q_digit)
-            The actual quotient contribution is negative, so we use QM as the base:
-            Q_new  = (QM << 4) | (16 - q_digit)
-            QM_new = (QM << 4) | (16 - q_digit - 1) = (QM << 4) | (15 - q_digit)
-
-        Why this works:
-        ===============
+        Invariant Maintenance:
+        =====================
         - Q always holds the correct quotient in standard binary
         - QM always holds Q - 1
-        - When q >= 0: new Q = old_Q * 16 + q, new QM = old_Q * 16 + (q-1) = new_Q - 1 ✓
-        - When q < 0:  new Q = old_QM * 16 + (16+q) = (old_Q-1)*16 + 16 + q = old_Q*16 + q ✓
-                       new QM = old_QM * 16 + (16+q-1) = new_Q - 1 ✓
+        - After update: QM_new = Q_new - 1 ✓
+
+        The negative digit path (q_sign = 1) is included for completeness and
+        future extensibility but is not used in the current implementation.
 
         Args:
             Q_cur: Current Q accumulator (32-bit)
             QM_cur: Current QM accumulator (32-bit)
-            q_digit: Quotient digit magnitude (4-bit, 0-8)
-            q_sign: Quotient digit sign (1-bit, 1=negative)
+            q_digit: Quotient digit (4-bit, 0-8)
+            q_sign: Quotient digit sign (1-bit, always 0 in current implementation)
 
         Returns:
             (Q_new, QM_new): Updated accumulators
