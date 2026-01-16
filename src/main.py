@@ -15,6 +15,7 @@ from .execution import Execution
 from .memory import MemoryAccess, SingleMemory
 from .writeback import WriteBack
 from .btb import BTB, BTBImpl
+from .tournament_predictor import TournamentPredictor, TournamentPredictorImpl
 
 # 全局工作区路径
 current_path = os.path.dirname(os.path.abspath(__file__))
@@ -107,6 +108,10 @@ def build_cpu(depth_log):
         btb = BTB(num_entries=64, index_bits=6)
         btb_impl = BTBImpl(num_entries=64, index_bits=6)
 
+        # Tournament Predictor for branch direction prediction
+        tp = TournamentPredictor(num_entries=64, index_bits=6, history_bits=6)
+        tp_impl = TournamentPredictorImpl(num_entries=64, index_bits=6, history_bits=6)
+
         decoder = Decoder()
         decoder_impl = DecoderImpl()
         hazard_unit = HazardUnit()
@@ -122,6 +127,9 @@ def build_cpu(depth_log):
 
         # --- Step 0: BTB 构建（需要在使用前构建） ---
         btb_valid, btb_tags, btb_targets = btb.build()
+
+        # --- Step 0.5: Tournament Predictor 构建 ---
+        tp_bimodal, tp_gshare, tp_ghr, tp_selector = tp.build()
 
         # --- Step A: WB 阶段 ---
         wb_rd = writeback.build(
@@ -147,6 +155,11 @@ def build_cpu(depth_log):
             btb_valid=btb_valid,
             btb_tags=btb_tags,
             btb_targets=btb_targets,
+            tp_impl=tp_impl,
+            tp_bimodal=tp_bimodal,
+            tp_gshare=tp_gshare,
+            tp_ghr=tp_ghr,
+            tp_selector=tp_selector,
         )
 
         # --- Step D: ID 阶段 (Shell) ---
@@ -192,6 +205,11 @@ def build_cpu(depth_log):
             btb_valid=btb_valid,
             btb_tags=btb_tags,
             btb_targets=btb_targets,
+            tp_impl=tp_impl,
+            tp_bimodal=tp_bimodal,
+            tp_gshare=tp_gshare,
+            tp_ghr=tp_ghr,
+            tp_selector=tp_selector,
         )
 
         # --- Step H: SRAM 驱动 ---

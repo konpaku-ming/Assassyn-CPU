@@ -44,6 +44,12 @@ class Execution(Module):
             btb_valid: Array = None,  # BTB 有效位数组
             btb_tags: Array = None,  # BTB 标签数组
             btb_targets: Array = None,  # BTB 目标地址数组
+            # --- Tournament Predictor 更新 (可选) ---
+            tp_impl: "TournamentPredictorImpl" = None,  # Tournament Predictor 实现逻辑
+            tp_bimodal: Array = None,  # Bimodal 计数器数组
+            tp_gshare: Array = None,  # Gshare 计数器数组
+            tp_ghr: Array = None,  # 全局历史寄存器
+            tp_selector: Array = None,  # 选择器计数器数组
     ):
         # 1. 弹出所有端口数据
         # 根据 __init__ 定义顺序解包
@@ -405,6 +411,19 @@ class Execution(Module):
                 btb_valid=btb_valid,
                 btb_tags=btb_tags,
                 btb_targets=btb_targets,
+            )
+
+        # 6. 更新 Tournament Predictor (如果提供了 TP 引用)
+        # 对所有分支指令更新预测器，无论是否 taken
+        if tp_impl is not None and tp_bimodal is not None:
+            tp_impl.update(
+                pc=pc,
+                actual_taken=is_taken,
+                is_branch=is_branch & ~flush_if,
+                bimodal_counters=tp_bimodal,
+                gshare_counters=tp_gshare,
+                global_history=tp_ghr,
+                selector_counters=tp_selector,
             )
 
         # --- 下一级绑定与状态反馈 ---
