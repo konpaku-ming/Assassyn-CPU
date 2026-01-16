@@ -256,30 +256,20 @@ class SRT4Divider:
             divisor = self.divisor_r[0]
             dividend = self.dividend_r[0]
             
-            # Initialize with fixed 16 iterations (original Radix-4 approach)
-            # This avoids complex normalization while still using SRT-4 quotient selection
+            # Initialize with fixed 16 iterations (Radix-4 approach)
+            # Use quotient to hold dividend bits (shifted out during computation)
+            # Use remainder to accumulate partial remainder
             
-            # Store registers for iteration
-            # w_reg: 36-bit partial remainder, initialized from dividend
-            # Format: [35:4] = remainder, [3:0] = shifted in dividend bits
-            self.w_reg[0] = concat(Bits(4)(0), dividend)  # 36 bits
+            # quotient is initialized with dividend, will shift out bits during computation
+            self.quotient[0] = dividend
+            self.remainder[0] = Bits(34)(0)
             
-            # divisor_reg: 36-bit divisor (zero-extended)
-            self.divisor_reg[0] = concat(Bits(4)(0), divisor)  # 36 bits
-            
-            # Use fixed 16 iterations for simplicity
-            self.iterations_reg[0] = Bits(5)(16)
-            self.recovery_reg[0] = Bits(6)(32)  # Recovery = no denormalization needed
+            # Use fixed 16 iterations
             self.div_cnt[0] = Bits(5)(16)
             
             # Initialize Q/QM for on-the-fly conversion
             self.Q[0] = Bits(32)(0)
             self.QM[0] = Bits(32)(0)
-            
-            # Initialize quotient/remainder registers (used for actual computation)
-            # quotient is initialized with dividend, will shift out bits during computation
-            self.quotient[0] = dividend
-            self.remainder[0] = Bits(34)(0)
             
             # Transition to DIV_WORKING
             self.state[0] = self.DIV_WORKING
