@@ -217,11 +217,11 @@ class SRT4Divider:
         # 
         # For a well-designed SRT-4 divider without normalization,
         # we compare w_high (representing w/d approximately) against thresholds:
-        # q=+2: w_high >= 4 (very positive)
-        # q=+1: w_high >= 2 (moderately positive)  
-        # q=0:  -2 < w_high < 2 (near zero)
-        # q=-1: w_high <= -2 (moderately negative)
-        # q=-2: w_high <= -4 (very negative)
+        # q=+2: w_high >= 4
+        # q=+1: 2 <= w_high < 4  
+        # q=0:  -2 < w_high < 2
+        # q=-1: -4 < w_high <= -2
+        # q=-2: w_high <= -4
         
         # Check sign bit (bit 5)
         w_sign = w_high[5:5]
@@ -455,9 +455,9 @@ class SRT4Divider:
             new_Q_pos1 = (Q_shifted.bitcast(UInt(32)) + Bits(32)(1).bitcast(UInt(32))).bitcast(Bits(32))
             new_QM_pos1 = Q_shifted
             
-            # q=0: new_Q = 4*Q + 0, new_QM = 4*Q + (-1) = 4*Q - 1 = 4*QM + 3
+            # q=0: new_Q = 4*Q + 0, new_QM = 4*Q - 1
             new_Q_zero = Q_shifted
-            new_QM_zero = (QM_shifted.bitcast(UInt(32)) + Bits(32)(3).bitcast(UInt(32))).bitcast(Bits(32))
+            new_QM_zero = (Q_shifted.bitcast(UInt(32)) - Bits(32)(1).bitcast(UInt(32))).bitcast(Bits(32))
             
             # q=-1: new_Q = 4*QM + 3, new_QM = 4*QM + 2
             new_Q_neg1 = (QM_shifted.bitcast(UInt(32)) + Bits(32)(3).bitcast(UInt(32))).bitcast(Bits(32))
