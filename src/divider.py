@@ -501,7 +501,7 @@ class Radix16Divider:
             dividend = self.dividend_r[0]
 
             # Compute divisor multiples (36 bits to handle 8*d overflow)
-            # For On-the-Fly with signed-digit set {-8..8}, we only need d1 through d8
+            # For On-the-Fly with digit set {0..8}, we only need d1 through d8
             d_36 = concat(Bits(4)(0), divisor)  # 36-bit divisor
 
             # Compute 1d through 8d using efficient combinations
@@ -514,7 +514,7 @@ class Radix16Divider:
             d7_val = (d4_val.bitcast(UInt(36)) + d3_val.bitcast(UInt(36))).bitcast(Bits(36))  # 7*d = 4d + 3d
             d8_val = (d_36.bitcast(UInt(36)) << UInt(36)(3)).bitcast(Bits(36))  # 8*d
 
-            # Store divisor multiples (only d1-d8 needed for OTF with signed digits)
+            # Store divisor multiples (only d1-d8 needed for OTF with digit set {0..8})
             self.d1[0] = d1_val
             self.d2[0] = d2_val
             self.d3[0] = d3_val
@@ -530,7 +530,7 @@ class Radix16Divider:
 
             # Initialize On-the-Fly accumulators
             # Q starts at 0, QM starts at -1 (0xFFFFFFFF in two's complement)
-            # However, for the first iteration, we use special handling
+            # This maintains the invariant QM = Q - 1 throughout computation
             self.Q[0] = Bits(32)(0)
             self.QM[0] = Bits(32)(0xFFFFFFFF)  # -1 in two's complement
 
