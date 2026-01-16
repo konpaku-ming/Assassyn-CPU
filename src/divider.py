@@ -72,18 +72,12 @@ class Radix16Divider:
         self.DIV_ERROR = Bits(3)(5)
 
     def is_busy(self):
-        """Check if divider is currently processing"""
+        # Check if divider is currently processing
         return self.busy[0]
 
     def quotient_select(self, shifted_rem, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12, d13, d14, d15):
         """
         QDS (Quotient Digit Selection) for Radix-16 division.
-
-        Level 1: Compare with 8d (determines q[3] - MSB)
-        Level 2: Compare with 4d or 12d (determines q[2])
-        Level 3: Compare with 2d/6d/10d/14d (determines q[1])
-        Level 4: Compare with odd multiples (determines q[0] - LSB)
-
         Returns quotient digit from {0, 1, 2, ..., 15}.
         """
         # All comparisons computed in parallel (in hardware)
@@ -115,31 +109,12 @@ class Radix16Divider:
         # q[3] = ge_8d
         q3 = ge_8d
 
-        # q[2] depends on q[3]:
-        # - If q[3]=1 (q>=8): q[2] = (q>=12), so q[2] = ge_12d
-        # - If q[3]=0 (q<8):  q[2] = (q>=4), so q[2] = ge_4d
         q2 = ge_8d.select(ge_12d, ge_4d)
 
-        # q[1] depends on (q[3], q[2]):
-        # - q>=12: q[1] = (q>=14), so ge_14d
-        # - 8<=q<12: q[1] = (q>=10), so ge_10d
-        # - 4<=q<8: q[1] = (q>=6), so ge_6d
-        # - q<4: q[1] = (q>=2), so ge_2d
         q1_high = ge_12d.select(ge_14d, ge_10d)  # For q >= 8
         q1_low = ge_4d.select(ge_6d, ge_2d)  # For q < 8
         q1 = ge_8d.select(q1_high, q1_low)
 
-        # q[0] depends on (q[3], q[2], q[1]) - 8 cases:
-        # Range 14-15: q[0] = ge_15d
-        # Range 12-13: q[0] = ge_13d
-        # Range 10-11: q[0] = ge_11d
-        # Range 8-9:   q[0] = ge_9d
-        # Range 6-7:   q[0] = ge_7d
-        # Range 4-5:   q[0] = ge_5d
-        # Range 2-3:   q[0] = ge_3d
-        # Range 0-1:   q[0] = ge_1d
-
-        # Build q0 using hierarchical selection
         # Upper half (q >= 8)
         q0_14_15 = ge_15d  # Range 14-15
         q0_12_13 = ge_13d  # Range 12-13
@@ -210,7 +185,6 @@ class Radix16Divider:
         Execute one cycle of the Radix-16 state machine.
         Should be called every clock cycle.
         """
-
         # State: IDLE - Wait for valid signal and check for special cases
         with Condition(self.state[0] == self.IDLE):
             with Condition(self.valid_in[0] == Bits(1)(1)):
@@ -489,12 +463,10 @@ class Radix16Divider:
             debug_log("Radix16Divider: Completed, result=0x{:x}", self.result[0])
 
     def get_result_if_ready(self):
-        """
-        Get result if division is complete.
-        Returns: (ready, result, rd, error)
-        """
+        # Get result if division is complete.
+        # Returns: (ready, result, rd, error)
         return (self.ready[0], self.result[0], self.rd_out[0], self.error[0])
 
     def clear_result(self):
-        """Clear result and reset ready flag"""
+        # Clear result and reset ready flag
         self.ready[0] = Bits(1)(0)

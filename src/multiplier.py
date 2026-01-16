@@ -3,13 +3,7 @@ from .debug_utils import debug_log
 
 
 def sign_zero_extend(op: Bits, signed: Bits) -> Bits:
-    """
-    Helper function to perform sign or zero extension of a 32-bit value to 64 bits.
-
-    Args:
-        op: 32-bit operand to extend
-        signed: Whether to sign-extend (1) or zero-extend (0)
-    """
+    # Helper function to perform sign or zero extension of a 32-bit value to 64 bits.
     sign_bit = op[31:31]
     sign_ext = sign_bit.select(Bits(32)(0xFFFFFFFF), Bits(32)(0))
     ext_high = signed.select(sign_ext, Bits(32)(0))
@@ -39,18 +33,12 @@ def full_adder_64bit(a: Bits, b: Bits, c: Bits) -> tuple:
 
     return (sum_result, carry_shifted)
 
+
 # =============================================================================
 # Carry-Propagate Adder (CPA) - Hardware Implementation
 # =============================================================================
 def carry_propagate_adder_64bit(a: Bits, b: Bits) -> Bits:
-    """
-    64-bit Carry-Propagate Adder (CPA)
-
-    Args:
-        a, b: Two 64-bit input values (sum row and carry row)
-    """
-    # Use standard addition - the underlying hardware synthesis will
-    # choose the appropriate adder architecture
+    # 64-bit Carry-Propagate Adder (CPA)
     result = (a.bitcast(UInt(64)) + b.bitcast(UInt(64))).bitcast(Bits(64))
     return result
 
@@ -106,11 +94,8 @@ class WallaceTreeMul:
         self.m3_result = RegArray(Bits(32), 1, initializer=[0])
 
     def is_busy(self):
-        """
-        Check if multiplier has operations in flight that require pipeline stall.
-
-        Returns True when any of stages M1, M2, or M3 are active.
-        """
+        # Check if multiplier has operations in flight that require pipeline stall.
+        # Returns True when any of stages M1, M2, or M3 are active.
         return self.m1_valid[0] | self.m2_valid[0] | self.m3_valid[0]
 
     def start_multiply(self, op1, op2, op1_signed, op2_signed, result_high, rd=Bits(5)(0)):
@@ -149,10 +134,10 @@ class WallaceTreeMul:
 
             debug_log("EX_M1: Partial products + Levels 1-3 (Cycle 1/3)")
             debug_log("EX_M1:   Op1=0x{:x} (signed={}), Op2=0x{:x} (signed={})",
-                op1,
-                op1_signed,
-                op2,
-                op2_signed)
+                      op1,
+                      op1_signed,
+                      op2,
+                      op2_signed)
 
             # =================================================================
             # Step 1: Sign/Zero extend operands to 64 bits
@@ -368,7 +353,7 @@ class WallaceTreeMul:
 
             result = self.m3_result_high[0].select(
                 partial_high,  # High 32 bits for MULH/MULHSU/MULHU
-                partial_low    # Low 32 bits for MUL
+                partial_low  # Low 32 bits for MUL
             )
 
             debug_log("EX_M3: Final result: 0x{:x}", result)

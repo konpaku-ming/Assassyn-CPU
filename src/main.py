@@ -259,7 +259,7 @@ if __name__ == "__main__":
     # 构建 CPU 模块
     # enable_branch_prediction=True: 使用 BTB + Tournament Predictor
     # enable_branch_prediction=False: 默认 PC+4，不使用分支预测
-    load_test_case("div1to10")
+    load_test_case("bulgarian")
     sys_builder = build_cpu(depth_log=16, enable_branch_prediction=True)
 
     circ_path = os.path.join(workspace, f"circ.txt")
