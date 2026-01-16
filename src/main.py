@@ -15,6 +15,7 @@ from .execution import Execution
 from .memory import MemoryAccess, SingleMemory
 from .writeback import WriteBack
 from .btb import BTB, BTBImpl
+from .tournament_predictor import TournamentPredictor, TournamentPredictorImpl
 
 # 全局工作区路径
 current_path = os.path.dirname(os.path.abspath(__file__))
@@ -78,12 +79,22 @@ class Driver(Module):
         fetcher.async_called()
 
 
-def build_cpu(depth_log):
+def build_cpu(depth_log, enable_branch_prediction=True):
+    """
+    构建 CPU 系统。
+    
+    Args:
+        depth_log: SRAM 深度的对数 (depth = 2^depth_log)
+        enable_branch_prediction: 分支预测开关
+            - True: 使用 BTB + Tournament Predictor 进行分支预测
+            - False: 默认 PC+4，不使用分支预测
+    """
     sys_name = "rv32i_cpu"
     sys = SysBuilder(sys_name)
 
     RAM_path = os.path.join(workspace, f"workload.exe")
     print(f"[*] Ins Path: {RAM_path}")
+    print(f"[*] Branch Prediction: {'Enabled (BTB + Tournament Predictor)' if enable_branch_prediction else 'Disabled (PC+4)'}")
 
     with sys:
         # 1. 物理资源初始化
@@ -103,9 +114,20 @@ def build_cpu(depth_log):
         fetcher = Fetcher()
         fetcher_impl = FetcherImpl()
 
-        # BTB for branch prediction
-        btb = BTB(num_entries=64, index_bits=6)
-        btb_impl = BTBImpl(num_entries=64, index_bits=6)
+        # BTB and Tournament Predictor (conditional based on enable_branch_prediction)
+        if enable_branch_prediction:
+            # BTB for branch prediction
+            btb = BTB(num_entries=64, index_bits=6)
+            btb_impl = BTBImpl(num_entries=64, index_bits=6)
+
+            # Tournament Predictor for branch direction prediction
+            tp = TournamentPredictor(num_entries=64, index_bits=6, history_bits=6)
+            tp_impl = TournamentPredictorImpl(num_entries=64, index_bits=6, history_bits=6)
+        else:
+            btb = None
+            btb_impl = None
+            tp = None
+            tp_impl = None
 
         decoder = Decoder()
         decoder_impl = DecoderImpl()
@@ -120,8 +142,13 @@ def build_cpu(depth_log):
 
         # 3. 逆序构建
 
-        # --- Step 0: BTB 构建（需要在使用前构建） ---
-        btb_valid, btb_tags, btb_targets = btb.build()
+        # --- Step 0: BTB 和 Tournament Predictor 构建（仅在开关打开时） ---
+        if enable_branch_prediction:
+            btb_valid, btb_tags, btb_targets = btb.build()
+            tp_bimodal, tp_gshare, tp_ghr, tp_selector = tp.build()
+        else:
+            btb_valid, btb_tags, btb_targets = None, None, None
+            tp_bimodal, tp_gshare, tp_ghr, tp_selector = None, None, None, None
 
         # --- Step A: WB 阶段 ---
         wb_rd = writeback.build(
@@ -147,6 +174,11 @@ def build_cpu(depth_log):
             btb_valid=btb_valid,
             btb_tags=btb_tags,
             btb_targets=btb_targets,
+            tp_impl=tp_impl,
+            tp_bimodal=tp_bimodal,
+            tp_gshare=tp_gshare,
+            tp_ghr=tp_ghr,
+            tp_selector=tp_selector,
         )
 
         # --- Step D: ID 阶段 (Shell) ---
@@ -192,6 +224,11 @@ def build_cpu(depth_log):
             btb_valid=btb_valid,
             btb_tags=btb_tags,
             btb_targets=btb_targets,
+            tp_impl=tp_impl,
+            tp_bimodal=tp_bimodal,
+            tp_gshare=tp_gshare,
+            tp_ghr=tp_ghr,
+            tp_selector=tp_selector,
         )
 
         # --- Step H: SRAM 驱动 ---
@@ -220,8 +257,10 @@ def build_cpu(depth_log):
 
 if __name__ == "__main__":
     # 构建 CPU 模块
+    # enable_branch_prediction=True: 使用 BTB + Tournament Predictor
+    # enable_branch_prediction=False: 默认 PC+4，不使用分支预测
     load_test_case("div1to10")
-    sys_builder = build_cpu(depth_log=16)
+    sys_builder = build_cpu(depth_log=16, enable_branch_prediction=True)
 
     circ_path = os.path.join(workspace, f"circ.txt")
     with open(circ_path, "w") as f:
