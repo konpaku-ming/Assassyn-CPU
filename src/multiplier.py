@@ -1,71 +1,3 @@
-"""
-Pure Wallace Tree Multiplier with 3-cycle pipeline
-
-Architecture Overview:
-=====================
-
-This module implements a 32×32-bit multiplier using pure Wallace Tree reduction
-without Booth encoding, spread across 3 pipeline stages.
-
-## Partial Product Generation (No Booth Encoding)
-
-Instead of Booth encoding, we use simple AND-based partial product generation:
-- For each bit B[i] of the multiplier, generate: pp[i] = A & {32{B[i]}}
-- Where {32{B[i]}} means replicating bit B[i] 32 times
-- Each partial product pp[i] is left-shifted by i positions
-- This produces 32 partial products for a 32-bit multiplier
-
-## Wallace Tree Compression
-
-The Wallace Tree uses 3:2 compressors (full adders) and 2:2 compressors (half adders)
-to reduce multiple partial products to two numbers that can be added by a final adder.
-
-A 3:2 compressor takes 3 inputs (a, b, c) and produces:
-- sum   = a ⊕ b ⊕ c
-- carry = (a&b) | (b&c) | (a&c)
-
-A 2:2 compressor (half adder) takes 2 inputs (a, b) and produces:
-- sum   = a ⊕ b
-- carry = a & b
-
-The carry output is shifted left by 1 bit position.
-
-Reduction levels for 32 partial products:
-- Level 0: 32 rows (initial partial products)
-- Level 1: 22 rows (reduce 30 → 20 with 10 compressors, keep 2)
-- Level 2: 15 rows (reduce 21 → 14 with 7 compressors, keep 1)
-- Level 3: 10 rows (reduce 15 → 10 with 5 compressors)
-- Level 4:  7 rows (reduce 9 → 6 with 3 compressors, keep 1)
-- Level 5:  5 rows (reduce 6 → 4 with 2 compressors, keep 1)
-- Level 6:  4 rows (reduce 5 → 4 with 1 compressor, keep 1)
-- Level 7:  3 rows (reduce 4 → 3 with 1 compressor, keep 1)
-- Level 8:  2 rows (final reduction: 3 → 2)
-
-## 3-Cycle Pipeline Structure (Balanced for Clock Frequency)
-
-To improve clock frequency, the computation is split across 3 cycles:
-
-### Cycle 1 (EX_M1): Partial Product Generation + Levels 1-3
-- For each bit i of multiplier B: pp[i] = A & {32{B[i]}}
-- Left-shift each pp[i] by i positions
-- Generate 32 partial products, each 64 bits wide (to accommodate shifts)
-- Sign extension is handled for signed multiplication
-- Apply Wallace Tree Levels 1-3: 32 → 22 → 15 → 10 rows
-- Store 10 intermediate rows in pipeline registers
-
-### Cycle 2 (EX_M2): Wallace Tree Middle Compression Layers (Levels 4-6)
-- Apply Wallace Tree Levels 4-6: 10 → 7 → 5 → 4 rows
-- Store 4 intermediate rows in pipeline registers
-
-### Cycle 3 (EX_M3): Wallace Tree Final Compression + CPA (Levels 7-8)
-- Apply remaining compression levels to reduce to 2 rows (Levels 7-8)
-- Use Carry-Propagate Adder (CPA) to sum final 2 rows
-- Output final 64-bit product (select high or low 32 bits)
-
-This implements a true 3-cycle pipelined multiplier with balanced critical paths
-across all three stages.
-"""
-
 from assassyn.frontend import *
 from .debug_utils import debug_log
 
@@ -148,18 +80,6 @@ def carry_propagate_adder_64bit(a: Bits, b: Bits) -> Bits:
 
 class WallaceTreeMul:
     """
-    Helper class to manage 3-cycle multiplication using pure Wallace Tree (no Booth encoding).
-
-    This class implements a REAL Wallace Tree multiplier with:
-    - Partial product generation using AND gates
-    - 3:2 compressors (full adders) for Wallace Tree reduction
-    - 2:2 compressors (half adders) for additional reduction
-    - Carry-Propagate Adder (CPA) for final addition
-
-    The multiplication proceeds through 3 stages spread across 3 clock cycles,
-    with the Wallace Tree computation balanced across all three stages for improved
-    clock frequency:
-
     - Cycle 1 (EX_M1): Generate 32 partial products + Levels 1-3 (32 → 10 rows)
     - Cycle 2 (EX_M2): Wallace Tree Levels 4-6 (10 → 4 rows)
     - Cycle 3 (EX_M3): Wallace Tree Levels 7-8 (4 → 2 rows) + CPA final addition
@@ -252,25 +172,8 @@ class WallaceTreeMul:
         """
         Execute EX_M1 stage: Partial Product Generation + Wallace Tree Levels 1-3
 
-        === Hardware Implementation Details ===
-
         This stage generates 32 partial products using AND gates and performs
         the first three levels of Wallace Tree compression.
-
-        1. Partial Product Generation:
-           For each bit i of the multiplier B (i = 0 to 31):
-           - pp[i] = A & {64{B[i]}}  (64-bit replicated AND)
-           - Each pp[i] is left-shifted by i positions
-
-        2. Sign Handling:
-           - For signed operands, we sign-extend to 64 bits before generating partial products
-           - The sign correction is built into the partial products
-
-        3. Wallace Tree Compression Levels 1-3 (32 → 10 rows):
-           Uses 3:2 compressors (full adders) across the first three levels
-           - Level 1: 32 → 22 rows
-           - Level 2: 22 → 15 rows
-           - Level 3: 15 → 10 rows
         """
         # Only process if stage 1 is valid
         with Condition(self.m1_valid[0] == Bits(1)(1)):
@@ -404,10 +307,6 @@ class WallaceTreeMul:
 
         This stage performs Wallace Tree compression levels 4-6, reducing
         10 rows down to 4 rows.
-
-        - Level 4: 10 → 7 rows
-        - Level 5: 7 → 5 rows
-        - Level 6: 5 → 4 rows
         """
         # Only process if stage 2 is valid
         with Condition(self.m2_valid[0] == Bits(1)(1)):
@@ -470,10 +369,6 @@ class WallaceTreeMul:
         Execute EX_M3 stage: Wallace Tree Final Compression (Levels 7-8) + CPA
 
         This stage completes the Wallace Tree compression and produces the final result.
-
-        - Level 7: 4 → 3 rows
-        - Level 8: 3 → 2 rows
-        - CPA: 2 → 1 (final 64-bit product)
         """
         # Only process if stage 3 is valid and result is not already ready
         with Condition((self.m3_valid[0] == Bits(1)(1)) & (self.m3_result_ready[0] == Bits(1)(0))):

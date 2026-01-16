@@ -13,7 +13,7 @@
    - [2.3 时钟周期分析](#23-时钟周期分析)
 3. [除法器硬件实现](#3-除法器硬件实现)
    - [3.1 恢复除法算法原理](#31-恢复除法算法原理)
-   - [3.2 Radix-4 恢复除法算法](#32-radix-4-恢复除法算法)
+   - [3.2 Radix-16 恢复除法算法](#32-radix-16-恢复除法算法)
    - [3.3 Assassyn 代码实现详解](#33-assassyn-代码实现详解)
    - [3.4 时钟周期分析](#34-时钟周期分析)
 4. [RV32IM 扩展指令执行流程](#4-rv32im-扩展指令执行流程)
@@ -59,7 +59,7 @@ M 扩展包含 8 条指令：
 | 运算 | 实现方案 | 周期数 |
 |------|----------|--------|
 | 乘法 | 3级流水线 Wallace Tree 乘法器 | 3 周期 |
-| 除法 | Radix-4 恢复除法器 | ~18 周期 |
+| 除法 | Radix-16 恢复除法器 | ~10 周期 |
 | 除法（备选） | 逐位恢复除法器 | ~34 周期 |
 
 ---
@@ -672,44 +672,45 @@ for i = N-1 downto 0:
 验证：42 = 6 × 7 + 0 ✓
 ```
 
-### 3.2 Radix-4 恢复除法算法
+### 3.2 Radix-16 恢复除法算法
 
-#### 3.2.1 为什么需要 Radix-4？
+#### 3.2.1 为什么需要 Radix-16？
 
-逐位恢复除法需要 32 个时钟周期（对于 32 位除法）。为了提高性能，我们可以每周期处理 2 位商，这就是 Radix-4（基数为 4）除法。
+逐位恢复除法需要 32 个时钟周期（对于 32 位除法）。为了提高性能，我们可以每周期处理 4 位商，这就是 Radix-16（基数为 16）除法。
 
-**Radix-4 的商位**：{0, 1, 2, 3}（用 2 位二进制表示）
+**Radix-16 的商位**：{0, 1, 2, ..., 15}（用 4 位二进制表示）
 
-#### 3.2.2 Radix-4 算法步骤
+#### 3.2.2 Radix-16 算法步骤
 
 ```
-for i = 15 downto 0:  # 16 次迭代，每次 2 位
-    1. 左移 [R, Q] 两位
-       R = (R << 2) | Q[31:30]
-       Q = Q << 2
+for i = 7 downto 0:  # 8 次迭代，每次 4 位
+    1. 左移 [R, Q] 四位
+       R = (R << 4) | Q[31:28]
+       Q = Q << 4
     
-    2. 比较 R 与 3D, 2D, D
-       if R >= 3D:
-           R = R - 3D
-           Q[1:0] = 11  # 商位 = 3
-       elif R >= 2D:
-           R = R - 2D
-           Q[1:0] = 10  # 商位 = 2
+    2. 比较 R 与 15D, 14D, ..., 2D, D
+       if R >= 15D:
+           R = R - 15D
+           Q[3:0] = 1111  # 商位 = 15
+       elif R >= 14D:
+           R = R - 14D
+           Q[3:0] = 1110  # 商位 = 14
+       ...
        elif R >= D:
            R = R - D
-           Q[1:0] = 01  # 商位 = 1
+           Q[3:0] = 0001  # 商位 = 1
        else:
-           Q[1:0] = 00  # 商位 = 0
+           Q[3:0] = 0000  # 商位 = 0
 ```
 
 **关键区别**：
-- 每次处理 2 位商，迭代次数减半
-- 需要预先计算 D, 2D, 3D
-- 需要 4 个比较器并行工作
+- 每次处理 4 位商，迭代次数减少到 8 次（相比 Radix-4 的 16 次）
+- 需要预先计算 D, 2D, 3D, ..., 15D
+- 需要 15 个比较器并行工作
 
 ### 3.3 Assassyn 代码实现详解
 
-在 `src/divider.py` 中，我们实现了 Radix-4 恢复除法器。
+在 `src/divider.py` 中，我们实现了 Radix-16 恢复除法器。
 
 #### 3.3.1 状态机设计
 
@@ -745,7 +746,7 @@ self.DIV_ERROR = Bits(3)(5)  # 错误：除数=0
                                        ↓    │
                              ┌─────────────┐│
                              │ DIV_WORKING ││
-                             │  (16次循环) ││
+                             │  (8次循环)  ││
                              └──────┬──────┘│
                                     │       │
                                     ↓       │
@@ -778,14 +779,21 @@ def __init__(self):
     self.dividend_r = RegArray(Bits(32), 1, initializer=[0])  # 无符号被除数
     self.divisor_r = RegArray(Bits(32), 1, initializer=[0])   # 无符号除数
     self.quotient = RegArray(Bits(32), 1, initializer=[0])    # 商累加器
-    self.remainder = RegArray(Bits(34), 1, initializer=[0])   # 余数（34位防溢出）
+    self.remainder = RegArray(Bits(36), 1, initializer=[0])   # 余数（36位防溢出，支持 15*d）
     self.div_sign = RegArray(Bits(2), 1, initializer=[0])     # 符号位记录
+
+    # 除数倍数寄存器（36位防溢出）
+    self.d1 = RegArray(Bits(36), 1, initializer=[0])   # 1*d
+    self.d2 = RegArray(Bits(36), 1, initializer=[0])   # 2*d
+    self.d3 = RegArray(Bits(36), 1, initializer=[0])   # 3*d
+    # ... (d4 到 d15)
+    self.d15 = RegArray(Bits(36), 1, initializer=[0])  # 15*d
 ```
 
 #### 3.3.3 启动除法
 
 ```python
-def start_divide(self, dividend, divisor, is_signed, is_rem):
+def start_divide(self, dividend, divisor, is_signed, is_rem, rd=Bits(5)(0)):
     """
     启动除法运算
     
@@ -794,11 +802,13 @@ def start_divide(self, dividend, divisor, is_signed, is_rem):
     - divisor: 除数 (rs2)
     - is_signed: 1=有符号除法, 0=无符号除法
     - is_rem: 1=返回余数, 0=返回商
+    - rd: 目标寄存器
     """
     self.dividend_in[0] = dividend
     self.divisor_in[0] = divisor
     self.is_signed[0] = is_signed
     self.is_rem[0] = is_rem
+    self.rd_in[0] = rd
     self.valid_in[0] = Bits(1)(1)
     self.busy[0] = Bits(1)(1)
     self.ready[0] = Bits(1)(0)
@@ -857,76 +867,151 @@ with Condition(self.state[0] == self.IDLE):
 - `div_sign[1:1]` 保存被除数符号，`div_sign[0:0]` 保存除数符号
 - 符号位用于最后的结果符号修正
 
-#### 3.3.5 DIV_WORKING 状态：Radix-4 迭代
+#### 3.3.5 DIV_PRE 状态：预计算除数倍数
 
 ```python
-with Condition(self.state[0] == self.DIV_WORKING):
-    # 检查是否完成
-    with Condition(self.div_cnt[0] == Bits(5)(1)):
-        self.state[0] = self.DIV_END
+with Condition(self.state[0] == self.DIV_PRE):
+    divisor = self.divisor_r[0]
+    dividend = self.dividend_r[0]
 
-    # 步骤 1：左移并引入商的高 2 位
-    quotient_msbs = self.quotient[0][30:31]  # 取商的最高 2 位
-    shifted_remainder = concat(self.remainder[0][0:31], quotient_msbs)
-    shifted_quotient = concat(self.quotient[0][0:29], Bits(2)(0))
+    # 计算除数倍数（36位防溢出，支持 15*d）
+    d_36 = concat(Bits(4)(0), divisor)  # 36位除数
 
-    # 步骤 2：计算除数的倍数（34位防溢出）
-    d1 = concat(Bits(2)(0), self.divisor_r[0])        # 1 × D
-    d2 = concat(Bits(1)(0), self.divisor_r[0], Bits(1)(0))  # 2 × D（左移1位）
-    d3 = (d1.bitcast(UInt(34)) + d2.bitcast(UInt(34))).bitcast(Bits(34))  # 3 × D
+    # 使用高效的组合计算 1d 到 15d
+    d1_val = d_36
+    d2_val = (d_36.bitcast(UInt(36)) << UInt(36)(1)).bitcast(Bits(36))  # 2*d
+    d3_val = (d2_val.bitcast(UInt(36)) + d_36.bitcast(UInt(36))).bitcast(Bits(36))  # 3*d = 2d + d
+    d4_val = (d_36.bitcast(UInt(36)) << UInt(36)(2)).bitcast(Bits(36))  # 4*d
+    d5_val = (d4_val.bitcast(UInt(36)) + d_36.bitcast(UInt(36))).bitcast(Bits(36))  # 5*d = 4d + d
+    d6_val = (d4_val.bitcast(UInt(36)) + d2_val.bitcast(UInt(36))).bitcast(Bits(36))  # 6*d = 4d + 2d
+    d7_val = (d4_val.bitcast(UInt(36)) + d3_val.bitcast(UInt(36))).bitcast(Bits(36))  # 7*d = 4d + 3d
+    d8_val = (d_36.bitcast(UInt(36)) << UInt(36)(3)).bitcast(Bits(36))  # 8*d
+    d9_val = (d8_val.bitcast(UInt(36)) + d_36.bitcast(UInt(36))).bitcast(Bits(36))  # 9*d = 8d + d
+    d10_val = (d8_val.bitcast(UInt(36)) + d2_val.bitcast(UInt(36))).bitcast(Bits(36))  # 10*d = 8d + 2d
+    d11_val = (d8_val.bitcast(UInt(36)) + d3_val.bitcast(UInt(36))).bitcast(Bits(36))  # 11*d = 8d + 3d
+    d12_val = (d8_val.bitcast(UInt(36)) + d4_val.bitcast(UInt(36))).bitcast(Bits(36))  # 12*d = 8d + 4d
+    d13_val = (d8_val.bitcast(UInt(36)) + d5_val.bitcast(UInt(36))).bitcast(Bits(36))  # 13*d = 8d + 5d
+    d14_val = (d8_val.bitcast(UInt(36)) + d6_val.bitcast(UInt(36))).bitcast(Bits(36))  # 14*d = 8d + 6d
+    d15_val = (d8_val.bitcast(UInt(36)) + d7_val.bitcast(UInt(36))).bitcast(Bits(36))  # 15*d = 8d + 7d
 
-    # 步骤 3：并行比较
-    ge_3d = shifted_remainder >= d3
-    ge_2d = shifted_remainder >= d2
-    ge_1d = shifted_remainder >= d1
+    # 存储除数倍数
+    self.d1[0] = d1_val
+    self.d2[0] = d2_val
+    # ... (d3 到 d14)
+    self.d15[0] = d15_val
 
-    # 步骤 4：计算各情况下的余数
-    rem_minus_3d = (shifted_remainder.bitcast(UInt(34)) - d3.bitcast(UInt(34))).bitcast(Bits(34))
-    rem_minus_2d = (shifted_remainder.bitcast(UInt(34)) - d2.bitcast(UInt(34))).bitcast(Bits(34))
-    rem_minus_1d = (shifted_remainder.bitcast(UInt(34)) - d1.bitcast(UInt(34))).bitcast(Bits(34))
+    # 初始化商和余数
+    self.quotient[0] = Bits(32)(0)
+    self.remainder[0] = Bits(36)(0)
 
-    # 步骤 5：选择新余数（优先级：3D > 2D > D > 0）
-    new_remainder = ge_3d.select(
-        rem_minus_3d,
-        ge_2d.select(
-            rem_minus_2d,
-            ge_1d.select(
-                rem_minus_1d,
-                shifted_remainder
-            )
-        )
-    )
+    # 32位除法，4位/周期，需要 8 次迭代
+    self.div_cnt[0] = Bits(5)(8)
 
-    # 步骤 6：选择商位
-    q_bits = ge_3d.select(
-        Bits(2)(0b11),
-        ge_2d.select(
-            Bits(2)(0b10),
-            ge_1d.select(
-                Bits(2)(0b01),
-                Bits(2)(0b00)
-            )
-        )
-    )
+    # 保存被除数用于迭代
+    self.dividend_r[0] = dividend
 
-    # 更新寄存器
-    self.remainder[0] = new_remainder
-    self.quotient[0] = (shifted_quotient.bitcast(UInt(32)) | 
-                        q_bits.bitcast(UInt(32))).bitcast(Bits(32))
-
-    # 递减计数器
-    self.div_cnt[0] = (self.div_cnt[0].bitcast(UInt(5)) - Bits(5)(1)).bitcast(Bits(5))
+    # 转入 DIV_WORKING 状态
+    self.state[0] = self.DIV_WORKING
 ```
 
 **硬件含义说明**：
-- `concat(Bits(1)(0), divisor, Bits(1)(0))` 通过左移1位实现乘2
-- `ge_3d`, `ge_2d`, `ge_1d` 是三个并行比较器
-- 嵌套的 `select` 实现了优先级编码器
+- 使用移位和加法组合高效计算除数的 1~15 倍
+- 36 位宽度确保 15*d 不会溢出
+- 计数器设为 8，表示 8 次迭代
 
-#### 3.3.6 DIV_END 状态：符号修正
+#### 3.3.6 DIV_WORKING 状态：Radix-16 迭代
+
+```python
+with Condition(self.state[0] == self.DIV_WORKING):
+    # 获取当前值
+    rem_cur = self.remainder[0]  # 36位部分余数
+    quot_cur = self.quotient[0]  # 32位商
+    dividend_cur = self.dividend_r[0]  # 剩余被除数位
+
+    # 步骤 1：余数左移 4 位并引入被除数的高 4 位
+    next_bits = dividend_cur[28:31]  # 被除数的高 4 位
+    shifted_rem = concat(rem_cur[0:31], next_bits)  # (rem << 4) | next_bits
+
+    # 被除数左移 4 位（准备下一轮）
+    new_dividend = concat(dividend_cur[0:27], Bits(4)(0))
+
+    # 步骤 2：商位选择（与 15d, 14d, ..., d 比较）
+    q_digit = self.quotient_select(
+        shifted_rem,
+        self.d1[0], self.d2[0], ..., self.d15[0]
+    )
+
+    # 步骤 3：根据商位计算新余数
+    # new_rem = shifted_rem - q_digit * d
+    q_times_d = (q_digit == Bits(4)(0)).select(
+        Bits(36)(0),
+        (q_digit == Bits(4)(1)).select(
+            self.d1[0],
+            ...
+            self.d15[0]  # q=15
+        )
+    )
+
+    new_rem = (shifted_rem.bitcast(UInt(36)) - q_times_d.bitcast(UInt(36))).bitcast(Bits(36))
+
+    # 步骤 4：更新商（左移 4 位并加入新的 4 位商）
+    new_quot = concat(quot_cur[0:27], q_digit)
+
+    # 更新寄存器
+    self.remainder[0] = new_rem
+    self.quotient[0] = new_quot
+    self.dividend_r[0] = new_dividend
+
+    # 递减计数器
+    self.div_cnt[0] = (self.div_cnt[0].bitcast(UInt(5)) - UInt(5)(1)).bitcast(Bits(5))
+
+    # 检查是否完成
+    is_last = (self.div_cnt[0] == Bits(5)(1))
+    with Condition(is_last):
+        self.state[0] = self.DIV_END
+```
+
+**商位选择函数**：
+
+```python
+def quotient_select(self, shifted_rem, d1, d2, ..., d15):
+    """
+    Radix-16 商位选择
+    比较移位后的余数与除数倍数
+    返回商位 {0, 1, 2, ..., 15}
+    """
+    # 并行比较 shifted_rem >= 15d, 14d, ..., d
+    ge_15d = (shifted_rem.bitcast(UInt(36)) >= d15.bitcast(UInt(36)))
+    ge_14d = (shifted_rem.bitcast(UInt(36)) >= d14.bitcast(UInt(36)))
+    # ... (ge_13d 到 ge_1d)
+
+    # 优先级选择（优先级：15 > 14 > ... > 1 > 0）
+    q = ge_15d.select(
+        Bits(4)(15),
+        ge_14d.select(
+            Bits(4)(14),
+            ...
+            ge_1d.select(
+                Bits(4)(1),
+                Bits(4)(0)
+            )
+        )
+    )
+    return q
+```
+
+**硬件含义说明**：
+- 每周期处理 4 位商，需要 15 个并行比较器
+- 优先级编码器选择最大可减倍数
+- 嵌套的 `select` 实现了硬件优先级编码器
+
+#### 3.3.7 DIV_END 状态：符号修正
 
 ```python
 with Condition(self.state[0] == self.DIV_END):
+    q_out = self.quotient[0]
+    rem_out = self.remainder[0][0:31]  # 取余数的低 32 位
+
     # 符号修正规则：
     # - 商：被除数和除数异号时为负
     # - 余数：与被除数同号
@@ -951,12 +1036,12 @@ with Condition(self.state[0] == self.DIV_END):
     with Condition(~signed_overflow):
         # 正常符号修正
         q_signed = (self.sign_r[0] & q_needs_neg).select(
-            (~self.quotient[0] + Bits(32)(1)).bitcast(Bits(32)),
-            self.quotient[0]
+            (~q_out + Bits(32)(1)).bitcast(Bits(32)),
+            q_out
         )
         rem_signed = (self.sign_r[0] & rem_needs_neg).select(
-            (~self.remainder[0][0:31] + Bits(32)(1)).bitcast(Bits(32)),
-            self.remainder[0][0:31]
+            (~rem_out + Bits(32)(1)).bitcast(Bits(32)),
+            rem_out
         )
 
         # 根据指令类型选择输出
@@ -964,27 +1049,32 @@ with Condition(self.state[0] == self.DIV_END):
 
     # 完成，回到 IDLE
     self.ready[0] = Bits(1)(1)
+    self.rd_out[0] = self.rd_in[0]
     self.busy[0] = Bits(1)(0)
     self.state[0] = self.IDLE
 ```
 
 ### 3.4 时钟周期分析
 
-#### 3.4.1 Radix-4 除法器时序
+#### 3.4.1 Radix-16 除法器时序
 
 ```
 周期数      状态              操作
 ================================================================
 N           IDLE             检测特殊情况，决定下一状态
-N+1         DIV_PRE          初始化 quotient=dividend, remainder=0, cnt=16
-N+2         DIV_WORKING      第 1 次迭代（处理 bit 31-30）
-N+3         DIV_WORKING      第 2 次迭代（处理 bit 29-28）
-...         ...              ...
-N+17        DIV_WORKING      第 16 次迭代（处理 bit 1-0）
-N+18        DIV_END          符号修正，结果就绪
+N+1         DIV_PRE          计算 1d~15d 倍数，初始化 quotient=0, remainder=0, cnt=8
+N+2         DIV_WORKING      第 1 次迭代（处理 bit 31-28）
+N+3         DIV_WORKING      第 2 次迭代（处理 bit 27-24）
+N+4         DIV_WORKING      第 3 次迭代（处理 bit 23-20）
+N+5         DIV_WORKING      第 4 次迭代（处理 bit 19-16）
+N+6         DIV_WORKING      第 5 次迭代（处理 bit 15-12）
+N+7         DIV_WORKING      第 6 次迭代（处理 bit 11-8）
+N+8         DIV_WORKING      第 7 次迭代（处理 bit 7-4）
+N+9         DIV_WORKING      第 8 次迭代（处理 bit 3-0）
+N+10        DIV_END          符号修正，结果就绪
 ```
 
-**总周期数**：~18 周期（正常情况）
+**总周期数**：~10 周期（正常情况）
 
 #### 3.4.2 特殊情况
 
@@ -992,45 +1082,44 @@ N+18        DIV_END          符号修正，结果就绪
 |------|--------|
 | 除数 = 0 | 2 周期 (IDLE → DIV_ERROR) |
 | 除数 = 1 | 2 周期 (IDLE → DIV_1) |
-| 正常除法 | ~18 周期 |
+| 正常除法 | ~10 周期 |
 
-### 3.5 示例：14 ÷ 3（DIVU，无符号，Radix-4）逐周期变化
+### 3.5 示例：14 ÷ 3（DIVU，无符号，Radix-16）逐周期变化
 
-Radix-4 每轮处理 2 位商（共 16 轮）。下表严格对应 `src/divider.py` 的算法：先取 `Q[31:30]` 填入 `R=(R<<2)|Q[31:30]`，再把 `Q` 左移 2 位，随后与 `3d/2d/d` 比较决定 `q_bits` 与新余数 `R`。
+Radix-16 每轮处理 4 位商（共 8 轮）。下表严格对应 `src/divider.py` 的算法：先取 `dividend[31:28]` 填入 `R=(R<<4)|dividend[31:28]`，再把 `dividend` 左移 4 位，随后与 `15d/14d/.../d` 比较决定 `q_digit` 与新余数 `R`。
 
-> 说明：`R` 为 34 位，这里只展示低 10 位（高位本例始终为 0）。`Q` 展示 32 位二进制。
+> 说明：`R` 为 36 位，这里只展示低 8 位（高位本例始终为 0）。`Q` 展示 32 位二进制。dividend=14=0x0000000E，divisor=3。
 
-| 轮次 | 取出的 Q[31:30] | 移位后 R (低10位) | 比较/选择 q_bits | 更新后 R (低10位) | 更新后 Q (32b) |
-|------|-----------------|-------------------|------------------|------------------|----------------|
-| 1 | 00 | 0000000000 | < d (0) | 0000000000 | 00000000000000000000000000111000 |
-| 2 | 00 | 0000000000 | < d (0) | 0000000000 | 00000000000000000000000011100000 |
-| 3 | 00 | 0000000000 | < d (0) | 0000000000 | 00000000000000000000001110000000 |
-| 4 | 00 | 0000000000 | < d (0) | 0000000000 | 00000000000000000000111000000000 |
-| 5 | 00 | 0000000000 | < d (0) | 0000000000 | 00000000000000000011100000000000 |
-| 6 | 00 | 0000000000 | < d (0) | 0000000000 | 00000000000000001110000000000000 |
-| 7 | 00 | 0000000000 | < d (0) | 0000000000 | 00000000000000111000000000000000 |
-| 8 | 00 | 0000000000 | < d (0) | 0000000000 | 00000000000011100000000000000000 |
-| 9 | 00 | 0000000000 | < d (0) | 0000000000 | 00000000001110000000000000000000 |
-| 10 | 00 | 0000000000 | < d (0) | 0000000000 | 00000000111000000000000000000000 |
-| 11 | 00 | 0000000000 | < d (0) | 0000000000 | 00000011100000000000000000000000 |
-| 12 | 00 | 0000000000 | < d (0) | 0000000000 | 00001110000000000000000000000000 |
-| 13 | 00 | 0000000000 | < d (0) | 0000000000 | 00111000000000000000000000000000 |
-| 14 | 00 | 0000000000 | < d (0) | 0000000000 | 11100000000000000000000000000000 |
-| 15 | 11 | 0000000011 | ≥ d → q_bits=01 | 0000000000 | 10000000000000000000000000000001 |
-| 16 | 10 | 0000000010 | < d (0) | 0000000010 | 00000000000000000000000000000100 |
+| 轮次 | 取出的 dividend[31:28] | 移位后 R (低8位) | 比较/选择 q_digit | 更新后 R (低8位) | 更新后 Q (32b) |
+|------|------------------------|------------------|-------------------|------------------|----------------|
+| 1 | 0000 | 00000000 | < d (0) | 00000000 | 00000000000000000000000000000000 |
+| 2 | 0000 | 00000000 | < d (0) | 00000000 | 00000000000000000000000000000000 |
+| 3 | 0000 | 00000000 | < d (0) | 00000000 | 00000000000000000000000000000000 |
+| 4 | 0000 | 00000000 | < d (0) | 00000000 | 00000000000000000000000000000000 |
+| 5 | 0000 | 00000000 | < d (0) | 00000000 | 00000000000000000000000000000000 |
+| 6 | 0000 | 00000000 | < d (0) | 00000000 | 00000000000000000000000000000000 |
+| 7 | 0000 | 00000000 | < d (0) | 00000000 | 00000000000000000000000000000000 |
+| 8 | 1110 | 00001110 | ≥ 4d(12), < 5d(15) → q_digit=4 | 00000010 | 00000000000000000000000000000100 |
 
-最终（进入 DIV_END）得到商 `Q=0x4`（0100），余数 `R=0x2`，与仿真/代码结果一致。
+最终（进入 DIV_END）得到商 `Q=0x4`（4），余数 `R=0x2`（2），验证：14 = 3 × 4 + 2 ✓
+
+**详细分析第 8 轮**：
+- `shifted_rem = (0 << 4) | 0xE = 14`
+- 比较：14 < 15d(45)，14 < 14d(42)，...，14 >= 4d(12)，14 < 5d(15)
+- 选择 `q_digit = 4`
+- `new_rem = 14 - 4×3 = 14 - 12 = 2`
+- `new_quot = (0 << 4) | 4 = 4`
 
 ### 3.6 逐位恢复除法（NaiveDivider）
 
 `src/naive_divider.py` 实现了更简单的逐位恢复除法，主要区别：
 
-| 特性 | Radix-4 (SRT4Divider) | 逐位 (NaiveDivider) |
-|------|------------------------|---------------------|
-| 每周期处理位数 | 2 位 | 1 位 |
-| 迭代次数 | 16 次 | 32 次 |
-| 总周期数 | ~18 | ~34 |
-| 硬件复杂度 | 较高（需要 3 个比较器） | 较低（需要 1 个比较器） |
+| 特性 | Radix-16 (Radix16Divider) | 逐位 (NaiveDivider) |
+|------|---------------------------|---------------------|
+| 每周期处理位数 | 4 位 | 1 位 |
+| 迭代次数 | 8 次 | 32 次 |
+| 总周期数 | ~10 | ~34 |
+| 硬件复杂度 | 较高（需要 15 个比较器） | 较低（需要 1 个比较器） |
 
 ---
 
@@ -1256,33 +1345,33 @@ with Condition((is_div_op == Bits(1)(1)) & (div_busy == Bits(1)(0)) & (flush_if 
 
 周期 N+4: EX 阶段 - DIV_PRE → DIV_WORKING
           ├─ tick() 执行
-          │   ├─ quotient = dividend_abs
-          │   ├─ remainder = 0 (34 bits)
-          │   ├─ div_cnt = 16
+          │   ├─ 计算除数倍数 d1~d15
+          │   ├─ quotient = 0
+          │   ├─ remainder = 0 (36 bits)
+          │   ├─ div_cnt = 8
           │   └─ state → DIV_WORKING
           └─ 流水线保持暂停
 
-周期 N+5 ~ N+20: EX 阶段 - DIV_WORKING (16 次迭代)
-          ├─ 每次 tick() 执行一次 Radix-4 迭代：
-          │   ├─ 左移 remainder 2 位，引入 quotient 高 2 位
-          │   ├─ 计算 d1=D, d2=2D, d3=3D
-          │   ├─ 并行比较：ge_3d, ge_2d, ge_1d
-          │   ├─ 选择商位 q_bits (00/01/10/11)
+周期 N+5 ~ N+12: EX 阶段 - DIV_WORKING (8 次迭代)
+          ├─ 每次 tick() 执行一次 Radix-16 迭代：
+          │   ├─ 左移 remainder 4 位，引入 dividend 高 4 位
+          │   ├─ 并行比较：ge_15d, ge_14d, ..., ge_1d
+          │   ├─ 选择商位 q_digit (0~15)
           │   ├─ 更新 remainder 和 quotient
           │   └─ div_cnt -= 1
           └─ 流水线保持暂停
 
-周期 N+21: EX 阶段 - DIV_END
+周期 N+13: EX 阶段 - DIV_END
           ├─ tick() 执行
           │   ├─ 符号修正
           │   ├─ result = quotient (因为 is_rem=0)
           │   └─ ready = 1, busy = 0
           └─ 向 MEM 发送 (rd=rd_addr, result=quotient)
 
-周期 N+22: MEM 阶段
+周期 N+14: MEM 阶段
           └─ 传递到 WB
 
-周期 N+23: WB 阶段
+周期 N+15: WB 阶段
           └─ reg_file[rd] = result
 ```
 
@@ -1394,7 +1483,7 @@ class DivOp:
 | 操作 | 本项目实现 | 简单实现 | 典型商用 CPU |
 |------|-----------|----------|-------------|
 | 乘法 | 3 周期（Wallace Tree） | 1 周期（直接乘） | 3-5 周期 |
-| 除法 | ~18 周期（Radix-4） | ~34 周期（逐位） | 10-40 周期 |
+| 除法 | ~10 周期（Radix-16） | ~34 周期（逐位） | 10-40 周期 |
 
 ### 5.4 参考资料
 
