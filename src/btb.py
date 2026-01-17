@@ -46,10 +46,22 @@ class BTBImpl:
     """
     BTB implementation logic that interfaces with the BTB SRAM.
     
-    The SRAM-based BTB uses a pipelined read approach:
-    - drive_read(): Drive the SRAM read address (call in IF stage with current PC)
-    - predict(): Read SRAM output and check for hit (call with previous PC for comparison)
-    - update(): Drive the SRAM write (call in EX stage when branch is resolved)
+    The SRAM-based BTB uses a pipelined read approach due to SRAM's 1-cycle read latency:
+    
+    - drive_sram(): Drives the SRAM with read/write address. Read address uses current PC,
+                    write address uses resolved branch PC from EX stage.
+    - predict(): Reads SRAM output and checks for hit. The SRAM output is from the
+                 *previous* cycle's read, so prediction is valid only when current PC
+                 matches the PC used for the previous read.
+    
+    Timing behavior:
+    - Cycle T: drive_sram() is called with current PC_T
+    - Cycle T+1: SRAM output contains entry for PC_T (available via predict())
+    - If PC_{T+1} == PC_T (e.g., stall or correct prediction), BTB hit is valid
+    
+    This means BTB predictions have 1-cycle latency compared to the RegArray-based BTB.
+    The first iteration of a loop won't benefit from BTB prediction, but subsequent
+    iterations will.
     """
     def __init__(self, num_entries=64, index_bits=6):
         self.name = "BTB_Impl"
@@ -99,10 +111,7 @@ class BTBImpl:
         write_data = self._pack_entry(Bits(1)(1), write_pc, write_target)
         
         # Determine SRAM address: write has priority
-        sram_addr = should_write.select(
-            write_index.bitcast(Bits(self.index_bits)),
-            read_index.bitcast(Bits(self.index_bits))
-        )
+        sram_addr = should_write.select(write_index, read_index)
         
         # Drive SRAM
         btb_sram.build(

@@ -78,15 +78,26 @@ class FetcherImpl(Downstream):
         )
 
         # 使用 BTB 进行分支目标预测（如果提供了 BTB SRAM）
-        # Note: SRAM has 1-cycle read latency. The prediction uses the BTB output
-        # from the previous cycle's read (driven by last_pc_reg).
+        # Note: SRAM has 1-cycle read latency.
+        # - In cycle T-1: BTB SRAM was read with final_current_pc_{T-1}
+        # - In cycle T: BTB output contains entry for final_current_pc_{T-1}, which is last_pc_reg[0]
+        # - We check if the current PC matches what we read from BTB
+        #
+        # This means BTB prediction is only valid when:
+        # 1. We're in a stall (current PC same as last PC)
+        # 2. We correctly predicted a branch and came back to same PC
+        # 3. We're in a loop and this is not the first iteration
         if btb_impl is not None and btb_sram is not None:
-            # Use last_pc for prediction because SRAM output is from previous cycle's read
-            # This means BTB was read with last_pc in the previous cycle
-            btb_hit, btb_predicted_target = btb_impl.predict(
-                pc=last_pc_reg[0],  # Compare against the PC that was used to read BTB
+            # Read BTB output and check if it matches the PC used for read (last_pc)
+            btb_hit_raw, btb_predicted_target = btb_impl.predict(
+                pc=last_pc_reg[0],  # Check if BTB entry tag matches the PC that was used for read
                 btb_sram=btb_sram,
             )
+            
+            # BTB prediction is only valid if current PC equals the PC we read BTB for
+            # This handles SRAM's 1-cycle read latency
+            pc_matches_btb_read = (final_current_pc == last_pc_reg[0])
+            btb_hit = btb_hit_raw & pc_matches_btb_read
 
             # --- Tournament Predictor 方向预测 ---
             # 当 BTB 命中时，使用 Tournament Predictor 决定是否跳转
@@ -99,27 +110,19 @@ class FetcherImpl(Downstream):
                     global_history=tp_ghr,
                     selector_counters=tp_selector,
                 )
-                # BTB hit is for last_pc, but we need to check if current PC matches
-                # The BTB prediction is valid only if current PC equals last_pc (sequential)
-                # or if we're continuing from a stall
-                pc_matches_btb = (final_current_pc == last_pc_reg[0])
-                effective_btb_hit = btb_hit & pc_matches_btb
-                
                 # BTB 命中 + TP 预测跳转 → 使用 BTB 目标
                 # BTB 命中 + TP 预测不跳转 → PC + 4
                 # BTB 未命中 → PC + 4
-                predicted_next_pc = effective_btb_hit.select(
+                predicted_next_pc = btb_hit.select(
                     tp_predict_taken.select(btb_predicted_target, default_next_pc),
                     default_next_pc,
                 )
                 debug_log(
-                    "IF: BTB hit={}, TP predict_taken={}", effective_btb_hit, tp_predict_taken
+                    "IF: BTB hit={}, TP predict_taken={}", btb_hit, tp_predict_taken
                 )
             else:
                 # 无 Tournament Predictor，使用原有逻辑：BTB 命中即跳转
-                pc_matches_btb = (final_current_pc == last_pc_reg[0])
-                effective_btb_hit = btb_hit & pc_matches_btb
-                predicted_next_pc = effective_btb_hit.select(btb_predicted_target, default_next_pc)
+                predicted_next_pc = btb_hit.select(btb_predicted_target, default_next_pc)
         else:
             # 无 BTB，使用简单的 PC + 4 逻辑
             predicted_next_pc = default_next_pc

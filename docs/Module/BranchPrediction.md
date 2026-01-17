@@ -107,7 +107,7 @@ BTB（分支目标缓冲器）是一个硬件缓存，用于存储之前执行�
 
 ### 3.2 BTB 的硬件结构
 
-本仓库的 BTB 是一个 **64 条目、直接映射** 的缓存结构。
+本仓库的 BTB 是一个 **64 条目、直接映射** 的缓存结构，使用 **SRAM** 存储。
 
 **代码对照** (`src/btb.py`)：
 
@@ -120,22 +120,22 @@ class BTB(Module):
 
     @module.combinational
     def build(self):
-        # BTB 的三个存储数组（对应表中的三列）
-        
-        # 有效位数组：每个条目 1 bit，表示该条目是否有效
-        btb_valid = RegArray(Bits(1), self.num_entries, initializer=[0] * self.num_entries)
-        
-        # 标签数组：存储完整的 32 位 PC 地址
-        btb_tags = RegArray(Bits(32), self.num_entries, initializer=[0] * self.num_entries)
-        
-        # 目标地址数组：存储分支的跳转目标地址
-        btb_targets = RegArray(Bits(32), self.num_entries, initializer=[0] * self.num_entries)
+        # BTB 使用 SRAM 存储，每个条目 65 位
+        # 位布局: [64]=valid, [63:32]=tag (32位PC), [31:0]=target (32位目标地址)
+        btb_sram = SRAM(width=65, depth=self.num_entries)
+        btb_sram.name = "btb_sram"
+        return btb_sram
 ```
 
 **硬件细节解释**：
-- `RegArray(Bits(1), 64)` 表示一个包含 64 个 1-bit 寄存器的数组
-- `RegArray(Bits(32), 64)` 表示一个包含 64 个 32-bit 寄存器的数组
-- `initializer=[0] * 64` 表示所有条目初始化为 0
+- `SRAM(width=65, depth=64)` 表示一个 65 位宽、64 条目深的 SRAM
+- 每个条目包含：1 位有效位 + 32 位标签 + 32 位目标地址 = 65 位
+- SRAM 读取有 **1 周期延迟**：本周期发起读请求，下周期得到数据
+
+**SRAM vs RegArray**：
+- SRAM 使用真正的存储器单元，面积效率高，适合大容量存储
+- RegArray 使用触发器实现，面积大但可以组合读取（无延迟）
+- BTB 使用 SRAM 更符合实际硬件实现
 
 ### 3.3 BTB 的索引机制
 
@@ -165,23 +165,27 @@ BTB 使用 PC 的一部分作为索引来定位条目：
 **代码对照** (`src/btb.py` - `BTBImpl.predict` 方法)：
 
 ```python
-def predict(self, pc, btb_valid, btb_tags, btb_targets):
-    # 从 PC 提取索引：右移 2 位（跳过低 2 位），然后取低 6 位
-    # 对于 64 条目 (6 index bits): 使用 bits [7:2] of PC
-    index_32 = (pc >> UInt(32)(2)) & Bits(32)(self.index_mask)  # self.index_mask = 0x3F
-    index = index_32[0:self.index_bits - 1].bitcast(Bits(self.index_bits))
+def predict(self, pc, btb_sram):
+    # 读取 SRAM 输出（来自上一周期的读取）
+    entry = btb_sram.dout[0].bitcast(Bits(65))
     
-    # 查找对应条目
-    entry_valid = btb_valid[index]    # 该条目是否有效？
-    entry_tag = btb_tags[index]       # 存储的 PC 是什么？
-    entry_target = btb_targets[index] # 存储的目标地址是什么？
+    # 解包条目：[64]=valid, [63:32]=tag, [31:0]=target
+    entry_valid = entry[64:64]
+    entry_tag = entry[32:63]
+    entry_target = entry[0:31]
     
-    # 判断是否命中：有效位为1 且 存储的PC与当前PC完全匹配
+    # 判断是否命中：有效位为1 且 存储的PC与参数PC完全匹配
     tag_match = entry_tag == pc
     hit = entry_valid & tag_match
     
     return hit, entry_target
 ```
+
+**SRAM 时序说明**：
+- SRAM 读取有 1 周期延迟
+- 本周期用 PC_T 读取 BTB，下周期得到条目
+- 因此 `predict()` 的参数 `pc` 应该是上周期用于读取的 PC（即 `last_pc_reg`）
+- 只有当当前 PC 等于上周期的 PC（如 stall 或正确预测后的循环）时，BTB 预测才有效
 
 ### 3.4 BTB 的更新策略
 
@@ -189,19 +193,27 @@ BTB 只在分支**实际跳转**时才更新。这是因为：
 - 如果分支从未跳转过，就没有必要记录它的目标地址
 - 这样可以节省 BTB 空间，让它专注于那些会跳转的分支
 
-**代码对照** (`src/btb.py` - `BTBImpl.update` 方法)：
+**代码对照** (`src/btb.py` - `BTBImpl.drive_sram` 方法)：
 
 ```python
-def update(self, pc, target, should_update, btb_valid, btb_tags, btb_targets):
-    # 计算索引（与 predict 相同）
-    index_32 = (pc >> UInt(32)(2)) & Bits(32)(self.index_mask)
-    index = index_32[0:self.index_bits - 1].bitcast(Bits(self.index_bits))
+def drive_sram(self, read_pc, write_pc, write_target, should_write, btb_sram):
+    # 提取读/写索引
+    read_index = self._extract_index(read_pc)
+    write_index = self._extract_index(write_pc)
     
-    # 只有当 should_update=1（分支实际跳转）时才更新
-    with Condition(should_update == Bits(1)(1)):
-        btb_valid[index] <= Bits(1)(1)  # 标记为有效
-        btb_tags[index] <= pc           # 存储当前 PC 作为标签
-        btb_targets[index] <= target    # 存储目标地址
+    # 打包写入数据：valid=1, tag=write_pc, target=write_target
+    write_data = self._pack_entry(Bits(1)(1), write_pc, write_target)
+    
+    # 写入优先：如果需要写入，使用写入地址；否则使用读取地址
+    sram_addr = should_write.select(write_index, read_index)
+    
+    # 驱动 SRAM
+    btb_sram.build(
+        addr=sram_addr,
+        re=~should_write,  # 不写入时读取
+        we=should_write,
+        wdata=write_data,
+    )
 ```
 
 ### 3.5 BTB 的局限性
