@@ -1,8 +1,11 @@
 from assassyn.frontend import *
+
+from .btb import BTBImpl
 from .control_signals import *
 from .debug_utils import debug_log
 from .multiplier import WallaceTreeMul
 from .divider import Radix16Divider
+from .tournament_predictor import TournamentPredictorImpl
 
 
 class Execution(Module):
