@@ -144,10 +144,10 @@ def build_cpu(depth_log, enable_branch_prediction=True):
 
         # --- Step 0: BTB 和 Tournament Predictor 构建（仅在开关打开时） ---
         if enable_branch_prediction:
-            btb_valid, btb_tags, btb_targets = btb.build()
+            btb_sram = btb.build()
             tp_bimodal, tp_gshare, tp_ghr, tp_selector = tp.build()
         else:
-            btb_valid, btb_tags, btb_targets = None, None, None
+            btb_sram = None
             tp_bimodal, tp_gshare, tp_ghr, tp_selector = None, None, None, None
 
         # --- Step A: WB 阶段 ---
@@ -164,16 +164,13 @@ def build_cpu(depth_log, enable_branch_prediction=True):
         )
 
         # --- Step C: EX 阶段 ---
-        ex_rd, ex_addr, ex_is_load, ex_is_store, ex_width, ex_rs2, ex_mul_busy, ex_div_busy = executor.build(
+        ex_rd, ex_addr, ex_is_load, ex_is_store, ex_width, ex_rs2, ex_mul_busy, ex_div_busy, btb_should_update, btb_update_pc, btb_update_target = executor.build(
             mem_module=memory_unit,
             ex_bypass=ex_bypass_reg,
             mem_bypass=mem_bypass_reg,
             wb_bypass=wb_bypass_reg,
             branch_target_reg=branch_target_reg,
             btb_impl=btb_impl,
-            btb_valid=btb_valid,
-            btb_tags=btb_tags,
-            btb_targets=btb_targets,
             tp_impl=tp_impl,
             tp_bimodal=tp_bimodal,
             tp_gshare=tp_gshare,
@@ -221,9 +218,7 @@ def build_cpu(depth_log, enable_branch_prediction=True):
             stall_if=stall_if,
             branch_target=branch_target_reg,
             btb_impl=btb_impl,
-            btb_valid=btb_valid,
-            btb_tags=btb_tags,
-            btb_targets=btb_targets,
+            btb_sram=btb_sram,
             tp_impl=tp_impl,
             tp_bimodal=tp_bimodal,
             tp_gshare=tp_gshare,
@@ -242,7 +237,17 @@ def build_cpu(depth_log, enable_branch_prediction=True):
             sram=cache,
         )
 
-        # --- Step I: 辅助驱动 ---
+        # --- Step I: BTB SRAM 驱动（仅在开关打开时） ---
+        if enable_branch_prediction:
+            btb_impl.drive_sram(
+                read_pc=current_pc,  # Read with current PC for next cycle's prediction
+                write_pc=btb_update_pc,  # Write PC from EX stage
+                write_target=btb_update_target,  # Write target from EX stage
+                should_write=btb_should_update,  # Write enable from EX stage
+                btb_sram=btb_sram,
+            )
+
+        # --- Step J: 辅助驱动 ---
         driver.build(fetcher=fetcher)
 
         """RegArray exposing"""

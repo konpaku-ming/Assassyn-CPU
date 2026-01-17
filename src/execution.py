@@ -42,11 +42,9 @@ class Execution(Module):
             wb_bypass: Array,  # 来自 WB 旁路寄存器的数据 (当前写回数据)
             # --- 分支反馈 ---
             branch_target_reg: Array,  # 用于通知 IF 跳转目标的全局寄存器
-            # --- BTB 更新 (可选) ---
+            # --- BTB 更新 (可选, SRAM-based) ---
+            # Note: BTB SRAM is driven centrally, so we only pass btb_impl for update computation
             btb_impl: "BTBImpl" = None,  # BTB 实现逻辑
-            btb_valid: Array = None,  # BTB 有效位数组
-            btb_tags: Array = None,  # BTB 标签数组
-            btb_targets: Array = None,  # BTB 目标地址数组
             # --- Tournament Predictor 更新 (可选) ---
             tp_impl: "TournamentPredictorImpl" = None,  # Tournament Predictor 实现逻辑
             tp_bimodal: Array = None,  # Bimodal 计数器数组
@@ -403,18 +401,17 @@ class Execution(Module):
             debug_log("EX: Branch Target: 0x{:x}", calc_target)
             debug_log("EX: Branch Taken: {}", is_taken == Bits(1)(1))
 
-        # 5. 更新 BTB (如果提供了 BTB 引用)
-        # 当分支指令 taken 时，更新 BTB 存储 PC -> Target 的映射
-        if btb_impl is not None and btb_valid is not None:
+        # 5. BTB 更新信号 (如果提供了 BTB 引用)
+        # 当分支指令 taken 时，需要更新 BTB 存储 PC -> Target 的映射
+        # Note: The actual SRAM write is done centrally; we just compute the update signals
+        if btb_impl is not None:
             should_update_btb = is_branch & is_taken & ~flush_if
-            btb_impl.update(
-                pc=pc,
-                target=calc_target,
-                should_update=should_update_btb,
-                btb_valid=btb_valid,
-                btb_tags=btb_tags,
-                btb_targets=btb_targets,
-            )
+            btb_update_pc = pc
+            btb_update_target = calc_target
+        else:
+            should_update_btb = Bits(1)(0)
+            btb_update_pc = Bits(32)(0)
+            btb_update_target = Bits(32)(0)
 
         # 6. 更新 Tournament Predictor (如果提供了 TP 引用)
         # 对所有分支指令更新预测器，无论是否 taken
@@ -483,4 +480,5 @@ class Execution(Module):
 
         # 返回引脚 (供 HazardUnit 与 SingleMemory 使用)
         # Including mul_busy and div_busy for hazard detection
-        return final_rd, final_result, is_load, is_store, mem_width, real_rs2, mul_busy, div_busy
+        # Including BTB update signals for central SRAM driving
+        return final_rd, final_result, is_load, is_store, mem_width, real_rs2, mul_busy, div_busy, should_update_btb, btb_update_pc, btb_update_target
