@@ -4,19 +4,10 @@ from .debug_utils import debug_log
 
 class TournamentPredictor(Module):
     """
-    Tournament Predictor - Combines local (Bimodal) and global (Gshare) predictors
-    with a selector to choose between them.
-
     Architecture:
     - Bimodal: 2-bit saturating counters indexed by PC
     - Gshare: 2-bit counters indexed by (PC XOR Global History)
     - Selector: 2-bit counters that learn which predictor is better for each branch
-
-    2-bit saturating counter states:
-    - 00: Strongly Not Taken
-    - 01: Weakly Not Taken
-    - 10: Weakly Taken
-    - 11: Strongly Taken
     """
 
     def __init__(self, num_entries=64, index_bits=6, history_bits=6):

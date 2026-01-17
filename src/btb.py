@@ -3,13 +3,6 @@ from .debug_utils import debug_log
 
 
 class BTB(Module):
-    """
-    Branch Target Buffer (BTB) - Direct-mapped, one-cycle prediction
-
-    Provides fast branch target prediction by storing previously seen
-    branch target addresses indexed by PC.
-    """
-
     def __init__(self, num_entries=64, index_bits=6):
         """
         Initialize BTB with configurable size.
@@ -40,12 +33,6 @@ class BTB(Module):
 
 
 class BTBImpl:
-    """
-    BTB Implementation logic for prediction and update.
-    This is a helper class with pure combinational logic methods,
-    not a Downstream module, to avoid circular dependencies.
-    """
-
     def __init__(self, num_entries=64, index_bits=6):
         self.name = "BTB_Impl"
         self.num_entries = num_entries

@@ -1,6 +1,9 @@
 from assassyn.frontend import *
+
+from .btb import BTBImpl
 from .control_signals import *
 from .debug_utils import debug_log
+from .tournament_predictor import TournamentPredictorImpl
 
 
 class Fetcher(Module):
