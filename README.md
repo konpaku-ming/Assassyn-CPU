@@ -330,29 +330,7 @@ ctrl, data = self.pop_all_ports(False)  # 非阻塞读取
 
 ---
 
-## 🤝 贡献
-
-欢迎提交 Issue 和 Pull Request！
-
-1. Fork 本仓库
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送分支 (`git push origin feature/AmazingFeature`)
-5. 提交 Pull Request
-
----
-
 ## 🙏 致谢
 
 - [Assassyn](https://github.com/were/assassyn) - 硬件描述语言框架
 - [RISC-V](https://riscv.org/) - 开源指令集架构
-- [riscv-tests](https://github.com/riscv/riscv-tests) - RISC-V 测试用例参考
-
----
-
-## 📬 联系方式
-
-如有问题或建议，欢迎通过以下方式联系：
-
-- 提交 [Issue](https://github.com/konpaku-ming/Assassyn-CPU/issues)
-- 发起 [Discussion](https://github.com/konpaku-ming/Assassyn-CPU/discussions)
