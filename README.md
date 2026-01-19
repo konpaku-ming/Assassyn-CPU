@@ -1,7 +1,7 @@
 # Assassyn-CPU
 
 [![RISC-V](https://img.shields.io/badge/RISC--V-RV32IM-brightgreen.svg)](https://riscv.org/)
-[![Assassyn](https://img.shields.io/badge/Assassyn-HDL-orange.svg)](https://github.com/assassyn-lang/assassyn)
+[![Assassyn](https://img.shields.io/badge/Assassyn-HDL-orange.svg)](https://github.com/were/assassyn)
 
 一个基于 **Assassyn 硬件描述语言** 实现的 **RISC-V RV32IM** 五级流水线 CPU 仿真项目。
 
@@ -9,7 +9,7 @@
 
 ## 🎯 项目概述
 
-本项目使用 [Assassyn](https://github.com/assassyn-lang/assassyn) 框架实现了一个功能完整的 RISC-V 32 位整数指令集处理器（RV32IM），支持标准整数指令（I）和乘除法扩展指令（M）。
+本项目使用 [Assassyn](https://github.com/were/assassyn) 框架实现了一个功能完整的 RISC-V 32 位整数指令集处理器（RV32IM），支持标准整数指令（I）和乘除法扩展指令（M）。
 
 ### 主要特性
 
@@ -208,7 +208,7 @@ git clone https://github.com/konpaku-ming/Assassyn-CPU.git
 cd Assassyn-CPU
 
 # 安装 Assassyn 框架（参考 Assassyn 官方文档）
-# https://github.com/assassyn-lang/assassyn
+# https://github.com/were/assassyn
 ```
 
 ### 运行仿真
@@ -272,7 +272,7 @@ python -m pytest tests/test_execute_part1.py
 
 ### Assassyn 框架
 
-[Assassyn](https://github.com/assassyn-lang/assassyn) 是一种基于 Python 的硬件描述语言，本项目使用的核心特性包括：
+[Assassyn](https://github.com/were/assassyn) 是一种基于 Python 的硬件描述语言，本项目使用的核心特性包括：
 
 ```python
 # 数据类型
@@ -344,7 +344,7 @@ ctrl, data = self.pop_all_ports(False)  # 非阻塞读取
 
 ## 🙏 致谢
 
-- [Assassyn](https://github.com/assassyn-lang/assassyn) - 硬件描述语言框架
+- [Assassyn](https://github.com/were/assassyn) - 硬件描述语言框架
 - [RISC-V](https://riscv.org/) - 开源指令集架构
 - [riscv-tests](https://github.com/riscv/riscv-tests) - RISC-V 测试用例参考
 
