@@ -72,10 +72,11 @@ def build(self, reg_file: Array, wb_bypass_reg: Array):
         wb_bypass_reg[0] = wdata
 
     # 3. 仿真终止检测 (Halt Detection)
+    # finish() 是 Assassyn Framework 提供的仿真终止函数
     with Condition(halt_if == Bits(1)(1)):
         debug_log("WB: HALT!")
         log_register_snapshot(reg_file)
-        finish()
+        finish()  # from assassyn.frontend import finish
 
     # 4. 引脚暴露 (供 HazardUnit 使用)
     return rd

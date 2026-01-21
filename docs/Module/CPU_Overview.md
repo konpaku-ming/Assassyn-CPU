@@ -260,7 +260,11 @@ Cycle 2: 修改相应字节/半字，写回
 
 ### 8.2 IPC 计算
 
-$$IPC = \frac{1}{CPI} \approx 0.5 \sim 0.67$$
+```
+IPC = 1 / CPI ≈ 0.5 ~ 0.67
+```
+
+（注：若 Markdown 渲染器支持 LaTeX，公式为 `$$IPC = \frac{1}{CPI} \approx 0.5 \sim 0.67$$`）
 
 ### 8.3 性能优化建议
 

@@ -111,6 +111,9 @@ s9_0, c9_0 = full_adder_64bit(s8_final, c8_final, correction_neg_64)
 s_final, c_final = full_adder_64bit(s9_0, c9_0, correction_plus_one)
 
 # CLA 最终加法
+# carry_lookahead_adder_64bit(a: Bits(64), b: Bits(64)) -> Bits(64)
+# 输入: 两个 64-bit 操作数
+# 输出: 64-bit 和 (a + b)
 product_64 = carry_lookahead_adder_64bit(s_final, c_final)
 ```
 
