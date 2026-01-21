@@ -185,6 +185,8 @@ class Decoder(Module):
     @module.combinational
     def build(self, icache_dout, reg_file):
         # 获取指令
+        # icache_dout[0] 是 SRAM 的输出端口，返回原始数据
+        # bitcast(Bits(32)) 将其重新解释为 32 位向量，不改变底层数据
         inst = icache_dout[0].bitcast(Bits(32))
         
         # 提取指令字段
@@ -374,11 +376,17 @@ class DataHazardUnit(Downstream):
         # 是否需要暂停
         stall_if = load_use_hazard_rs1 | load_use_hazard_rs2
         
-        # 旁路选择（优先级：EX > MEM > WB）
+        # rs1 旁路选择（优先级：EX > MEM > WB）
         rs1_sel = (rs1_idx == ex_rd).select(Rs1Sel.EX_BYPASS,
                   (rs1_idx == mem_rd).select(Rs1Sel.MEM_BYPASS,
                   (rs1_idx == wb_rd).select(Rs1Sel.WB_BYPASS,
                                             Rs1Sel.RS1)))
+        
+        # rs2 旁路选择（逻辑与 rs1 相同）
+        rs2_sel = (rs2_idx == ex_rd).select(Rs2Sel.EX_BYPASS,
+                  (rs2_idx == mem_rd).select(Rs2Sel.MEM_BYPASS,
+                  (rs2_idx == wb_rd).select(Rs2Sel.WB_BYPASS,
+                                            Rs2Sel.RS2)))
         
         return rs1_sel, rs2_sel, stall_if
 ```
@@ -568,7 +576,7 @@ alu_result = alu_func.select1hot(
 # 位截取 [低位:高位]（闭区间，与 Verilog 类似）
 opcode = inst[0:6]     # 提取位 0 到 6，共 7 位
 funct3 = inst[12:14]   # 提取位 12 到 14，共 3 位
-sign_bit = inst[31:31] # 提取位 31
+sign_bit = inst[31:31] # 提取单独的第 31 位（符号位），结果是 1 位宽的 Bits(1)
 
 # 位拼接
 imm_i = concat(sign_ext, inst[20:31])
@@ -832,6 +840,7 @@ def build_cpu(depth_log, enable_branch_prediction=True):
 周期 1: IF 阶段
 ├── 读取 PC = 0x1000
 ├── 从 cache[0x400] 读取指令 0x002081B3
+│   （注：0x400 = 0x1000 >> 2，因为 SRAM 按字（4字节）寻址）
 ├── 分支预测：PC+4 = 0x1004
 └── 发送 {pc=0x1000, next_pc=0x1004} 到 ID
 
