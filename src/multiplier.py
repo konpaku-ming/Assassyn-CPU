@@ -82,21 +82,34 @@ def carry_lookahead_adder_4bit(a: Bits, b: Bits, cin: Bits) -> tuple:
 
 def carry_lookahead_adder_16bit(a: Bits, b: Bits, cin: Bits) -> tuple:
     """
-    16-bit Carry-Lookahead Adder using four 4-bit CLA blocks
+    16-bit Carry-Lookahead Adder using four 4-bit CLA blocks with true parallel carry lookahead.
 
-    Returns (sum, cout) where sum is 16-bit and cout is 1-bit
+    Uses a second-level LCU to compute carries c4, c8, c12 in parallel from cin.
+    Returns (sum, cout, group_g, group_p) where sum is 16-bit and cout is 1-bit.
     """
-    # First 4-bit block
-    s0, c4, g0, p0 = carry_lookahead_adder_4bit(a[0:3], b[0:3], cin)
+    # First, get generate and propagate signals from each 4-bit block
+    # We need to compute g and p for each block before computing carries
+    # For the first pass, we use cin=0 just to get g and p (they don't depend on cin)
+    _, _, g0, p0 = carry_lookahead_adder_4bit(a[0:3], b[0:3], Bits(1)(0))
+    _, _, g1, p1 = carry_lookahead_adder_4bit(a[4:7], b[4:7], Bits(1)(0))
+    _, _, g2, p2 = carry_lookahead_adder_4bit(a[8:11], b[8:11], Bits(1)(0))
+    _, _, g3, p3 = carry_lookahead_adder_4bit(a[12:15], b[12:15], Bits(1)(0))
 
-    # Second 4-bit block
-    s1, c8, g1, p1 = carry_lookahead_adder_4bit(a[4:7], b[4:7], c4)
+    # Second-level Lookahead Carry Unit (LCU): compute all carries in parallel
+    # c4 = g0 | (p0 & cin)
+    # c8 = g1 | (p1 & g0) | (p1 & p0 & cin)
+    # c12 = g2 | (p2 & g1) | (p2 & p1 & g0) | (p2 & p1 & p0 & cin)
+    # c16 = g3 | (p3 & g2) | (p3 & p2 & g1) | (p3 & p2 & p1 & g0) | (p3 & p2 & p1 & p0 & cin)
+    c4 = g0 | (p0 & cin)
+    c8 = g1 | (p1 & g0) | (p1 & p0 & cin)
+    c12 = g2 | (p2 & g1) | (p2 & p1 & g0) | (p2 & p1 & p0 & cin)
+    c16 = g3 | (p3 & g2) | (p3 & p2 & g1) | (p3 & p2 & p1 & g0) | (p3 & p2 & p1 & p0 & cin)
 
-    # Third 4-bit block
-    s2, c12, g2, p2 = carry_lookahead_adder_4bit(a[8:11], b[8:11], c8)
-
-    # Fourth 4-bit block
-    s3, c16, g3, p3 = carry_lookahead_adder_4bit(a[12:15], b[12:15], c12)
+    # Now compute sums with correct carries (in parallel)
+    s0, _, _, _ = carry_lookahead_adder_4bit(a[0:3], b[0:3], cin)
+    s1, _, _, _ = carry_lookahead_adder_4bit(a[4:7], b[4:7], c4)
+    s2, _, _, _ = carry_lookahead_adder_4bit(a[8:11], b[8:11], c8)
+    s3, _, _, _ = carry_lookahead_adder_4bit(a[12:15], b[12:15], c12)
 
     sum_result = concat(s3, concat(s2, concat(s1, s0)))
 
@@ -109,23 +122,33 @@ def carry_lookahead_adder_16bit(a: Bits, b: Bits, cin: Bits) -> tuple:
 
 def carry_lookahead_adder_64bit(a: Bits, b: Bits) -> Bits:
     """
-    64-bit Carry-Lookahead Adder using four 16-bit CLA blocks
+    64-bit Carry-Lookahead Adder using four 16-bit CLA blocks with true parallel carry lookahead.
 
-    This is a hierarchical CLA implementation for efficient carry computation.
+    This is a hierarchical CLA implementation with a top-level Lookahead Carry Unit (LCU)
+    that computes all inter-block carries in parallel using group generate and propagate signals.
     """
     cin = Bits(1)(0)
 
-    # First 16-bit block
-    s0, c16, g0, p0 = carry_lookahead_adder_16bit(a[0:15], b[0:15], cin)
+    # First, get generate and propagate signals from each 16-bit block
+    # We use cin=0 just to get g and p (they don't depend on cin for the group signals)
+    _, _, g0, p0 = carry_lookahead_adder_16bit(a[0:15], b[0:15], Bits(1)(0))
+    _, _, g1, p1 = carry_lookahead_adder_16bit(a[16:31], b[16:31], Bits(1)(0))
+    _, _, g2, p2 = carry_lookahead_adder_16bit(a[32:47], b[32:47], Bits(1)(0))
+    _, _, g3, p3 = carry_lookahead_adder_16bit(a[48:63], b[48:63], Bits(1)(0))
 
-    # Second 16-bit block
-    s1, c32, g1, p1 = carry_lookahead_adder_16bit(a[16:31], b[16:31], c16)
+    # Top-level Lookahead Carry Unit (LCU): compute all carries in parallel
+    # c16 = g0 | (p0 & cin)
+    # c32 = g1 | (p1 & g0) | (p1 & p0 & cin)
+    # c48 = g2 | (p2 & g1) | (p2 & p1 & g0) | (p2 & p1 & p0 & cin)
+    c16 = g0 | (p0 & cin)
+    c32 = g1 | (p1 & g0) | (p1 & p0 & cin)
+    c48 = g2 | (p2 & g1) | (p2 & p1 & g0) | (p2 & p1 & p0 & cin)
 
-    # Third 16-bit block
-    s2, c48, g2, p2 = carry_lookahead_adder_16bit(a[32:47], b[32:47], c32)
-
-    # Fourth 16-bit block
-    s3, c64, g3, p3 = carry_lookahead_adder_16bit(a[48:63], b[48:63], c48)
+    # Now compute sums with correct carries (in parallel)
+    s0, _, _, _ = carry_lookahead_adder_16bit(a[0:15], b[0:15], cin)
+    s1, _, _, _ = carry_lookahead_adder_16bit(a[16:31], b[16:31], c16)
+    s2, _, _, _ = carry_lookahead_adder_16bit(a[32:47], b[32:47], c32)
+    s3, _, _, _ = carry_lookahead_adder_16bit(a[48:63], b[48:63], c48)
 
     result = concat(s3, concat(s2, concat(s1, s0)))
 
@@ -446,7 +469,7 @@ class WallaceTreeMul:
         Execute EX_M3 stage: Final Addition using Carry-Lookahead Adder (CLA)
 
         This stage completes the multiplication by adding the final 2 rows
-        using a carry-lookahead adder.
+        using a carry-lookahead adder, with signed correction integrated via 3:2 compression.
         """
         # Only process if stage 3 is valid and result is not already ready
         with Condition((self.m3_valid[0] == Bits(1)(1)) & (self.m3_result_ready[0] == Bits(1)(0))):
@@ -458,20 +481,39 @@ class WallaceTreeMul:
             signed_correction = self.m3_signed_correction[0]
 
             # =================================================================
-            # CLA (Carry-Lookahead Adder) - Final Addition
+            # Integrate signed correction using 3:2 compression
+            # Instead of computing: product_64 = sum + carry, then high -= correction
+            # We compute: product_64 = sum + carry + (-correction << 32)
+            #
+            # To subtract correction from high 32 bits, we add the two's complement:
+            # -correction = ~correction + 1
+            # We place this in bits [32:63] and handle the +1 in the carry row
             # =================================================================
-            product_64 = carry_lookahead_adder_64bit(s8_final, c8_final)
+
+            # Create the correction value as a 64-bit number positioned in high 32 bits
+            # correction_neg_high represents ~signed_correction in bits [32:63]
+            correction_inv = ~signed_correction  # Inverted bits for two's complement
+            correction_neg_64 = concat(correction_inv, Bits(32)(0))  # Place in high 32 bits
+
+            # For the +1 of two's complement, we add 1 at bit 32
+            # This can be merged into the carry row at position 32
+            correction_plus_one = concat(Bits(31)(0), Bits(1)(1), Bits(32)(0))  # 1 << 32
+
+            # Use 3:2 compressor to merge s8_final, c8_final, and correction_neg_64
+            s9_0, c9_0 = full_adder_64bit(s8_final, c8_final, correction_neg_64)
+
+            # Use another 3:2 compressor to merge s9_0, c9_0, and correction_plus_one
+            s_final, c_final = full_adder_64bit(s9_0, c9_0, correction_plus_one)
+
+            # =================================================================
+            # CLA (Carry-Lookahead Adder) - Final Addition
+            # Now we have integrated the signed correction into the compression
+            # =================================================================
+            product_64 = carry_lookahead_adder_64bit(s_final, c_final)
 
             # Select which 32 bits to return based on operation type
             partial_low = product_64[0:31].bitcast(Bits(32))
-            partial_high_raw = product_64[32:63].bitcast(Bits(32))
-
-            # =================================================================
-            # Apply signed multiplication correction for MULH
-            # When op2 was signed and negative, we need to subtract op1 from
-            # the high 32 bits to correct for treating op2's MSB as positive.
-            # =================================================================
-            partial_high = (partial_high_raw.bitcast(UInt(32)) - signed_correction.bitcast(UInt(32))).bitcast(Bits(32))
+            partial_high = product_64[32:63].bitcast(Bits(32))
 
             result = self.m3_result_high[0].select(
                 partial_high,  # High 32 bits for MULH/MULHSU/MULHU
