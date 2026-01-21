@@ -32,25 +32,6 @@ class MemoryAccess(Module):
         mem_unsigned = ctrl.mem_unsigned
         wb_ctrl = wb_ctrl_signals.view(ctrl.wb_ctrl)
 
-        with Condition(mem_opcode == MemOp.NONE):
-            debug_log("MEM: OP NONE.")
-        with Condition(mem_opcode == MemOp.LOAD):
-            debug_log("MEM: OP LOAD.")
-        with Condition(mem_opcode == MemOp.STORE):
-            debug_log("MEM: OP STORE.")
-
-        with Condition(mem_width == MemWidth.BYTE):
-            debug_log("MEM: WIDTH BYTE.")
-        with Condition(mem_width == MemWidth.HALF):
-            debug_log("MEM: WIDTH HALF.")
-        with Condition(mem_width == MemWidth.WORD):
-            debug_log("MEM: WIDTH WORD.")
-
-        with Condition(mem_unsigned == Bits(1)(1)):
-            debug_log("MEM: UNSIGNED.")
-        with Condition(mem_unsigned == Bits(1)(0)):
-            debug_log("MEM: SIGNED.")
-
         # 2. SRAM 数据加工 (Data Aligner)
         # 读取 SRAM 原始数据 (32-bit)
         raw_mem = sram_dout[0].bitcast(Bits(32))
@@ -101,8 +82,6 @@ class MemoryAccess(Module):
         # 驱动级间 Bypass 寄存器
         # 注意：如果当前是气泡 (rd=0)，写入 0 也是安全的
         mem_bypass_reg[0] = final_data
-
-        debug_log("MEM: Bypass <= 0x{:x}", final_data)
 
         # 驱动下一级 WB (Main Channel)
         wb_call = wb_module.async_called(ctrl=wb_ctrl, wdata=final_data)

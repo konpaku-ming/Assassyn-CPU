@@ -22,13 +22,11 @@ class WriteBack(Module):
         wb_ctrl, wdata = self.pop_all_ports(False)
         rd = wb_ctrl.rd_addr
         halt_if = wb_ctrl.halt_if
-        
-        debug_log("Input: rd=x{} wdata=0x{:x}", rd, wdata)
 
         # 2. 写入逻辑 (Write Logic)
         # 当目标寄存器不是 x0 时写入指定寄存器
         with Condition(rd != Bits(5)(0)):
-            debug_log("WB: Write x{} <= 0x{:x}", rd, wdata)
+            debug_log("WB: x{} <= 0x{:x}", rd, wdata)
             
             # 驱动寄存器堆的 D 端和 WE 端
             reg_file[rd] = wdata
@@ -36,7 +34,7 @@ class WriteBack(Module):
         
         # 3. 仿真终止检测 (Halt Detection)
         with Condition(halt_if == Bits(1)(1)):
-            debug_log("WB: HALT triggered!")
+            debug_log("WB: HALT!")
             log_register_snapshot(reg_file)
             finish()
 
