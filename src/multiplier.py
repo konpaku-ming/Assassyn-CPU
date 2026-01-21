@@ -87,29 +87,111 @@ def carry_lookahead_adder_16bit(a: Bits, b: Bits, cin: Bits) -> tuple:
     Uses a second-level LCU to compute carries c4, c8, c12 in parallel from cin.
     Returns (sum, cout, group_g, group_p) where sum is 16-bit and cout is 1-bit.
     """
-    # First, get generate and propagate signals from each 4-bit block
-    # We need to compute g and p for each block before computing carries
-    # For the first pass, we use cin=0 just to get g and p (they don't depend on cin)
-    _, _, g0, p0 = carry_lookahead_adder_4bit(a[0:3], b[0:3], Bits(1)(0))
-    _, _, g1, p1 = carry_lookahead_adder_4bit(a[4:7], b[4:7], Bits(1)(0))
-    _, _, g2, p2 = carry_lookahead_adder_4bit(a[8:11], b[8:11], Bits(1)(0))
-    _, _, g3, p3 = carry_lookahead_adder_4bit(a[12:15], b[12:15], Bits(1)(0))
+    # Get results from each 4-bit block with dummy cin to extract g and p
+    # Note: g and p don't depend on cin, only the sum and cout do
+    # But we need the sum, so we compute everything in one pass per block
+    # using the computed parallel carries
+
+    # First, extract g and p from each block (they don't depend on cin)
+    # We compute the 4-bit blocks' internal g/p directly
+    # For block 0: bits 0-3
+    g0_0 = a[0:0] & b[0:0]
+    p0_0 = a[0:0] ^ b[0:0]
+    g0_1 = a[1:1] & b[1:1]
+    p0_1 = a[1:1] ^ b[1:1]
+    g0_2 = a[2:2] & b[2:2]
+    p0_2 = a[2:2] ^ b[2:2]
+    g0_3 = a[3:3] & b[3:3]
+    p0_3 = a[3:3] ^ b[3:3]
+    g0 = g0_3 | (p0_3 & g0_2) | (p0_3 & p0_2 & g0_1) | (p0_3 & p0_2 & p0_1 & g0_0)
+    p0 = p0_3 & p0_2 & p0_1 & p0_0
+
+    # For block 1: bits 4-7
+    g1_0 = a[4:4] & b[4:4]
+    p1_0 = a[4:4] ^ b[4:4]
+    g1_1 = a[5:5] & b[5:5]
+    p1_1 = a[5:5] ^ b[5:5]
+    g1_2 = a[6:6] & b[6:6]
+    p1_2 = a[6:6] ^ b[6:6]
+    g1_3 = a[7:7] & b[7:7]
+    p1_3 = a[7:7] ^ b[7:7]
+    g1 = g1_3 | (p1_3 & g1_2) | (p1_3 & p1_2 & g1_1) | (p1_3 & p1_2 & p1_1 & g1_0)
+    p1 = p1_3 & p1_2 & p1_1 & p1_0
+
+    # For block 2: bits 8-11
+    g2_0 = a[8:8] & b[8:8]
+    p2_0 = a[8:8] ^ b[8:8]
+    g2_1 = a[9:9] & b[9:9]
+    p2_1 = a[9:9] ^ b[9:9]
+    g2_2 = a[10:10] & b[10:10]
+    p2_2 = a[10:10] ^ b[10:10]
+    g2_3 = a[11:11] & b[11:11]
+    p2_3 = a[11:11] ^ b[11:11]
+    g2 = g2_3 | (p2_3 & g2_2) | (p2_3 & p2_2 & g2_1) | (p2_3 & p2_2 & p2_1 & g2_0)
+    p2 = p2_3 & p2_2 & p2_1 & p2_0
+
+    # For block 3: bits 12-15
+    g3_0 = a[12:12] & b[12:12]
+    p3_0 = a[12:12] ^ b[12:12]
+    g3_1 = a[13:13] & b[13:13]
+    p3_1 = a[13:13] ^ b[13:13]
+    g3_2 = a[14:14] & b[14:14]
+    p3_2 = a[14:14] ^ b[14:14]
+    g3_3 = a[15:15] & b[15:15]
+    p3_3 = a[15:15] ^ b[15:15]
+    g3 = g3_3 | (p3_3 & g3_2) | (p3_3 & p3_2 & g3_1) | (p3_3 & p3_2 & p3_1 & g3_0)
+    p3 = p3_3 & p3_2 & p3_1 & p3_0
 
     # Second-level Lookahead Carry Unit (LCU): compute all carries in parallel
-    # c4 = g0 | (p0 & cin)
-    # c8 = g1 | (p1 & g0) | (p1 & p0 & cin)
-    # c12 = g2 | (p2 & g1) | (p2 & p1 & g0) | (p2 & p1 & p0 & cin)
-    # c16 = g3 | (p3 & g2) | (p3 & p2 & g1) | (p3 & p2 & p1 & g0) | (p3 & p2 & p1 & p0 & cin)
     c4 = g0 | (p0 & cin)
     c8 = g1 | (p1 & g0) | (p1 & p0 & cin)
     c12 = g2 | (p2 & g1) | (p2 & p1 & g0) | (p2 & p1 & p0 & cin)
     c16 = g3 | (p3 & g2) | (p3 & p2 & g1) | (p3 & p2 & p1 & g0) | (p3 & p2 & p1 & p0 & cin)
 
-    # Now compute sums with correct carries (in parallel)
-    s0, _, _, _ = carry_lookahead_adder_4bit(a[0:3], b[0:3], cin)
-    s1, _, _, _ = carry_lookahead_adder_4bit(a[4:7], b[4:7], c4)
-    s2, _, _, _ = carry_lookahead_adder_4bit(a[8:11], b[8:11], c8)
-    s3, _, _, _ = carry_lookahead_adder_4bit(a[12:15], b[12:15], c12)
+    # Now compute sums using the computed carries and cached p values
+    # Block 0 sums (using cin)
+    c0_0 = cin
+    c0_1 = g0_0 | (p0_0 & c0_0)
+    c0_2 = g0_1 | (p0_1 & g0_0) | (p0_1 & p0_0 & c0_0)
+    c0_3 = g0_2 | (p0_2 & g0_1) | (p0_2 & p0_1 & g0_0) | (p0_2 & p0_1 & p0_0 & c0_0)
+    s0_0 = p0_0 ^ c0_0
+    s0_1 = p0_1 ^ c0_1
+    s0_2 = p0_2 ^ c0_2
+    s0_3 = p0_3 ^ c0_3
+    s0 = concat(s0_3, concat(s0_2, concat(s0_1, s0_0)))
+
+    # Block 1 sums (using c4)
+    c1_0 = c4
+    c1_1 = g1_0 | (p1_0 & c1_0)
+    c1_2 = g1_1 | (p1_1 & g1_0) | (p1_1 & p1_0 & c1_0)
+    c1_3 = g1_2 | (p1_2 & g1_1) | (p1_2 & p1_1 & g1_0) | (p1_2 & p1_1 & p1_0 & c1_0)
+    s1_0 = p1_0 ^ c1_0
+    s1_1 = p1_1 ^ c1_1
+    s1_2 = p1_2 ^ c1_2
+    s1_3 = p1_3 ^ c1_3
+    s1 = concat(s1_3, concat(s1_2, concat(s1_1, s1_0)))
+
+    # Block 2 sums (using c8)
+    c2_0 = c8
+    c2_1 = g2_0 | (p2_0 & c2_0)
+    c2_2 = g2_1 | (p2_1 & g2_0) | (p2_1 & p2_0 & c2_0)
+    c2_3 = g2_2 | (p2_2 & g2_1) | (p2_2 & p2_1 & g2_0) | (p2_2 & p2_1 & p2_0 & c2_0)
+    s2_0 = p2_0 ^ c2_0
+    s2_1 = p2_1 ^ c2_1
+    s2_2 = p2_2 ^ c2_2
+    s2_3 = p2_3 ^ c2_3
+    s2 = concat(s2_3, concat(s2_2, concat(s2_1, s2_0)))
+
+    # Block 3 sums (using c12)
+    c3_0 = c12
+    c3_1 = g3_0 | (p3_0 & c3_0)
+    c3_2 = g3_1 | (p3_1 & g3_0) | (p3_1 & p3_0 & c3_0)
+    c3_3 = g3_2 | (p3_2 & g3_1) | (p3_2 & p3_1 & g3_0) | (p3_2 & p3_1 & p3_0 & c3_0)
+    s3_0 = p3_0 ^ c3_0
+    s3_1 = p3_1 ^ c3_1
+    s3_2 = p3_2 ^ c3_2
+    s3_3 = p3_3 ^ c3_3
+    s3 = concat(s3_3, concat(s3_2, concat(s3_1, s3_0)))
 
     sum_result = concat(s3, concat(s2, concat(s1, s0)))
 
@@ -129,23 +211,30 @@ def carry_lookahead_adder_64bit(a: Bits, b: Bits) -> Bits:
     """
     cin = Bits(1)(0)
 
-    # First, get generate and propagate signals from each 16-bit block
-    # We use cin=0 just to get g and p (they don't depend on cin for the group signals)
-    _, _, g0, p0 = carry_lookahead_adder_16bit(a[0:15], b[0:15], Bits(1)(0))
+    # Compute all four 16-bit blocks once with cin and extract g, p
+    # The 16-bit CLA function returns (sum, cout, group_g, group_p)
+    # For the first block, we use actual cin
+    s0, _, g0, p0 = carry_lookahead_adder_16bit(a[0:15], b[0:15], cin)
+
+    # For blocks 1-3, we need their g and p values which don't depend on their cin input
+    # But we also need their sums which DO depend on cin. So we compute with cin=0 first
+    # to get g and p, then compute carries, then recompute sums with correct carries.
+    # However, since we optimized carry_lookahead_adder_16bit to inline everything,
+    # we can compute each block once with the correct carry-in.
+
+    # Top-level Lookahead Carry Unit (LCU): compute all carries in parallel
+    # But first we need g1, g2, g3 and p1, p2, p3 from blocks that don't have their final cin yet
+    # We compute these with cin=0 since g and p don't depend on cin for the group signals
     _, _, g1, p1 = carry_lookahead_adder_16bit(a[16:31], b[16:31], Bits(1)(0))
     _, _, g2, p2 = carry_lookahead_adder_16bit(a[32:47], b[32:47], Bits(1)(0))
     _, _, g3, p3 = carry_lookahead_adder_16bit(a[48:63], b[48:63], Bits(1)(0))
 
-    # Top-level Lookahead Carry Unit (LCU): compute all carries in parallel
-    # c16 = g0 | (p0 & cin)
-    # c32 = g1 | (p1 & g0) | (p1 & p0 & cin)
-    # c48 = g2 | (p2 & g1) | (p2 & p1 & g0) | (p2 & p1 & p0 & cin)
+    # Compute carries using the LCU equations
     c16 = g0 | (p0 & cin)
     c32 = g1 | (p1 & g0) | (p1 & p0 & cin)
     c48 = g2 | (p2 & g1) | (p2 & p1 & g0) | (p2 & p1 & p0 & cin)
 
-    # Now compute sums with correct carries (in parallel)
-    s0, _, _, _ = carry_lookahead_adder_16bit(a[0:15], b[0:15], cin)
+    # Now compute sums for blocks 1-3 with correct carries
     s1, _, _, _ = carry_lookahead_adder_16bit(a[16:31], b[16:31], c16)
     s2, _, _, _ = carry_lookahead_adder_16bit(a[32:47], b[32:47], c32)
     s3, _, _, _ = carry_lookahead_adder_16bit(a[48:63], b[48:63], c48)
@@ -497,7 +586,8 @@ class WallaceTreeMul:
 
             # For the +1 of two's complement, we add 1 at bit 32
             # This can be merged into the carry row at position 32
-            correction_plus_one = concat(Bits(31)(0), Bits(1)(1), Bits(32)(0))  # 1 << 32
+            # Create a 64-bit value with 1 at bit position 32 (i.e., 0x100000000)
+            correction_plus_one = Bits(64)(0x100000000)  # 1 << 32
 
             # Use 3:2 compressor to merge s8_final, c8_final, and correction_neg_64
             s9_0, c9_0 = full_adder_64bit(s8_final, c8_final, correction_neg_64)
