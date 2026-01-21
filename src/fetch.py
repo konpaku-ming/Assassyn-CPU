@@ -82,6 +82,12 @@ class FetcherImpl(Downstream):
                 btb_targets=btb_targets,
             )
 
+            # 记录 BTB 预测结果
+            with Condition(btb_hit == Bits(1)(1)):
+                debug_log("IF: BTB Hit PC=0x{:x} Target=0x{:x}", final_current_pc, btb_predicted_target)
+            with Condition(btb_hit == Bits(1)(0)):
+                debug_log("IF: BTB Miss PC=0x{:x}", final_current_pc)
+
             # --- Tournament Predictor 方向预测 ---
             # 当 BTB 命中时，使用 Tournament Predictor 决定是否跳转
             if tp_impl is not None and tp_bimodal is not None:
@@ -93,6 +99,13 @@ class FetcherImpl(Downstream):
                     global_history=tp_ghr,
                     selector_counters=tp_selector,
                 )
+
+                # 记录 Tournament Predictor 预测结果
+                with Condition(tp_predict_taken == Bits(1)(1)):
+                    debug_log("IF: Tournament Predictor Taken PC=0x{:x}", final_current_pc)
+                with Condition(tp_predict_taken == Bits(1)(0)):
+                    debug_log("IF: Tournament Predictor Not-Taken PC=0x{:x}", final_current_pc)
+
                 # BTB 命中 + TP 预测跳转 → 使用 BTB 目标
                 # BTB 命中 + TP 预测不跳转 → PC + 4
                 # BTB 未命中 → PC + 4

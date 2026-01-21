@@ -73,10 +73,30 @@ class Execution(Module):
             rs1, fwd_from_mem, fwd_from_wb, fwd_from_wb_stage
         )
 
+        # 记录 rs1 旁路选择
+        with Condition(ctrl.rs1_sel == Bits(4)(0b0001)):
+            debug_log("EX: Bypass rs1 from RegFile=0x{:x}", rs1)
+        with Condition(ctrl.rs1_sel == Bits(4)(0b0010)):
+            debug_log("EX: Bypass rs1 from EX/MEM=0x{:x}", fwd_from_mem)
+        with Condition(ctrl.rs1_sel == Bits(4)(0b0100)):
+            debug_log("EX: Bypass rs1 from MEM/WB=0x{:x}", fwd_from_wb)
+        with Condition(ctrl.rs1_sel == Bits(4)(0b1000)):
+            debug_log("EX: Bypass rs1 from WB=0x{:x}", fwd_from_wb_stage)
+
         # --- rs2 旁路处理 ---
         real_rs2 = ctrl.rs2_sel.select1hot(
             rs2, fwd_from_mem, fwd_from_wb, fwd_from_wb_stage
         )
+
+        # 记录 rs2 旁路选择
+        with Condition(ctrl.rs2_sel == Bits(4)(0b0001)):
+            debug_log("EX: Bypass rs2 from RegFile=0x{:x}", rs2)
+        with Condition(ctrl.rs2_sel == Bits(4)(0b0010)):
+            debug_log("EX: Bypass rs2 from EX/MEM=0x{:x}", fwd_from_mem)
+        with Condition(ctrl.rs2_sel == Bits(4)(0b0100)):
+            debug_log("EX: Bypass rs2 from MEM/WB=0x{:x}", fwd_from_wb)
+        with Condition(ctrl.rs2_sel == Bits(4)(0b1000)):
+            debug_log("EX: Bypass rs2 from WB=0x{:x}", fwd_from_wb_stage)
 
         # --- 操作数 1 选择 ---
         alu_op1 = ctrl.op1_sel.select1hot(
@@ -304,19 +324,26 @@ class Execution(Module):
                 btb_tags=btb_tags,
                 btb_targets=btb_targets,
             )
+            # 记录 BTB 更新
+            with Condition(should_update_btb == Bits(1)(1)):
+                debug_log("EX: BTB Update PC=0x{:x} Target=0x{:x}", pc, calc_target)
 
         # 6. 更新 Tournament Predictor (如果提供了 TP 引用)
         # 对所有分支指令更新预测器，无论是否 taken
         if tp_impl is not None and tp_bimodal is not None:
+            tp_should_update = is_branch & ~flush_if
             tp_impl.update(
                 pc=pc,
                 actual_taken=is_taken,
-                is_branch=is_branch & ~flush_if,
+                is_branch=tp_should_update,
                 bimodal_counters=tp_bimodal,
                 gshare_counters=tp_gshare,
                 global_history=tp_ghr,
                 selector_counters=tp_selector,
             )
+            # 记录 Tournament Predictor 更新
+            with Condition(tp_should_update == Bits(1)(1)):
+                debug_log("EX: Tournament Predictor Update PC=0x{:x} Taken={}", pc, is_taken == Bits(1)(1))
 
         # --- 下一级绑定与状态反馈 ---
         # 构造控制信号包
