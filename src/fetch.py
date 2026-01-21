@@ -58,20 +58,14 @@ class FetcherImpl(Downstream):
     ):
         current_stall_if = stall_if.optional(Bits(1)(0))
 
-        with Condition(current_stall_if == Bits(1)(1)):
-            debug_log("IF: Stall")
-
         # 读取当前 PC
         current_pc = current_stall_if.select(last_pc_reg[0], pc_addr)
 
         flush_if = branch_target[0] != Bits(32)(0)
         target_pc = branch_target[0]
 
-        with Condition(flush_if == Bits(1)(1)):
-            debug_log("IF: Flush to 0x{:x}", target_pc)
-
         final_current_pc = flush_if.select(target_pc, current_pc)
-        debug_log("IF: Final Current PC=0x{:x}", final_current_pc)
+        debug_log("IF: PC=0x{:x}", final_current_pc)
 
         # --- 1. 计算 Next PC (时序逻辑输入) ---
         # 默认下一个 PC 是当前 PC + 4
@@ -106,9 +100,6 @@ class FetcherImpl(Downstream):
                     tp_predict_taken.select(btb_predicted_target, default_next_pc),
                     default_next_pc,
                 )
-                debug_log(
-                    "IF: BTB hit={}, TP predict_taken={}", btb_hit, tp_predict_taken
-                )
             else:
                 # 无 Tournament Predictor，使用原有逻辑：BTB 命中即跳转
                 predicted_next_pc = btb_hit.select(btb_predicted_target, default_next_pc)
@@ -122,11 +113,6 @@ class FetcherImpl(Downstream):
         # 更新 PC 寄存器
         pc_reg[0] <= final_next_pc
         last_pc_reg[0] <= final_current_pc
-        debug_log(
-            "IF: Next PC=0x{:x}  Next Last PC={:x}",
-            final_next_pc,
-            final_current_pc,
-        )
 
         # --- 2. 驱动下游 Decoder (流控) ---
         # 发送到下一级，传递 PC 值与 Stall 信号（使用上一周期指令信号）

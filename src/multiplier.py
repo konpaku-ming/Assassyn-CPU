@@ -342,13 +342,6 @@ class WallaceTreeMul:
             op1_signed = self.m1_op1_signed[0]
             op2_signed = self.m1_op2_signed[0]
 
-            debug_log("EX_M1: Partial product generation + 2 levels compression (Cycle 1/3)")
-            debug_log("EX_M1:   Op1=0x{:x} (signed={}), Op2=0x{:x} (signed={})",
-                      op1,
-                      op1_signed,
-                      op2,
-                      op2_signed)
-
             # =================================================================
             # Step 1: Sign/Zero extend operands to 64 bits
             # =================================================================
@@ -404,8 +397,6 @@ class WallaceTreeMul:
             pp30 = op2[30:30].select(concat(op1_ext[0:33], Bits(30)(0)), Bits(64)(0))
             pp31 = op2[31:31].select(concat(op1_ext[0:32], Bits(31)(0)), Bits(64)(0))
 
-            debug_log("EX_M1: 32 partial products generated")
-
             # =================================================================
             # Step 4: Wallace Tree Compression Level 1 (32 → 22 rows)
             # =================================================================
@@ -423,8 +414,6 @@ class WallaceTreeMul:
             # Passthrough: pp30, pp31
             # Level 1 output: 22 rows total (10 sum outputs: s1_0..s1_9, 10 carry outputs: c1_0..c1_9, 2 passthrough: pp30, pp31)
 
-            debug_log("EX_M1: Level 1 compression complete (32 -> 22 rows)")
-
             # =================================================================
             # Step 5: Wallace Tree Compression Level 2 (22 → 15 rows)
             # =================================================================
@@ -438,8 +427,6 @@ class WallaceTreeMul:
             s2_6, c2_6 = full_adder_64bit(s1_9, c1_9, pp30)
             # Passthrough: pp31
             # Level 2 output: 15 rows total (7 sum outputs: s2_0..s2_6, 7 carry outputs: c2_0..c2_6, 1 passthrough: pp31)
-
-            debug_log("EX_M1: Level 2 compression complete (22 -> 15 rows)")
 
             # =================================================================
             # Store 15 intermediate rows in stage 2 pipeline registers
@@ -477,7 +464,6 @@ class WallaceTreeMul:
         """
         # Only process if stage 2 is valid
         with Condition(self.m2_valid[0] == Bits(1)(1)):
-            debug_log("EX_M2: Wallace Tree compression Levels 3-8 (Cycle 2/3)")
 
             # Read all 15 intermediate rows from pipeline registers
             # From Level 2 output: s2_0..s2_6, c2_0..c2_6, pp31
@@ -536,8 +522,6 @@ class WallaceTreeMul:
             s8_final, c8_final = full_adder_64bit(s7_0, c7_0, c3_4)
             # Final 2 rows: s8_final, c8_final
 
-            debug_log("EX_M2: Wallace Tree compression complete, 2 rows remaining")
-
             # =================================================================
             # Store final 2 rows in stage 3 pipeline registers
             # =================================================================
@@ -562,7 +546,6 @@ class WallaceTreeMul:
         """
         # Only process if stage 3 is valid and result is not already ready
         with Condition((self.m3_valid[0] == Bits(1)(1)) & (self.m3_result_ready[0] == Bits(1)(0))):
-            debug_log("EX_M3: Final addition using CLA (Cycle 3/3)")
 
             # Read the 2 final rows from pipeline registers
             s8_final = self.m3_row0[0]
@@ -609,8 +592,6 @@ class WallaceTreeMul:
                 partial_high,  # High 32 bits for MULH/MULHSU/MULHU
                 partial_low  # Low 32 bits for MUL
             )
-
-            debug_log("EX_M3: Final result: 0x{:x}", result)
 
             # Store final result and mark as ready
             self.m3_result[0] = result

@@ -34,7 +34,7 @@ class Decoder(Module):
         last_ins_reg[0] <= raw_inst
         # 将初始化时出现的 0b0 指令替换为 NOP
         inst = (raw_inst == Bits(32)(0)).select(Bits(32)(0x00000013), raw_inst)
-        debug_log("ID: Fetched Instruction=0x{:x} at PC=0x{:x}", inst, pc_val)
+        debug_log("ID: PC=0x{:x} Ins=0x{:x}", pc_val, inst)
 
         # 补充：ecall/ebreak/sb x0, -1(x0) 指令停机
         halt_if = (
@@ -42,8 +42,6 @@ class Decoder(Module):
                 | (inst == Bits(32)(0x00100073))
                 | (inst == Bits(32)(0xFE000FA3))
         )
-        with Condition(halt_if == Bits(1)(1)):
-            debug_log("ID: Halt If = {}", halt_if)
 
         # 2. 物理切片
         opcode = inst[0:6]
@@ -194,26 +192,6 @@ class Decoder(Module):
             rs2_data=raw_rs2_data,
         )
 
-        # 添加日志信息
-        debug_log(
-            "Control signals: alu_func=0x{:x} op1_sel=0x{:x} op2_sel=0x{:x} branch_type=0x{:x} mem_op=0x{:x} mem_wid=0x{:x} mem_uns=0x{:x} rd=0x{:x}",
-            acc_alu_func,
-            acc_op1_sel,
-            acc_op2_sel,
-            acc_br_type,
-            acc_mem_op,
-            acc_mem_wid,
-            acc_mem_uns,
-            final_rd,
-        )
-        debug_log(
-            "Forwarding data: imm=0x{:x} pc=0x{:x} rs1_data=0x{:x} rs2_data=0x{:x}",
-            acc_imm,
-            pc_val,
-            raw_rs1_data,
-            raw_rs2_data,
-        )
-
         # 返回: 预解码包, 冒险检测需要的原始信号
         return pre, rs1, rs2
 
@@ -249,13 +227,6 @@ class DecoderImpl(Downstream):
         final_div_op = nop_if.select(DivOp.NONE, pre.div_op)
         final_branch_type = nop_if.select(BranchType.NO_BRANCH, pre.branch_type)
 
-        with Condition(nop_if == Bits(1)(1)):
-            debug_log(
-                "ID: Inserting NOP (Stall={} Flush={})",
-                stall_if == Bits(1)(1),
-                flush_if == Bits(1)(1),
-            )
-
         final_wb_ctrl = wb_ctrl_signals.bundle(
             rd_addr=final_rd,
             halt_if=final_halt_if,
@@ -278,16 +249,6 @@ class DecoderImpl(Downstream):
             branch_type=final_branch_type,
             next_pc_addr=pre.next_pc_addr,
             mem_ctrl=final_mem_ctrl,
-        )
-
-        debug_log(
-            "Output: alu_func=0x{:x} rs1_sel=0x{:x} rs2_sel=0x{:x} branch_type=0x{:x} mem_op=0x{:x} rd=0x{:x}",
-            final_alu_func,
-            rs1_sel,
-            rs2_sel,
-            final_branch_type,
-            final_mem_opcode,
-            final_rd,
         )
 
         # 无论是否 Stall，都向 EX 发送数据 (刚性流水线)

@@ -101,18 +101,9 @@ class DataHazardUnit(Downstream):
         )
         rs2_sel = (rs2_used_val & ~rs2_is_zero).select(rs2_ex_bypass, Rs2Sel.RS2)
 
-        log_condition = stall_if | (rs1_sel != Rs1Sel.RS1) | (rs2_sel != Rs2Sel.RS2)
-        with Condition(log_condition == Bits(1)(1)):
-            debug_log(
-                "HazardUnit: rs1_sel={} rs2_sel={} stall_if={} mul_busy_hazard={} div_busy_hazard={} ex_is_store={} mem_is_store={} ex_is_load={}",
-                rs1_sel,
-                rs2_sel,
-                stall_if,
-                mul_busy_hazard,
-                div_busy_hazard,
-                ex_is_store_val,
-                mem_is_store_val,
-                ex_is_load_val,
-            )
+        # Only log when there's stall or bypass activity
+        with Condition(stall_if == Bits(1)(1)):
+            debug_log("Hazard: STALL")
+
         # Return bypass selection signals and stall signal
         return rs1_sel, rs2_sel, stall_if

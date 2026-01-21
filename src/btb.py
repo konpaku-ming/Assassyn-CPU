@@ -67,12 +67,6 @@ class BTBImpl:
         tag_match = entry_tag == pc
         hit = entry_valid & tag_match
 
-        # Debug logging
-        with Condition(hit == Bits(1)(1)):
-            debug_log("BTB: HIT at PC=0x{:x}, Index={}, Target=0x{:x}", pc, index, entry_target)
-        with Condition(hit == Bits(1)(0)):
-            debug_log("BTB: MISS at PC=0x{:x}, Index={}", pc, index)
-
         return hit, entry_target
 
     def update(
@@ -93,7 +87,6 @@ class BTBImpl:
         index = index_32[0:self.index_bits - 1].bitcast(Bits(self.index_bits))
 
         with Condition(should_update == Bits(1)(1)):
-            debug_log("BTB: UPDATE at PC=0x{:x}, Index={}, Target=0x{:x}", pc, index, target)
             # Update entry: store full PC as tag for exact comparison
             btb_valid[index] <= Bits(1)(1)
             btb_tags[index] <= pc

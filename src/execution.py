@@ -60,18 +60,8 @@ class Execution(Module):
         mem_ctrl = mem_ctrl_signals.view(ctrl.mem_ctrl)
         wb_ctrl = wb_ctrl_signals.view(mem_ctrl.wb_ctrl)
 
-        debug_log(
-            "Input: pc=0x{:x} rs1_data=0x{:x} rs2_data=0x{:x} Imm=0x{:x}",
-            pc,
-            rs1,
-            rs2,
-            imm,
-        )
-
         # 确定是否要 Flush 指令
         flush_if = branch_target_reg[0] != Bits(32)(0)
-        with Condition(flush_if == Bits(1)(1)):
-            debug_log("EX: Flush")
 
         # 获取旁路数据
         fwd_from_mem = ex_bypass[0]
@@ -88,48 +78,15 @@ class Execution(Module):
             rs2, fwd_from_mem, fwd_from_wb, fwd_from_wb_stage
         )
 
-        # 输出旁路选择日志
-        with Condition(ctrl.rs1_sel == Rs1Sel.RS1):
-            debug_log("EX: RS1 source: No Bypass")
-        with Condition(ctrl.rs1_sel == Rs1Sel.EX_BYPASS):
-            debug_log("EX: RS1 source: EX-MEM Bypass (0x{:x})", fwd_from_mem)
-        with Condition(ctrl.rs1_sel == Rs1Sel.MEM_BYPASS):
-            debug_log("EX: RS1 source: MEM-WB Bypass (0x{:x})", fwd_from_wb)
-        with Condition(ctrl.rs1_sel == Rs1Sel.WB_BYPASS):
-            debug_log("EX: RS1 source: WB Bypass (0x{:x})", fwd_from_wb_stage)
-
-        with Condition(ctrl.rs2_sel == Rs2Sel.RS2):
-            debug_log("EX: RS2 source: No Bypass")
-        with Condition(ctrl.rs2_sel == Rs2Sel.EX_BYPASS):
-            debug_log("EX: RS2 source: EX-MEM Bypass (0x{:x})", fwd_from_mem)
-        with Condition(ctrl.rs2_sel == Rs2Sel.MEM_BYPASS):
-            debug_log("EX: RS2 source: MEM-WB Bypass (0x{:x})", fwd_from_wb)
-        with Condition(ctrl.rs2_sel == Rs2Sel.WB_BYPASS):
-            debug_log("EX: RS2 source: WB Bypass (0x{:x})", fwd_from_wb_stage)
-
         # --- 操作数 1 选择 ---
         alu_op1 = ctrl.op1_sel.select1hot(
             real_rs1, pc, Bits(32)(0)  # 0  # 1 (AUIPC/JAL/Branch)  # 2 (LUI Link)
         )
 
-        with Condition(ctrl.op1_sel == Op1Sel.RS1):
-            debug_log("EX: ALU Op1 source: RS1 (0x{:x})", real_rs1)
-        with Condition(ctrl.op1_sel == Op1Sel.PC):
-            debug_log("EX: ALU Op1 source: PC (0x{:x})", pc)
-        with Condition(ctrl.op1_sel == Op1Sel.ZERO):
-            debug_log("EX: ALU Op1 source: ZERO (0x0)")
-
         # --- 操作数 2 选择 ---
         alu_op2 = ctrl.op2_sel.select1hot(
             real_rs2, imm, Bits(32)(4)  # 0  # 1  # 2 (JAL/JALR Link)
         )
-
-        with Condition(ctrl.op2_sel == Op2Sel.RS2):
-            debug_log("EX: ALU Op2 source: RS2 (0x{:x})", real_rs2)
-        with Condition(ctrl.op2_sel == Op2Sel.IMM):
-            debug_log("EX: ALU Op2 source: IMM (0x{:x})", imm)
-        with Condition(ctrl.op2_sel == Op2Sel.CONST_4):
-            debug_log("EX: ALU Op2 source: CONST_4 (0x4)")
 
         # --- ALU 计算 ---
         # 1. 基础运算
@@ -197,7 +154,6 @@ class Execution(Module):
                 result_high=result_high_flag,
                 rd=wb_ctrl.rd_addr
             )
-            debug_log("EX: Starting MUL operation, op1=0x{:x}, op2=0x{:x}", real_rs1, real_rs2)
 
         # Start divider if this is a new DIV instruction and divider is not busy
         with Condition((is_div_op == Bits(1)(1)) & (div_busy == Bits(1)(0)) & (flush_if == Bits(1)(0))):
@@ -211,7 +167,6 @@ class Execution(Module):
                 is_rem=is_rem_op,
                 rd=wb_ctrl.rd_addr
             )
-            debug_log("EX: Starting DIV operation, dividend=0x{:x}, divisor=0x{:x}", real_rs1, real_rs2)
 
         # Run multiplier pipeline stages
         self.multiplier.cycle_m1()
@@ -228,11 +183,9 @@ class Execution(Module):
         # Clear results when consumed
         with Condition(mul_ready == Bits(1)(1)):
             self.multiplier.clear_result()
-            debug_log("EX: MUL result ready: 0x{:x}", mul_result)
 
         with Condition(div_ready == Bits(1)(1)):
             self.divider.clear_result()
-            debug_log("EX: DIV result ready: 0x{:x}", div_result)
 
         # 2. 结果选择
         # First, select from basic ALU operations
@@ -265,51 +218,9 @@ class Execution(Module):
             )
         )
 
-        with Condition(ctrl.alu_func == ALUOp.ADD):
-            debug_log("EX: ALU Operation: ADD")
-        with Condition(ctrl.alu_func == ALUOp.SUB):
-            debug_log("EX: ALU Operation: SUB")
-        with Condition(ctrl.alu_func == ALUOp.SLL):
-            debug_log("EX: ALU Operation: SLL")
-        with Condition(ctrl.alu_func == ALUOp.SLT):
-            debug_log("EX: ALU Operation: SLT")
-        with Condition(ctrl.alu_func == ALUOp.SLTU):
-            debug_log("EX: ALU Operation: SLTU")
-        with Condition(ctrl.alu_func == ALUOp.XOR):
-            debug_log("EX: ALU Operation: XOR")
-        with Condition(ctrl.alu_func == ALUOp.SRL):
-            debug_log("EX: ALU Operation: SRL")
-        with Condition(ctrl.alu_func == ALUOp.SRA):
-            debug_log("EX: ALU Operation: SRA")
-        with Condition(ctrl.alu_func == ALUOp.OR):
-            debug_log("EX: ALU Operation: OR")
-        with Condition(ctrl.alu_func == ALUOp.AND):
-            debug_log("EX: ALU Operation: AND")
-        with Condition(ctrl.alu_func == ALUOp.SYS):
-            debug_log("EX: ALU Operation: SYS")
-        with Condition(ctrl.alu_func == ALUOp.MUL):
-            debug_log("EX: ALU Operation: MUL")
-        with Condition(ctrl.alu_func == ALUOp.MULH):
-            debug_log("EX: ALU Operation: MULH")
-        with Condition(ctrl.alu_func == ALUOp.MULHSU):
-            debug_log("EX: ALU Operation: MULHSU")
-        with Condition(ctrl.alu_func == ALUOp.MULHU):
-            debug_log("EX: ALU Operation: MULHU")
-        with Condition(ctrl.alu_func == ALUOp.NOP):
-            debug_log("EX: ALU Operation: NOP or Reserved")
-        with Condition(ctrl.div_op == DivOp.DIV):
-            debug_log("EX: DIV Operation: DIV")
-        with Condition(ctrl.div_op == DivOp.DIVU):
-            debug_log("EX: DIV Operation: DIVU")
-        with Condition(ctrl.div_op == DivOp.REM):
-            debug_log("EX: DIV Operation: REM")
-        with Condition(ctrl.div_op == DivOp.REMU):
-            debug_log("EX: DIV Operation: REMU")
-
         # 3. 更新本级 Bypass 寄存器
         ex_bypass[0] = final_result
-        debug_log("EX: ALU Result: 0x{:x}", final_result)
-        debug_log("EX: Bypass Update: 0x{:x}", final_result)
+        debug_log("EX: Result=0x{:x}", final_result)
 
         # --- 分支处理 (Branch Handling) ---
         # 1. 使用专用加法器计算跳转地址，对于 JALR，基址是 rs1；对于 JAL/Branch，基址是 PC
@@ -318,9 +229,7 @@ class Execution(Module):
 
         # 专用加法器永远做 Base + Imm
         imm_signed = imm.bitcast(Int(32))
-        debug_log("EX: Branch Immediate: 0x{:x}", imm)
         target_base_signed = target_base.bitcast(Int(32))
-        debug_log("EX: Branch Target Base: 0x{:x}", target_base)
         raw_calc_target = (target_base_signed + imm_signed).bitcast(Bits(32))
         calc_target = is_jalr.select(
             concat(raw_calc_target[1:31], Bits(1)(0)),  # JALR: 目标地址最低位清0
@@ -336,25 +245,6 @@ class Execution(Module):
         # 对于 BGEU: alu_result[0] == 0
         is_taken = Bits(1)(0)
         is_branch = ctrl.branch_type != BranchType.NO_BRANCH
-
-        with Condition(ctrl.branch_type == BranchType.BEQ):
-            debug_log("EX: Branch Type: BEQ")
-        with Condition(ctrl.branch_type == BranchType.BNE):
-            debug_log("EX: Branch Type: BNE")
-        with Condition(ctrl.branch_type == BranchType.BLT):
-            debug_log("EX: Branch Type: BLT")
-        with Condition(ctrl.branch_type == BranchType.BGE):
-            debug_log("EX: Branch Type: BGE")
-        with Condition(ctrl.branch_type == BranchType.BLTU):
-            debug_log("EX: Branch Type: BLTU")
-        with Condition(ctrl.branch_type == BranchType.BGEU):
-            debug_log("EX: Branch Type: BGEU")
-        with Condition(ctrl.branch_type == BranchType.JAL):
-            debug_log("EX: Branch Type: JAL")
-        with Condition(ctrl.branch_type == BranchType.JALR):
-            debug_log("EX: Branch Type: JALR")
-        with Condition(ctrl.branch_type == BranchType.NO_BRANCH):
-            debug_log("EX: Branch Type: NO_BRANCH")
 
         # 3. 根据不同的分支类型判断分支条件
         is_eq = alu_result == Bits(32)(0)
@@ -400,8 +290,7 @@ class Execution(Module):
         )
 
         with Condition(is_branch):
-            debug_log("EX: Branch Target: 0x{:x}", calc_target)
-            debug_log("EX: Branch Taken: {}", is_taken == Bits(1)(1))
+            debug_log("EX: Branch Target=0x{:x} Taken={}", calc_target, is_taken == Bits(1)(1))
 
         # 5. 更新 BTB (如果提供了 BTB 引用)
         # 当分支指令 taken 时，更新 BTB 存储 PC -> Target 的映射
@@ -445,12 +334,6 @@ class Execution(Module):
         final_halt_if = flush_if.select(Bits(1)(0), wb_ctrl.halt_if)
         final_mem_opcode = flush_if.select(MemOp.NONE, mem_ctrl.mem_opcode)
 
-        debug_log(
-            "Control after Flush Check: mem_opcode=0x{:x} rd=0x{:x}",
-            final_mem_opcode,
-            final_rd,
-        )
-
         final_wb_ctrl = wb_ctrl_signals.bundle(
             rd_addr=final_rd,
             halt_if=final_halt_if,
@@ -474,12 +357,9 @@ class Execution(Module):
         mem_width = final_mem_ctrl.mem_width
 
         with Condition(is_store):
-            debug_log("EX: Memory Operation: STORE")
-            debug_log("EX: Store Address: 0x{:x}", final_result)
-            debug_log("EX: Store Data: 0x{:x}", real_rs2)
+            debug_log("EX: STORE Addr=0x{:x} Data=0x{:x}", final_result, real_rs2)
         with Condition(is_load):
-            debug_log("EX: Memory Operation: LOAD")
-            debug_log("EX: Load Address: 0x{:x}", final_result)
+            debug_log("EX: LOAD Addr=0x{:x}", final_result)
 
         # 返回引脚 (供 HazardUnit 与 SingleMemory 使用)
         # Including mul_busy and div_busy for hazard detection

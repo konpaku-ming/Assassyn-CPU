@@ -127,26 +127,6 @@ class TournamentPredictorImpl:
         # Final prediction
         predict_taken = use_gshare.select(gshare_taken, bimodal_taken)
 
-        # Debug logging
-        with Condition(predict_taken == Bits(1)(1)):
-            debug_log(
-                "TP: PREDICT TAKEN at PC=0x{:x}, Bimodal={}, Gshare={}, Selector={}, UseGshare={}",
-                pc,
-                bimodal_state,
-                gshare_state,
-                selector_state,
-                use_gshare,
-            )
-        with Condition(predict_taken == Bits(1)(0)):
-            debug_log(
-                "TP: PREDICT NOT-TAKEN at PC=0x{:x}, Bimodal={}, Gshare={}, Selector={}, UseGshare={}",
-                pc,
-                bimodal_state,
-                gshare_state,
-                selector_state,
-                use_gshare,
-            )
-
         return predict_taken
 
     def update(
@@ -253,16 +233,3 @@ class TournamentPredictorImpl:
                 Bits(self.history_bits)
             )
             global_history[0] <= ghr_new
-
-            debug_log(
-                "TP: UPDATE at PC=0x{:x}, Taken={}, Bimodal: {}->{}, Gshare: {}->{}, Selector: {}->{}, GHR->{}",
-                pc,
-                actual_taken,
-                bimodal_state,
-                bimodal_new,
-                gshare_state,
-                gshare_new,
-                selector_state,
-                selector_new,
-                ghr_new,
-            )

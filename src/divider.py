@@ -175,10 +175,7 @@ class Radix16Divider:
         self.ready[0] = Bits(1)(0)
         self.error[0] = Bits(1)(0)
 
-        debug_log("Radix16Divider: Start division, dividend=0x{:x}, divisor=0x{:x}, signed={}",
-                  dividend,
-                  divisor,
-                  is_signed)
+        debug_log("DIV: Start 0x{:x}/0x{:x}", dividend, divisor)
 
     def tick(self):
         """
@@ -196,13 +193,11 @@ class Radix16Divider:
                     # Handle division by zero per RISC-V spec
                     self.state[0] = self.DIV_ERROR
                     self.valid_in[0] = Bits(1)(0)
-                    debug_log("Radix16Divider: Division by zero detected")
 
                 with Condition(~div_by_zero & div_by_one):
                     # Fast path for divisor = 1
                     self.state[0] = self.DIV_1
                     self.valid_in[0] = Bits(1)(0)
-                    debug_log("Radix16Divider: Fast path (divisor=1)")
 
                 with Condition(~div_by_zero & ~div_by_one):
                     # Normal division path - go to preprocessing
@@ -228,8 +223,6 @@ class Radix16Divider:
                     self.div_sign[0] = concat(self.dividend_in[0][31:31], self.divisor_in[0][31:31])
                     self.sign_r[0] = self.is_signed[0]
 
-                    debug_log("Radix16Divider: Starting normal division (DIV_PRE)")
-
         # State: DIV_ERROR - Handle division by zero
         with Condition(self.state[0] == self.DIV_ERROR):
             # Return RISC-V specified error values
@@ -246,7 +239,6 @@ class Radix16Divider:
             self.error[0] = Bits(1)(1)
             self.busy[0] = Bits(1)(0)
             self.state[0] = self.IDLE
-            debug_log("Radix16Divider: Completed with division by zero error")
 
         # State: DIV_1 - Fast path for divisor = 1
         with Condition(self.state[0] == self.DIV_1):
@@ -259,7 +251,6 @@ class Radix16Divider:
             self.rd_out[0] = self.rd_in[0]
             self.busy[0] = Bits(1)(0)
             self.state[0] = self.IDLE
-            debug_log("Radix16Divider: Completed via fast path (divisor=1)")
 
         # State: DIV_PRE - Preprocessing for Radix-16 division
         with Condition(self.state[0] == self.DIV_PRE):
@@ -315,9 +306,6 @@ class Radix16Divider:
 
             # Transition to DIV_WORKING
             self.state[0] = self.DIV_WORKING
-
-            debug_log("Radix16Divider: Preprocessing complete, d1=0x{:x}, d15=0x{:x}",
-                      d1_val, d15_val)
 
         # State: DIV_WORKING - Radix-16 iteration
         with Condition(self.state[0] == self.DIV_WORKING):
@@ -404,28 +392,19 @@ class Radix16Divider:
             # Decrement counter
             self.div_cnt[0] = (self.div_cnt[0].bitcast(UInt(5)) - UInt(5)(1)).bitcast(Bits(5))
 
-            debug_log("Radix16Divider: iter, shifted_rem=0x{:x}, q={}, new_rem=0x{:x}, new_quot=0x{:x}",
-                      shifted_rem, q_digit, new_rem, new_quot)
-
             # Check if done
             is_last = (self.div_cnt[0] == Bits(5)(1))
             with Condition(is_last):
                 self.state[0] = self.DIV_END
-                debug_log("Radix16Divider: Last iteration complete")
 
         # State: DIV_END - Post-processing
         with Condition(self.state[0] == self.DIV_END):
             q_out = self.quotient[0]
             rem_out = self.remainder[0][0:31]  # Take lower 32 bits of remainder
 
-            debug_log("Radix16Divider: DIV_END - quotient=0x{:x}, remainder=0x{:x}",
-                      q_out, rem_out)
-
             # Apply sign correction
             q_needs_neg = (self.div_sign[0] == Bits(2)(0b01)) | (self.div_sign[0] == Bits(2)(0b10))
             rem_needs_neg = self.div_sign[0][1:1]
-
-            debug_log("Radix16Divider: div_sign=0x{:x}, q_needs_neg={}", self.div_sign[0], q_needs_neg)
 
             # Check for signed overflow: (-2^31) / (-1)
             min_int = Bits(32)(0x80000000)
@@ -439,7 +418,6 @@ class Radix16Divider:
                     Bits(32)(0),
                     Bits(32)(0x80000000)
                 )
-                debug_log("Radix16Divider: Signed overflow detected (-2^31 / -1)")
 
             with Condition(~signed_overflow):
                 q_signed = (self.sign_r[0] & q_needs_neg).select(
@@ -451,16 +429,13 @@ class Radix16Divider:
                     rem_out
                 )
 
-                debug_log("Radix16Divider: q_signed=0x{:x}, rem_signed=0x{:x}, is_rem={}",
-                          q_signed, rem_signed, self.is_rem[0])
-
                 self.result[0] = self.is_rem[0].select(rem_signed, q_signed)
 
             self.ready[0] = Bits(1)(1)
             self.rd_out[0] = self.rd_in[0]
             self.busy[0] = Bits(1)(0)
             self.state[0] = self.IDLE
-            debug_log("Radix16Divider: Completed, result=0x{:x}", self.result[0])
+            debug_log("DIV: Done=0x{:x}", self.result[0])
 
     def get_result_if_ready(self):
         # Get result if division is complete.
