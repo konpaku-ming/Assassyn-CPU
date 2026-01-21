@@ -1,44 +1,35 @@
 # RV32I EX (Execution) 模块设计文档
 
-> **依赖**：Assassyn, `control_signals.py` (自定义控制信号包)
+> **依赖**：Assassyn Framework, `control_signals.py`, `multiplier.py`, `divider.py`
 
 ## 1. 模块概述
-**Execution** 模块是 CPU 的运算核心。
-在此架构中，EX 阶段不“检测”数据冒险，而是直接“执行” ID 阶段下达的路由指令（即从哪里拿数据）。
-同时，它负责驱动 SRAM 的写入端口（Store），计算分支结果并向 IF 阶段反馈重定向/冲刷信号。
+
+**Execution** 模块是 CPU 的运算核心。在此架构中，EX 阶段负责以下任务：
+
+1. **ALU 运算**：执行算术和逻辑运算
+2. **旁路处理**：根据 ID 阶段预计算的路由指令选择正确的操作数来源
+3. **分支处理**：计算分支条件和跳转目标，更新 BTB 和 Tournament Predictor
+4. **M 扩展支持**：处理多周期乘法（3周期 Wallace Tree）和除法（~10周期 Radix-16）
 
 ## 2. 接口定义
 
-### 2.1 控制信号包 (`control_signals.py`)
-
-EX 阶段的控制信号包定义如下：
+### 2.1 控制信号包 (`ex_ctrl_signals`)
 
 ```python
 ex_ctrl_signals = Record(
-    alu_func  = Bits(16),   # ALU 功能码 (独热码)
-
-    rs1_sel   = Bits(3),     # rs1 数据来源选择 (旁路选择)
-    rs2_sel   = Bits(3),     # rs2 数据来源选择 (旁路选择)
-    
-    # 操作数来源选择 (语义选择)
-    # 0: 来自级间寄存器的 RS 数据
-    # 1: 来自级间寄存器的 PC/Imm
-    # 2: 常数 0 - op1_sel 用于 LUI等 / 常数 4 - op2_sel 用于 JAL/JALR Link
-    op1_sel   = Bits(3),    
-    op2_sel   = Bits(3),    
-    
-    is_branch = Bits(1),      # 是否是 Branch 指令
-    is_jtype = Bits(1),       # 是否是直接跳转指令
-    is_jalr = Bits(1),        # 是否是 JALR 指令
-    next_pc_addr = Bits(32),  # 预测结果：下一条指令的地址
-
-    mem_ctrl  = mem_ctrl_signals # 【嵌套】携带 MEM/WB 级信号
+    alu_func=Bits(16),     # ALU 功能码 (独热码，支持 M 扩展)
+    div_op=Bits(5),        # M扩展除法操作 (独热码：NONE/DIV/DIVU/REM/REMU)
+    rs1_sel=Bits(4),       # rs1 数据来源选择 (旁路选择)
+    rs2_sel=Bits(4),       # rs2 数据来源选择 (旁路选择)
+    op1_sel=Bits(3),       # 操作数 1 来源 (RS1/PC/ZERO)
+    op2_sel=Bits(3),       # 操作数 2 来源 (RS2/IMM/CONST_4)
+    branch_type=Bits(16),  # Branch 指令功能码 (独热码)
+    next_pc_addr=Bits(32), # 预测结果：下一条指令的地址
+    mem_ctrl=mem_ctrl_signals,  # 【嵌套】携带 MEM/WB 级信号
 )
 ```
 
-### 2.2 端口定义 (`__init__`)
-
-输入端口接收来自 ID 阶段的打包数据，控制信号来自
+### 2.2 端口定义
 
 ```python
 class Execution(Module):
@@ -46,193 +37,213 @@ class Execution(Module):
         super().__init__(
             ports={
                 # --- [1] 控制通道 (Control Plane) ---
-                # 包含 alu_func, op1_sel, op2_sel, is_branch, is_write
-                # 以及嵌套的 mem_ctrl
-                'ctrl': Port(ex_ctrl_signals),
-
+                "ctrl": Port(ex_ctrl_signals),
                 # --- [2] 数据通道群 (Data Plane) ---
-                # 当前指令地址 (用于 Branch/AUIPC/JAL)
-                'pc': Port(Bits(32)),
-                
-                # 源寄存器 1 数据 (来自 RegFile)
-                'rs1_data': Port(Bits(32)),
-                
-                # 源寄存器 2 数据 (来自 RegFile)
-                'rs2_data': Port(Bits(32)),
-                
-                # 立即数 (在 ID 级已完成符号扩展)
-                'imm': Port(Bits(32))
+                "pc": Port(Bits(32)),        # 当前指令地址
+                "rs1_data": Port(Bits(32)),  # 源寄存器 1 数据
+                "rs2_data": Port(Bits(32)),  # 源寄存器 2 数据
+                "imm": Port(Bits(32)),       # 立即数
             }
         )
-        self.name = 'EX'
+        self.name = "Executor"
+        
+        # M-extension functional units
+        self.multiplier = WallaceTreeMul()
+        self.divider = Radix16Divider()
 ```
 
-### 2.3 构建参数 (`build`)
-
-`build` 函数接收物理资源引用和下一级模块。
+### 2.3 构建参数
 
 ```python
 @module.combinational
-def build(self, 
-          mem_module: Module,          # 下一级流水线 (MEM)
-          dcache: SRAM,                # SRAM 模块引用
-          # --- 旁路数据源 (Forwarding Sources) ---
-          ex_mem_bypass: Array,     # 来自 EX-MEM 旁路寄存器的数据（上条指令结果）
-          mem_wb_bypass: Array,      # 来自 MEM-WB 旁路寄存器的数据 (上上条指令结果)
-          # --- 分支反馈 ---
-          branch_target_reg: Array,    # 用于通知 IF 跳转目标的全局寄存器
-          ):
-    # 实现见下文
-    pass
+def build(
+    self,
+    mem_module: Module,          # 下一级流水线 (MEM)
+    ex_bypass: Array,            # EX-MEM 旁路寄存器
+    mem_bypass: Array,           # MEM-WB 旁路寄存器
+    wb_bypass: Array,            # WB 旁路寄存器
+    branch_target_reg: Array,    # 分支目标寄存器 (通知 IF)
+    # --- BTB 更新 (可选) ---
+    btb_impl: "BTBImpl" = None,
+    btb_valid: Array = None,
+    btb_tags: Array = None,
+    btb_targets: Array = None,
+    # --- Tournament Predictor 更新 (可选) ---
+    tp_impl: "TournamentPredictorImpl" = None,
+    tp_bimodal: Array = None,
+    tp_gshare: Array = None,
+    tp_ghr: Array = None,
+    tp_selector: Array = None,
+):
 ```
 
-## 3. build()实现
+## 3. 内部实现
 
-### 3.1 获取输入与解包
+### 3.1 操作数选择 (Operand Muxing)
+
+根据 ID 阶段预计算好的独热码，在多种可能的数据源中选择 ALU 的输入。
 
 ```python
-    # 1. 弹出所有端口数据
-    # 根据 __init__ 定义顺序解包
-    ctrl = self.ctrl.pop()
-    pc   = self.pc.pop()
-    rs1  = self.rs1_data.pop()
-    rs2  = self.rs2_data.pop()
-    imm  = self.imm.pop()
-    
-    # 获取旁路数据
-    fwd_from_mem = ex_mem_bypass[0]
-    fwd_from_wb  = mem_wb_bypass[0]
+# rs1 旁路处理：从 RegFile / EX / MEM / WB 旁路中选择
+real_rs1 = ctrl.rs1_sel.select1hot(
+    rs1, fwd_from_mem, fwd_from_wb, fwd_from_wb_stage
+)
+
+# rs2 旁路处理
+real_rs2 = ctrl.rs2_sel.select1hot(
+    rs2, fwd_from_mem, fwd_from_wb, fwd_from_wb_stage
+)
+
+# 操作数 1 选择：RS1 / PC / 0
+alu_op1 = ctrl.op1_sel.select1hot(real_rs1, pc, Bits(32)(0))
+
+# 操作数 2 选择：RS2 / IMM / 4
+alu_op2 = ctrl.op2_sel.select1hot(real_rs2, imm, Bits(32)(4))
 ```
 
-### 3.2 操作数选择 (Operand Muxing)
+### 3.2 ALU 计算
 
-根据 ID 阶段预计算好的独热码 `op_sel`，在多种可能的数据源中选择 ALU 的输入。
+ALU 支持 RV32I 基础运算和 M 扩展乘法指令：
 
 ```python
-    # --- rs1 旁路处理 ---
-    real_rs1 = ctrl.rs1_sel.select1hot (
-        rs1, fwd_from_mem, fwd_from_wb
-    )
+# 基础运算
+add_res = (op1_signed + op2_signed).bitcast(Bits(32))
+sub_res = (op1_signed - op2_signed).bitcast(Bits(32))
+and_res = alu_op1 & alu_op2
+or_res = alu_op1 | alu_op2
+xor_res = alu_op1 ^ alu_op2
+sll_res = alu_op1 << shamt
+srl_res = alu_op1 >> shamt
+sra_res = op1_signed >> shamt
+slt_res = (op1_signed < op2_signed).bitcast(Bits(32))
+sltu_res = (alu_op1 < alu_op2).bitcast(Bits(32))
 
-    # --- rs2 旁路处理 ---
-    real_rs2 = ctrl.op2_sel.select1hot(
-        rs2, Bits(32)(0), fwd_from_mem, fwd_from_wb, Bits(32)(0)
-    )
-
-    # --- 操作数 1 选择 ---
-    alu_op1 = ctrl.op1_sel.select1hot(
-        real_rs1,       # 0
-        pc,             # 1 (AUIPC/JAL/Branch)
-        Bits(32)(0)     # 2 (LUI Link)
-    )
-
-    # --- 操作数 2 选择 ---
-    alu_op2 = ctrl.op2_sel.select1hot(
-        rs2,            # 0
-        imm,            # 1
-        Bits(32)(4)     # 2 (JAL/JALR Link)
-    )
+# ALU 结果选择 (独热码)
+alu_result = ctrl.alu_func.select1hot(
+    add_res,   # ADD (bit 0)
+    sub_res,   # SUB (bit 1)
+    sll_res,   # SLL (bit 2)
+    slt_res,   # SLT (bit 3)
+    sltu_res,  # SLTU (bit 4)
+    xor_res,   # XOR (bit 5)
+    srl_res,   # SRL (bit 6)
+    sra_res,   # SRA (bit 7)
+    or_res,    # OR (bit 8)
+    and_res,   # AND (bit 9)
+    alu_op2,   # SYS (bit 10)
+    Bits(32)(0),  # MUL placeholder (bit 11)
+    Bits(32)(0),  # MULH placeholder (bit 12)
+    Bits(32)(0),  # MULHSU placeholder (bit 13)
+    Bits(32)(0),  # MULHU placeholder (bit 14)
+    Bits(32)(0),  # NOP (bit 15)
+)
 ```
 
-### 3.3 ALU 计算 (Calculation)
+### 3.3 M 扩展：乘法处理
+
+使用 3 周期 Wallace Tree 乘法器处理 MUL/MULH/MULHSU/MULHU：
 
 ```python
-    # 1. 基础运算
-    sum_res = (alu_op1.bitcast(SInt) + alu_op2.bitcast(SInt)).bitcast(Bits)
-    # ... 其他运算 (AND, OR, SLL, SLT...)
-    
-    # 2. 结果选择
-    alu_result = ctrl.alu_func.select1hot(
-        sum_res, 
-        # ...
+# 检测乘法指令
+is_mul_op = is_mul | is_mulh | is_mulhsu | is_mulhu
+
+# 启动乘法器
+with Condition((is_mul_op == Bits(1)(1)) & (mul_busy == Bits(1)(0)) & (flush_if == Bits(1)(0))):
+    self.multiplier.start_multiply(
+        op1=real_rs1,
+        op2=real_rs2,
+        op1_signed=op1_signed_flag,
+        op2_signed=op2_signed_flag,
+        result_high=result_high_flag,
+        rd=wb_ctrl.rd_addr
     )
-    
-    # 3. 驱动本级 Bypass 寄存器 (向 ID 级提供数据)
-    # 这样下一拍 ID 级就能看到这条指令的结果了
-    exe_mem_bypas[0] = alu_result
+
+# 执行流水线阶段
+self.multiplier.cycle_m1()  # 部分积生成 + 2 级压缩
+self.multiplier.cycle_m2()  # Wallace Tree 压缩 (15→2)
+self.multiplier.cycle_m3()  # CLA 最终加法
 ```
 
-### 3.4 访存操作 (Store Handling)
+### 3.4 M 扩展：除法处理
 
-将 Store 指令的写入请求与 Load 指令的读取请求发送到 SRAM。
+使用 ~10 周期 Radix-16 除法器处理 DIV/DIVU/REM/REMU：
 
 ```python
-    # 仅在 is_write (Store) 为真时驱动 SRAM 的 WE
-    # 地址是 ALU 计算结果，数据是经过 Forwarding 的 rs2
-    dcache.build(
-        we    = ctrl.is_write,
-        wdata = real_rs2, 
-        addr  = alu_result,
-        re    = ctrl.mem_ctrl.is_load # 读使能来自 mem_ctrl
+# 启动除法器
+with Condition((is_div_op == Bits(1)(1)) & (div_busy == Bits(1)(0)) & (flush_if == Bits(1)(0))):
+    self.divider.start_divide(
+        dividend=real_rs1,
+        divisor=real_rs2,
+        is_signed=is_signed_div,
+        is_rem=is_rem_op,
+        rd=wb_ctrl.rd_addr
     )
+
+# 执行状态机
+self.divider.tick()
 ```
 
-### 3.5 分支处理 (Branch Handling)
-
-### 3.5.1 资源调度表 (Resource Scheduling)
-
-首先明确主ALU与专用PC加法器在不同指令下的分工，这是 ID 阶段生成控制信号的依据。
-
-| 指令类型   | **PC Adder (输入: PC, Mux)**  | **Main ALU (输入: Mux, Mux)**     | **说明**                   |
-| :--------- | :---------------------------- | :-------------------------------- | :------------------------- |
-| **Branch** | 计算 **Target** (`PC + Imm`)  | 计算 **Compare** (`rs1` vs `rs2`) | 并行计算目标与条件         |
-| **JAL**    | 计算 **Target** (`PC + Imm`)  | 计算 **Link** (`PC + 4`)          | 并行计算向后传递结果与PC值 |
-| **JALR**   | 计算 **Target** (`rs1 + Imm`) | 计算 **Link** (`PC + 4`)          | 并行计算向后传递结果与PC值 |
-| **其他**   | (Idle / Dont Care)            | 计算 **Result**                   | 常规操作                   |
-
-### 3.5.2 相关控制信号
-
-* 用于处理主ALU操作数选择的 `op1_sel` 和 `op2_sel`。
-*   `is_branch` (1-bit): 启动分支部分逻辑。
-*   `is_jalr` (1-bit): 控制 PC Adder 的第一个操作数。
-    *   `0`: 选择 `PC` (用于 Branch, JAL)
-    *   `1`: 选择 `rs1` (用于JALR)
+### 3.5 分支处理
 
 ```python
-  # 假设已完成 Forwarding，拿到了 real_rs1, real_rs2, imm, pc
-   
-  # 1. 使用专用加法器计算跳转地址，对于 JALR，基址是 rs1；对于 JAL/Branch，基址是 PC
-    
-  target_base = ctrl.is_jalr.select(
-        pc,          # 0: Branch / JAL
-        real_rs1     # 1: JALR
-  )
-    
-  # 专用加法器永远做 Base + Imm
-  calc_target = target_base + imm
+# 计算跳转目标
+is_jalr = ctrl.branch_type == BranchType.JALR
+target_base = is_jalr.select(real_rs1, pc)
+calc_target = target_base + imm
 
-  # 2. 计算分支条件
-  is_taken = is_jtype & (alu_result[0:0] == Bits(1)(1))
+# JALR: 目标地址最低位清0
+calc_target = is_jalr.select(
+    concat(raw_calc_target[1:31], Bits(1)(0)),
+    raw_calc_target,
+)
 
-  # 3. 根据指令类型决定最终的下一 PC 地址
-  final_next_pc = ctrl.is_branch.select(
-        is_taken.select(
-            calc_target        # Taken
-            pc + Bits(32)(4),  # Not Taken
-        ), next_pc_addr
-  )
+# 分支条件判断
+is_taken = (
+    is_taken_eq | is_taken_ne | is_taken_lt | is_taken_ge |
+    is_taken_ltu | is_taken_geu |
+    (ctrl.branch_type == BranchType.JAL) | is_jalr
+)
 
-  # 4. 写入分支目标寄存器，供 IF 级使用
-  branch_miss = final_next_pc != ctrl.next_pc_addr
-  branch_target_reg[0] = branch_miss.select(
-      Bits(32)(0),    # 不跳转，写 0 表示顺序执行
-      final_next_pc   # 跳转，写入目标地址
-  )
+# 检测分支预测错误
+branch_miss = final_next_pc != ctrl.next_pc_addr
+branch_target_reg[0] = branch_miss.select(final_next_pc, Bits(32)(0))
 ```
 
-### 3.6 下一级绑定与状态反馈
+### 3.6 BTB 和 Tournament Predictor 更新
 
 ```python
-    # 构造发送给 MEM 的包
-    # 只有两个参数：控制 + 统一数据
-    mem_call = mem_module.async_called(
-        mem_ctrl_signals = ctrl.mem_ctrl,
-        alu_result = alu_result
-    )
-    mem_call.bind.set_fifo_depth(ctrl=1, alu_result=1)
+# 更新 BTB (分支 taken 时)
+if btb_impl is not None:
+    should_update_btb = is_branch & is_taken & ~flush_if
+    btb_impl.update(pc=pc, target=calc_target, should_update=should_update_btb, ...)
 
-    # 3. 返回状态 (供 HazardUnit 窃听)
-    # rd_addr 用于记分牌/依赖检测
-    # is_load 用于检测 Load-Use 冒险
-    return ctrl.mem_ctrl.wb_ctrl.rd_addr, ctrl.mem_ctrl.is_load
+# 更新 Tournament Predictor (所有分支)
+if tp_impl is not None:
+    tp_should_update = is_branch & ~flush_if
+    tp_impl.update(pc=pc, actual_taken=is_taken, is_branch=tp_should_update, ...)
 ```
+
+### 3.7 输出与返回值
+
+```python
+# 更新 Bypass 寄存器
+ex_bypass[0] = final_result
+
+# 发送到 MEM 级
+mem_call = mem_module.async_called(ctrl=final_mem_ctrl, alu_result=final_result)
+
+# 返回引脚供 HazardUnit 和 SingleMemory 使用
+return final_rd, final_result, is_load, is_store, mem_width, real_rs2, mul_busy, div_busy
+```
+
+## 4. 资源调度表
+
+| 指令类型 | PC Adder | Main ALU | 说明 |
+| :--- | :--- | :--- | :--- |
+| **Branch** | PC + Imm (Target) | rs1 vs rs2 (Compare) | 并行计算目标与条件 |
+| **JAL** | PC + Imm (Target) | PC + 4 (Link) | 并行计算目标与链接地址 |
+| **JALR** | rs1 + Imm (Target) | PC + 4 (Link) | 并行计算目标与链接地址 |
+| **ALU** | (Idle) | 计算 Result | 常规操作 |
+| **Load/Store** | (Idle) | rs1 + Imm (Addr) | 地址计算 |
+| **MUL** | (Idle) | (Idle) | 乘法器处理 |
+| **DIV** | (Idle) | (Idle) | 除法器处理 |
