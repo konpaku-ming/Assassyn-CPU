@@ -101,7 +101,7 @@ class DataHazardUnit(Downstream):
         )
         rs2_sel = (rs2_used_val & ~rs2_is_zero).select(rs2_ex_bypass, Rs2Sel.RS2)
 
-        # Only log when there's stall or bypass activity
+        # Only log when there's a stall condition
         with Condition(stall_if == Bits(1)(1)):
             debug_log("Hazard: STALL")
 
