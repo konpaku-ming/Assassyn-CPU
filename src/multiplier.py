@@ -136,14 +136,14 @@ class WallaceTreeMul:
     """
     3-cycle Wallace Tree Multiplier with Carry-Lookahead Adder
 
-    - Cycle 1 (EX_M1): Generate 32 partial products
-    - Cycle 2 (EX_M2): Wallace Tree compression Levels 1-8 (32 → 2 rows)
+    - Cycle 1 (EX_M1): Generate 32 partial products + compress 2 levels (32 → 22 → 15 rows)
+    - Cycle 2 (EX_M2): Wallace Tree compression Levels 3-8 (15 → 2 rows)
     - Cycle 3 (EX_M3): Final addition using Carry-Lookahead Adder (CLA)
     """
 
     def __init__(self):
         # Pipeline stage registers
-        # Stage 1 (EX_M1): Partial product generation only
+        # Stage 1 (EX_M1): Partial product generation + 2 levels of compression
         self.m1_valid = RegArray(Bits(1), 1, initializer=[0])
         self.m1_op1 = RegArray(Bits(32), 1, initializer=[0])
         self.m1_op2 = RegArray(Bits(32), 1, initializer=[0])
@@ -152,46 +152,29 @@ class WallaceTreeMul:
         self.m1_result_high = RegArray(Bits(1), 1, initializer=[0])  # Whether to return high 32 bits
         self.m1_rd = RegArray(Bits(5), 1, initializer=[0])  # Destination register
 
-        # Stage 2 (EX_M2): Wallace Tree compression (32 → 2 rows)
-        # Store 32 partial products from Stage 1
+        # Stage 2 (EX_M2): Wallace Tree compression (15 → 2 rows)
+        # Store 15 intermediate rows from Stage 1 (after 2 levels of compression)
         self.m2_valid = RegArray(Bits(1), 1, initializer=[0])
         self.m2_result_high = RegArray(Bits(1), 1, initializer=[0])
         self.m2_rd = RegArray(Bits(5), 1, initializer=[0])  # Destination register
         # Signed multiplication correction for MULH
         self.m2_signed_correction = RegArray(Bits(32), 1, initializer=[0])
-        # 32 partial products from Stage 1
-        self.m2_pp0 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp1 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp2 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp3 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp4 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp5 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp6 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp7 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp8 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp9 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp10 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp11 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp12 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp13 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp14 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp15 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp16 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp17 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp18 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp19 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp20 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp21 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp22 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp23 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp24 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp25 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp26 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp27 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp28 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp29 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp30 = RegArray(Bits(64), 1, initializer=[0])
-        self.m2_pp31 = RegArray(Bits(64), 1, initializer=[0])
+        # 15 intermediate rows from Stage 1 (after Level 1 and Level 2 compression)
+        self.m2_row0 = RegArray(Bits(64), 1, initializer=[0])
+        self.m2_row1 = RegArray(Bits(64), 1, initializer=[0])
+        self.m2_row2 = RegArray(Bits(64), 1, initializer=[0])
+        self.m2_row3 = RegArray(Bits(64), 1, initializer=[0])
+        self.m2_row4 = RegArray(Bits(64), 1, initializer=[0])
+        self.m2_row5 = RegArray(Bits(64), 1, initializer=[0])
+        self.m2_row6 = RegArray(Bits(64), 1, initializer=[0])
+        self.m2_row7 = RegArray(Bits(64), 1, initializer=[0])
+        self.m2_row8 = RegArray(Bits(64), 1, initializer=[0])
+        self.m2_row9 = RegArray(Bits(64), 1, initializer=[0])
+        self.m2_row10 = RegArray(Bits(64), 1, initializer=[0])
+        self.m2_row11 = RegArray(Bits(64), 1, initializer=[0])
+        self.m2_row12 = RegArray(Bits(64), 1, initializer=[0])
+        self.m2_row13 = RegArray(Bits(64), 1, initializer=[0])
+        self.m2_row14 = RegArray(Bits(64), 1, initializer=[0])
 
         # Stage 3 (EX_M3): Final addition using Carry-Lookahead Adder
         # After Wallace Tree compression, we have 2 rows that need to be added
@@ -234,10 +217,10 @@ class WallaceTreeMul:
 
     def cycle_m1(self):
         """
-        Execute EX_M1 stage: Partial Product Generation only
+        Execute EX_M1 stage: Partial Product Generation + 2 Levels of Compression
 
-        This stage generates 32 partial products using AND gates.
-        No compression is performed in this cycle.
+        This stage generates 32 partial products using AND gates, then performs
+        Level 1 (32 → 22) and Level 2 (22 → 15) compression.
         """
         # Only process if stage 1 is valid
         with Condition(self.m1_valid[0] == Bits(1)(1)):
@@ -247,7 +230,7 @@ class WallaceTreeMul:
             op1_signed = self.m1_op1_signed[0]
             op2_signed = self.m1_op2_signed[0]
 
-            debug_log("EX_M1: Partial product generation (Cycle 1/3)")
+            debug_log("EX_M1: Partial product generation + 2 levels compression (Cycle 1/3)")
             debug_log("EX_M1:   Op1=0x{:x} (signed={}), Op2=0x{:x} (signed={})",
                       op1,
                       op1_signed,
@@ -312,99 +295,8 @@ class WallaceTreeMul:
             debug_log("EX_M1: 32 partial products generated")
 
             # =================================================================
-            # Store partial products in stage 2 pipeline registers
+            # Step 4: Wallace Tree Compression Level 1 (32 → 22 rows)
             # =================================================================
-            self.m2_valid[0] = Bits(1)(1)
-            self.m2_result_high[0] = self.m1_result_high[0]
-            self.m2_rd[0] = self.m1_rd[0]
-            self.m2_signed_correction[0] = signed_correction
-
-            # Store all 32 partial products
-            self.m2_pp0[0] = pp0
-            self.m2_pp1[0] = pp1
-            self.m2_pp2[0] = pp2
-            self.m2_pp3[0] = pp3
-            self.m2_pp4[0] = pp4
-            self.m2_pp5[0] = pp5
-            self.m2_pp6[0] = pp6
-            self.m2_pp7[0] = pp7
-            self.m2_pp8[0] = pp8
-            self.m2_pp9[0] = pp9
-            self.m2_pp10[0] = pp10
-            self.m2_pp11[0] = pp11
-            self.m2_pp12[0] = pp12
-            self.m2_pp13[0] = pp13
-            self.m2_pp14[0] = pp14
-            self.m2_pp15[0] = pp15
-            self.m2_pp16[0] = pp16
-            self.m2_pp17[0] = pp17
-            self.m2_pp18[0] = pp18
-            self.m2_pp19[0] = pp19
-            self.m2_pp20[0] = pp20
-            self.m2_pp21[0] = pp21
-            self.m2_pp22[0] = pp22
-            self.m2_pp23[0] = pp23
-            self.m2_pp24[0] = pp24
-            self.m2_pp25[0] = pp25
-            self.m2_pp26[0] = pp26
-            self.m2_pp27[0] = pp27
-            self.m2_pp28[0] = pp28
-            self.m2_pp29[0] = pp29
-            self.m2_pp30[0] = pp30
-            self.m2_pp31[0] = pp31
-
-            # Clear stage 1
-            self.m1_valid[0] = Bits(1)(0)
-
-    def cycle_m2(self):
-        """
-        Execute EX_M2 stage: Wallace Tree Compression Levels 1-8 (32 → 2 rows)
-
-        This stage performs all Wallace Tree compression levels, reducing
-        32 partial products down to 2 rows.
-        """
-        # Only process if stage 2 is valid
-        with Condition(self.m2_valid[0] == Bits(1)(1)):
-            debug_log("EX_M2: Wallace Tree compression (Cycle 2/3)")
-
-            # Read all 32 partial products from pipeline registers
-            pp0 = self.m2_pp0[0]
-            pp1 = self.m2_pp1[0]
-            pp2 = self.m2_pp2[0]
-            pp3 = self.m2_pp3[0]
-            pp4 = self.m2_pp4[0]
-            pp5 = self.m2_pp5[0]
-            pp6 = self.m2_pp6[0]
-            pp7 = self.m2_pp7[0]
-            pp8 = self.m2_pp8[0]
-            pp9 = self.m2_pp9[0]
-            pp10 = self.m2_pp10[0]
-            pp11 = self.m2_pp11[0]
-            pp12 = self.m2_pp12[0]
-            pp13 = self.m2_pp13[0]
-            pp14 = self.m2_pp14[0]
-            pp15 = self.m2_pp15[0]
-            pp16 = self.m2_pp16[0]
-            pp17 = self.m2_pp17[0]
-            pp18 = self.m2_pp18[0]
-            pp19 = self.m2_pp19[0]
-            pp20 = self.m2_pp20[0]
-            pp21 = self.m2_pp21[0]
-            pp22 = self.m2_pp22[0]
-            pp23 = self.m2_pp23[0]
-            pp24 = self.m2_pp24[0]
-            pp25 = self.m2_pp25[0]
-            pp26 = self.m2_pp26[0]
-            pp27 = self.m2_pp27[0]
-            pp28 = self.m2_pp28[0]
-            pp29 = self.m2_pp29[0]
-            pp30 = self.m2_pp30[0]
-            pp31 = self.m2_pp31[0]
-
-            # =================================================================
-            # Wallace Tree Compression Levels 1-8 (32 → 2 rows)
-            # =================================================================
-
             # Level 1: 32 → 22 rows (10 groups of 3, 2 passthrough)
             s1_0, c1_0 = full_adder_64bit(pp0, pp1, pp2)
             s1_1, c1_1 = full_adder_64bit(pp3, pp4, pp5)
@@ -417,8 +309,13 @@ class WallaceTreeMul:
             s1_8, c1_8 = full_adder_64bit(pp24, pp25, pp26)
             s1_9, c1_9 = full_adder_64bit(pp27, pp28, pp29)
             # Passthrough: pp30, pp31
-            # Level 1 output: 22 rows
+            # Level 1 output: 22 rows total (10 sum outputs: s1_0..s1_9, 10 carry outputs: c1_0..c1_9, 2 passthrough: pp30, pp31)
 
+            debug_log("EX_M1: Level 1 compression complete (32 -> 22 rows)")
+
+            # =================================================================
+            # Step 5: Wallace Tree Compression Level 2 (22 → 15 rows)
+            # =================================================================
             # Level 2: 22 → 15 rows (7 groups of 3, 1 passthrough)
             s2_0, c2_0 = full_adder_64bit(s1_0, c1_0, s1_1)
             s2_1, c2_1 = full_adder_64bit(c1_1, s1_2, c1_2)
@@ -428,7 +325,69 @@ class WallaceTreeMul:
             s2_5, c2_5 = full_adder_64bit(c1_7, s1_8, c1_8)
             s2_6, c2_6 = full_adder_64bit(s1_9, c1_9, pp30)
             # Passthrough: pp31
-            # Level 2 output: 15 rows
+            # Level 2 output: 15 rows total (7 sum outputs: s2_0..s2_6, 7 carry outputs: c2_0..c2_6, 1 passthrough: pp31)
+
+            debug_log("EX_M1: Level 2 compression complete (22 -> 15 rows)")
+
+            # =================================================================
+            # Store 15 intermediate rows in stage 2 pipeline registers
+            # =================================================================
+            self.m2_valid[0] = Bits(1)(1)
+            self.m2_result_high[0] = self.m1_result_high[0]
+            self.m2_rd[0] = self.m1_rd[0]
+            self.m2_signed_correction[0] = signed_correction
+
+            # Store all 15 intermediate rows
+            self.m2_row0[0] = s2_0
+            self.m2_row1[0] = c2_0
+            self.m2_row2[0] = s2_1
+            self.m2_row3[0] = c2_1
+            self.m2_row4[0] = s2_2
+            self.m2_row5[0] = c2_2
+            self.m2_row6[0] = s2_3
+            self.m2_row7[0] = c2_3
+            self.m2_row8[0] = s2_4
+            self.m2_row9[0] = c2_4
+            self.m2_row10[0] = s2_5
+            self.m2_row11[0] = c2_5
+            self.m2_row12[0] = s2_6
+            self.m2_row13[0] = c2_6
+            self.m2_row14[0] = pp31
+
+            # Clear stage 1
+            self.m1_valid[0] = Bits(1)(0)
+
+    def cycle_m2(self):
+        """
+        Execute EX_M2 stage: Wallace Tree Compression Levels 3-8 (15 → 2 rows)
+
+        This stage continues Wallace Tree compression from 15 rows down to 2 rows.
+        """
+        # Only process if stage 2 is valid
+        with Condition(self.m2_valid[0] == Bits(1)(1)):
+            debug_log("EX_M2: Wallace Tree compression Levels 3-8 (Cycle 2/3)")
+
+            # Read all 15 intermediate rows from pipeline registers
+            # From Level 2 output: s2_0..s2_6, c2_0..c2_6, pp31
+            s2_0 = self.m2_row0[0]
+            c2_0 = self.m2_row1[0]
+            s2_1 = self.m2_row2[0]
+            c2_1 = self.m2_row3[0]
+            s2_2 = self.m2_row4[0]
+            c2_2 = self.m2_row5[0]
+            s2_3 = self.m2_row6[0]
+            c2_3 = self.m2_row7[0]
+            s2_4 = self.m2_row8[0]
+            c2_4 = self.m2_row9[0]
+            s2_5 = self.m2_row10[0]
+            c2_5 = self.m2_row11[0]
+            s2_6 = self.m2_row12[0]
+            c2_6 = self.m2_row13[0]
+            pp31 = self.m2_row14[0]
+
+            # =================================================================
+            # Wallace Tree Compression Levels 3-8 (15 → 2 rows)
+            # =================================================================
 
             # Level 3: 15 → 10 rows (5 groups of 3)
             s3_0, c3_0 = full_adder_64bit(s2_0, c2_0, s2_1)
