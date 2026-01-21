@@ -157,6 +157,8 @@ class WallaceTreeMul:
         self.m2_valid = RegArray(Bits(1), 1, initializer=[0])
         self.m2_result_high = RegArray(Bits(1), 1, initializer=[0])
         self.m2_rd = RegArray(Bits(5), 1, initializer=[0])  # Destination register
+        # Signed multiplication correction for MULH
+        self.m2_signed_correction = RegArray(Bits(32), 1, initializer=[0])
         # 32 partial products from Stage 1
         self.m2_pp0 = RegArray(Bits(64), 1, initializer=[0])
         self.m2_pp1 = RegArray(Bits(64), 1, initializer=[0])
@@ -199,6 +201,8 @@ class WallaceTreeMul:
         # 2 final rows from Wallace Tree compression output
         self.m3_row0 = RegArray(Bits(64), 1, initializer=[0])
         self.m3_row1 = RegArray(Bits(64), 1, initializer=[0])
+        # Signed multiplication correction for MULH
+        self.m3_signed_correction = RegArray(Bits(32), 1, initializer=[0])
 
         # Final result storage
         self.m3_result_ready = RegArray(Bits(1), 1, initializer=[0])
@@ -241,12 +245,14 @@ class WallaceTreeMul:
             op1 = self.m1_op1[0]
             op2 = self.m1_op2[0]
             op1_signed = self.m1_op1_signed[0]
+            op2_signed = self.m1_op2_signed[0]
 
             debug_log("EX_M1: Partial product generation (Cycle 1/3)")
-            debug_log("EX_M1:   Op1=0x{:x} (signed={}), Op2=0x{:x}",
+            debug_log("EX_M1:   Op1=0x{:x} (signed={}), Op2=0x{:x} (signed={})",
                       op1,
                       op1_signed,
-                      op2)
+                      op2,
+                      op2_signed)
 
             # =================================================================
             # Step 1: Sign/Zero extend operands to 64 bits
@@ -254,7 +260,16 @@ class WallaceTreeMul:
             op1_ext = sign_zero_extend(op1, op1_signed)  # 64-bit extended op1
 
             # =================================================================
-            # Step 2: Generate 32 Partial Products
+            # Step 2: Compute signed multiplication correction for MULH
+            # When op2 is signed and negative (op2[31]=1), we need to correct
+            # the result because the MSB represents -2^31 instead of +2^31.
+            # The correction is: subtract op1 from the high 32 bits of result.
+            # =================================================================
+            need_correction = op2_signed & op2[31:31]
+            signed_correction = need_correction.select(op1, Bits(32)(0))
+
+            # =================================================================
+            # Step 3: Generate 32 Partial Products
             # For each bit i of op2: pp[i] = (op2[i] ? op1_ext : 0) << i
             # =================================================================
 
@@ -302,6 +317,7 @@ class WallaceTreeMul:
             self.m2_valid[0] = Bits(1)(1)
             self.m2_result_high[0] = self.m1_result_high[0]
             self.m2_rd[0] = self.m1_rd[0]
+            self.m2_signed_correction[0] = signed_correction
 
             # Store all 32 partial products
             self.m2_pp0[0] = pp0
@@ -457,6 +473,7 @@ class WallaceTreeMul:
             self.m3_valid[0] = Bits(1)(1)
             self.m3_result_high[0] = self.m2_result_high[0]
             self.m3_rd[0] = self.m2_rd[0]
+            self.m3_signed_correction[0] = self.m2_signed_correction[0]
 
             # Store the 2 final rows
             self.m3_row0[0] = s8_final
@@ -479,6 +496,7 @@ class WallaceTreeMul:
             # Read the 2 final rows from pipeline registers
             s8_final = self.m3_row0[0]
             c8_final = self.m3_row1[0]
+            signed_correction = self.m3_signed_correction[0]
 
             # =================================================================
             # CLA (Carry-Lookahead Adder) - Final Addition
@@ -487,7 +505,14 @@ class WallaceTreeMul:
 
             # Select which 32 bits to return based on operation type
             partial_low = product_64[0:31].bitcast(Bits(32))
-            partial_high = product_64[32:63].bitcast(Bits(32))
+            partial_high_raw = product_64[32:63].bitcast(Bits(32))
+
+            # =================================================================
+            # Apply signed multiplication correction for MULH
+            # When op2 was signed and negative, we need to subtract op1 from
+            # the high 32 bits to correct for treating op2's MSB as positive.
+            # =================================================================
+            partial_high = (partial_high_raw.bitcast(UInt(32)) - signed_correction.bitcast(UInt(32))).bitcast(Bits(32))
 
             result = self.m3_result_high[0].select(
                 partial_high,  # High 32 bits for MULH/MULHSU/MULHU
